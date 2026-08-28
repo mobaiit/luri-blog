@@ -70,54 +70,53 @@ function loadAllPosts() {
 }
 
 /**
- * 生成单个页面的 HTML 字符串
+ * 基于 Vite 构建出的 dist/index.html，替换 <head> 里的 SEO 相关标签，
+ * 生成指定页面的 HTML。这样可以保留 Vite 注入的正确 JS/CSS 资源路径。
+ *
+ * @param {string} baseHtml   - dist/index.html 的原始内容
  * @param {object} opts
- * @param {string} opts.title       - <title> 内容
- * @param {string} opts.description - meta description
- * @param {string} opts.canonical   - 规范 URL
- * @param {string} opts.siteUrl     - 站点根地址（无尾部斜杠）
- * @param {string} opts.date        - 文章发布日期（可选，用于 og:article）
+ * @param {string} opts.title
+ * @param {string} opts.description
+ * @param {string} opts.canonical
+ * @param {string} [opts.date]  - 文章发布日期，有值时插入 og:article 标签
  */
-function buildHtml(opts) {
-  const { title, description, canonical, siteUrl, date } = opts;
+function injectMeta(baseHtml, opts) {
+  const { title, description, canonical, date } = opts;
   const fullTitle = title.includes('LURI') ? title : `${title} · LURI 落墨留白`;
   const ogType = date ? 'article' : 'website';
-  const dateTag = date
+
+  const articleTag = date
     ? `\n    <meta property="article:published_time" content="${date}" />`
     : '';
 
-  return `<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  const seoBlock = `
     <title>${fullTitle}</title>
     <meta name="description" content="${description}" />
     <link rel="canonical" href="${canonical}" />
-    <link rel="icon" type="image/png" href="/images/luri-logo.png" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="${ogType}" />
     <meta property="og:title" content="${fullTitle}" />
     <meta property="og:description" content="${description}" />
-    <meta property="og:url" content="${canonical}" />${dateTag}
+    <meta property="og:url" content="${canonical}" />${articleTag}`;
 
-    <!-- 百度相关 -->
-    <meta name="baidu-site-verification" content="BAIDU_VERIFY_TOKEN" />
-    <meta name="referrer" content="no-referrer-when-downgrade" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
-`;
+  // 替换原有的 <title> 标签
+  let html = baseHtml.replace(/<title>[^<]*<\/title>/, '');
+
+  // 替换原有的 <meta name="description"> 标签（如果有）
+  html = html.replace(/<meta name="description"[^>]*\/?>/, '');
+
+  // 替换原有的 <link rel="canonical"> 标签（如果有）
+  html = html.replace(/<link rel="canonical"[^>]*\/?>/, '');
+
+  // 在 </head> 前插入完整 SEO block
+  html = html.replace('</head>', `${seoBlock}\n  </head>`);
+
+  return html;
 }
 
 /**
  * 生成 sitemap.xml 内容
- * @param {string[]} urls - 完整 URL 列表
- * @param {string} lastmod - 最后修改时间
  */
 function buildSitemap(urls, lastmod) {
   const items = urls
@@ -210,12 +209,21 @@ export default function postsPlugin(userOptions = {}) {
     },
 
     /**
-     * 构建完成后钩子：生成多入口 HTML 和 sitemap.xml
-     * writeBundle 在文件写入 dist 后触发，可以继续往 dist 里写文件
+     * 构建完成后钩子：基于 Vite 生成的 index.html，为每个路由生成带 SEO meta 的 HTML，
+     * 同时生成 sitemap.xml。
+     * writeBundle 在 Vite 写完所有文件后触发。
      */
     async writeBundle() {
       const posts = loadAllPosts();
       const today = new Date().toISOString().slice(0, 10);
+
+      // 读取 Vite 构建好的 index.html 作为模板（含正确的 JS/CSS 资源路径）
+      const baseHtmlPath = path.join(outDir, 'index.html');
+      if (!fs.existsSync(baseHtmlPath)) {
+        console.warn('[vite-plugin-posts] 找不到 dist/index.html，跳过 SEO HTML 生成');
+        return;
+      }
+      const baseHtml = fs.readFileSync(baseHtmlPath, 'utf-8');
 
       // 静态页面配置
       const staticPages = [
@@ -247,17 +255,15 @@ export default function postsPlugin(userOptions = {}) {
         const canonical = `${siteUrl}${page.route === '/' ? '' : page.route}`;
         allUrls.push(canonical || siteUrl);
 
-        // 仅在对应目录不存在同名文件时写入（不覆盖 Vite 已生成的 index.html，只补充 /blog 和 /about）
         const dir = path.dirname(page.outPath);
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
         }
 
-        const html = buildHtml({
+        const html = injectMeta(baseHtml, {
           title: page.title,
           description: page.description,
           canonical: canonical || siteUrl,
-          siteUrl,
         });
 
         fs.writeFileSync(page.outPath, html, 'utf-8');
@@ -278,11 +284,10 @@ export default function postsPlugin(userOptions = {}) {
           ? meta.excerpt.slice(0, 160)
           : `${meta.title} - LURI 落墨留白`;
 
-        const html = buildHtml({
+        const html = injectMeta(baseHtml, {
           title: meta.title,
           description,
           canonical,
-          siteUrl,
           date: meta.date,
         });
 
@@ -295,7 +300,6 @@ export default function postsPlugin(userOptions = {}) {
       const sitemap = buildSitemap(allUrls, today);
       fs.writeFileSync(path.join(outDir, 'sitemap.xml'), sitemap, 'utf-8');
       console.log(`[vite-plugin-posts] 生成 sitemap.xml → ${allUrls.length} 条 URL`);
-
     },
 
     // dev 模式热更新
