@@ -11,7 +11,7 @@ function WalineComments() {
     if (!containerRef.current) return;
     const instance = init({
       el: containerRef.current,
-      serverURL: 'https://comments.lmlb.cc.cd',
+      serverURL: 'https://comments.luri.cc.cd',
       lang: 'zh-CN',
       dark: 'auto',
       avatar: 'wavatar',

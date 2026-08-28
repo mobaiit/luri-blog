@@ -112,10 +112,10 @@ Redirect is not allowed for a preflight request.
 
 **解决方案**：给 Waline 服务绑一个自定义子域名。
 
-在 Cloudflare DNS 里加一条 CNAME 记录，把 `comments.lmlb.cc.cd` 指向 `cname.vercel-dns.com`，然后在 Vercel 项目里绑定这个域名。绑好之后 Vercel 不会对自定义域名做这种跳转，CORS 问题彻底消失。
+在 Cloudflare DNS 里加一条 CNAME 记录，把 `comments.luri.cc.cd` 指向 `cname.vercel-dns.com`，然后在 Vercel 项目里绑定这个域名。绑好之后 Vercel 不会对自定义域名做这种跳转，CORS 问题彻底消失。
 
 ```
-前端 serverURL: https://comments.lmlb.cc.cd
+前端 serverURL: https://comments.luri.cc.cd
 ```
 
 ### Waline 样式覆盖
