@@ -15,7 +15,10 @@ content:
     type: collection
     path: src/posts
     filename:
-      template: "{year}-{month}-{day}-{title}.md"
+      # Chinese titles cannot always be slugified into a URL-safe filename.
+      # The generated timestamp is safe and unique; the create screen also
+      # lets you replace it with an English slug when desired.
+      template: "{year}-{month}-{day}-{hour}{minute}{second}.md"
       field: create
     view:
       fields: [title, date, tags]
