@@ -52,7 +52,7 @@ export default function Comments() {
         {tab === 'waline' && <WalineComments />}
         {tab === 'giscus' && (
           <Giscus
-            repo="mobaiit/ycweb"
+            repo="mobaiit/luri-blog"
             repoId="R_kgDOUFu-Og"
             category="Ideas"
             categoryId="DIC_kwDOUFu-Os4DEWNw"
