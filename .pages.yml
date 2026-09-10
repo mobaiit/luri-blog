@@ -1,0 +1,62 @@
+# Pages CMS configuration
+# Open https://app.pagescms.org, sign in with GitHub, then select this repository.
+media:
+  - name: post_images
+    label: 文章图片
+    input: public/images/posts
+    output: /images/posts
+    categories: [image]
+    extensions: [png, jpg, jpeg, webp, gif, svg]
+    rename: safe
+
+content:
+  - name: posts
+    label: 博客文章
+    type: collection
+    path: src/posts
+    filename:
+      template: "{year}-{month}-{day}-{title}.md"
+      field: create
+    view:
+      fields: [title, date, tags]
+      primary: title
+      sort: [date, title]
+      search: [title, excerpt, tags]
+      default:
+        sort: date
+        order: desc
+    fields:
+      - name: title
+        label: 标题
+        type: string
+        required: true
+        options:
+          maxlength: 120
+      - name: date
+        label: 发布日期
+        type: date
+        required: true
+        options:
+          format: yyyy-MM-dd
+      - name: tags
+        label: 标签
+        type: string
+        list: true
+        description: 每个标签单独添加；可留空。
+      - name: excerpt
+        label: 摘要
+        type: text
+        description: 显示在文章列表和文章头部；可留空。
+        options:
+          maxlength: 300
+      - name: body
+        label: 正文
+        type: rich-text
+        required: true
+        options:
+          format: markdown
+          switcher: true
+          media: post_images
+          extensions: [png, jpg, jpeg, webp, gif, svg]
+          categories: [image]
+          rename: safe
