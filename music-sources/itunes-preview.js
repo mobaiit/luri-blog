@@ -6,7 +6,7 @@
 const { EVENT_NAMES, request, on, send } = globalThis.lx;
 
 const getJson = (url) => new Promise((resolve, reject) => {
-  request(url, { method: 'GET' }, (error, response) => {
+  request(url, { method: 'GET', headers: { Accept: 'application/json', 'User-Agent': 'luri-blog-music/1.0' } }, (error, response) => {
     if (error || response.statusCode < 200 || response.statusCode >= 300) return reject(error || new Error(response.statusMessage));
     resolve(response.body);
   });
