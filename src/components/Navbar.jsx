@@ -3,9 +3,9 @@ import { NavLink } from 'react-router-dom';
 import './Navbar.css';
 
 const NAV_ITEMS = [
-  { label: '音乐', to: '/music' },
   { label: '首页', to: '/' },
   { label: '随笔', to: '/blog' },
+  { label: '音乐', to: '/music' },
   { label: '关于', to: '/about' },
 ];
 
