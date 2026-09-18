@@ -28,13 +28,15 @@ export default function Music() {
   const audio = useRef(null);
   const [query, setQuery] = useState(() => localStorage.getItem(STORE_QUERY) || ''); const [results, setResults] = useState(() => readStore(STORE_SEARCH)); const [cachedResults, setCachedResults] = useState(() => readStore(STORE_SEARCH)); const [searchState, setSearchState] = useState('');
   const [listView, setListView] = useState('search');
+  const [activeQueue, setActiveQueue] = useState('normal');
   const [resultPage, setResultPage] = useState(0); const [hasMoreResults, setHasMoreResults] = useState(false); const [loadingMore, setLoadingMore] = useState(false);
   const [tracks, setTracks] = useState(() => readStore(STORE_QUEUE)); const [likedTracks, setLikedTracks] = useState(() => readStore(STORE_LIKES)); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0); const [liked, setLiked] = useState(() => new Set(readStore(STORE_LIKES).map((track) => track.id)));
   const [volume, setVolume] = useState(0.8); const [muted, setMuted] = useState(false);
   const [lyrics, setLyrics] = useState(''); const [lyricsState, setLyricsState] = useState('');
   const lyricsRef = useRef(null);
-  const current = tracks.find((track) => track.id === currentId);
+  const activeTracks = activeQueue === 'favorites' ? likedTracks : tracks;
+  const current = activeTracks.find((track) => track.id === currentId);
   const lyricLines = lyrics.split(/\r?\n/).filter(Boolean).map(lyricLine).filter((line) => line.text);
   const activeLyric = lyricLines.reduce((active, line, index) => line.time >= 0 && line.time <= progress ? index : active, -1);
 
@@ -50,7 +52,7 @@ export default function Music() {
   useEffect(() => {
     if (!current || current.url) return undefined;
     const controller = new AbortController(); const meta = current.meta ? `&meta=${encodeURIComponent(JSON.stringify(current.meta))}` : '';
-    fetch(`/api/music/resolve?id=${encodeURIComponent(current.id.replace(/^track:[^:]+:/, ''))}&source=${encodeURIComponent(current.source || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (payload.url && !controller.signal.aborted) setTracks((items) => items.map((track) => track.id === current.id ? { ...track, url: payload.url } : track)); }).catch(() => {});
+    fetch(`/api/music/resolve?id=${encodeURIComponent(current.id.replace(/^track:[^:]+:/, ''))}&source=${encodeURIComponent(current.source || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, url: payload.url } : track)); }).catch(() => {});
     return () => controller.abort();
   }, [current?.id, current?.url]);
   useEffect(() => { try { localStorage.setItem(STORE_QUEUE, JSON.stringify(tracks.slice(0, 50).map(({ url, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [tracks]);
@@ -65,8 +67,10 @@ export default function Music() {
     fetch(`/api/music/lyrics?${params}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (!controller.signal.aborted) { setLyrics(payload.lyrics || ''); setLyricsState(payload.lyrics ? '' : '暂无匹配歌词'); } }).catch(() => { if (!controller.signal.aborted) setLyricsState('暂无匹配歌词'); });
     return () => controller.abort();
   }, [current?.id]);
-  const next = () => { const index = tracks.findIndex((track) => track.id === currentId); if (tracks.length) setCurrentId(tracks[(index + 1 + tracks.length) % tracks.length].id); };
-  const toggle = () => { if (!current && tracks[0]) return setCurrentId(tracks[0].id); if (playing) audio.current?.pause(); else audio.current?.play().catch(() => setPlaying(false)); };
+  const next = () => { const index = activeTracks.findIndex((track) => track.id === currentId); if (activeTracks.length) setCurrentId(activeTracks[(index + 1 + activeTracks.length) % activeTracks.length].id); };
+  const previous = () => { const index = activeTracks.findIndex((track) => track.id === currentId); if (activeTracks.length) setCurrentId(activeTracks[(index - 1 + activeTracks.length) % activeTracks.length].id); };
+  const toggle = () => { if (!current && activeTracks[0]) return setCurrentId(activeTracks[0].id); if (playing) audio.current?.pause(); else audio.current?.play().catch(() => setPlaying(false)); };
+  useEffect(() => { const controls = document.querySelector('.music-controls'); if (!controls) return undefined; const handlePrevious = (event) => { if (activeQueue !== 'favorites' || event.target.closest('[title="上一首"]') == null) return; event.stopPropagation(); previous(); }; controls.addEventListener('click', handlePrevious, true); return () => controls.removeEventListener('click', handlePrevious, true); }, [activeQueue, activeTracks, currentId]);
   const like = (id) => {
     const song = current || tracks.find((track) => track.id === id) || results.find((track) => track.id === id); if (!song) return;
     setLiked((items) => { const nextItems = new Set(items); const exists = nextItems.has(id); exists ? nextItems.delete(id) : nextItems.add(id); setLikedTracks((saved) => exists ? saved.filter((track) => track.id !== id) : [...saved.filter((track) => track.id !== id), { ...song, url: undefined }]); return nextItems; });
@@ -96,11 +100,12 @@ export default function Music() {
   const playResult = async (result) => {
     setSearchState(TEXT.load);
     try {
+      const rawId = String(result.id).replace(/^track:[^:]+:/, ''); const queue = listView === 'likes' ? 'favorites' : 'normal'; setActiveQueue(queue);
       const meta = result.meta ? `&meta=${encodeURIComponent(JSON.stringify(result.meta))}` : '';
-      const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(result.id)}&source=${encodeURIComponent(result.source || '')}${meta}`); if (!response.ok) throw Error();
+      const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(rawId)}&source=${encodeURIComponent(result.source || '')}${meta}`); if (!response.ok) throw Error();
       const payload = await response.json(); if (!payload.url) throw Error();
-      const track = { ...result, id: `track:${result.source || 'default'}:${result.id}`, url: payload.url, art: result.art || EMPTY_ART };
-      setTracks((items) => [track, ...items.filter((item) => item.id !== track.id)].slice(0, 50)); setCurrentId(track.id); setSearchState('正在加载音频…');
+      const track = { ...result, id: `track:${result.source || 'default'}:${rawId}`, url: payload.url, art: result.art || EMPTY_ART };
+      if (queue === 'favorites') setLikedTracks((items) => items.map((item) => item.id === track.id ? track : item)); else setTracks((items) => [track, ...items.filter((item) => item.id !== track.id)].slice(0, 50)); setCurrentId(track.id); setSearchState('正在加载音频…');
     } catch { setSearchState(TEXT.unavailable); }
   };
   const downloadCurrent = () => {
@@ -115,7 +120,7 @@ export default function Music() {
   }, [current?.url]);
 
   return <main className="music-page"><audio ref={audio} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={next} />
-  <section className="music-shell"><aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className={`music-nav${listView === 'search' ? ' active' : ''}`} onClick={() => { setListView('search'); setResults(cachedResults); }}>播放列表<span>{tracks.length}</span></button><button className={`music-nav${listView === 'likes' ? ' active' : ''}`} onClick={() => { setListView('likes'); setResults(likedTracks); }}>我喜欢<span>{liked.size}</span></button><div className="music-divider" /></aside>
+  <section className="music-shell"><aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className={`music-nav${listView === 'queue' ? ' active' : ''}`} onClick={() => { setListView('queue'); setResults(tracks); }}>播放列表<span>{tracks.length}</span></button><button className={`music-nav${listView === 'likes' ? ' active' : ''}`} onClick={() => { setListView('likes'); setResults(likedTracks); }}>我喜欢<span>{liked.size}</span></button><div className="music-divider" /></aside>
       <section className="music-content"><header className="music-header"><div><p className="music-kicker">LURI MUSIC</p><h1>{TEXT.title}</h1></div><form className="music-search" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={TEXT.searchHint} /><button className="music-icon-button" type="submit" aria-label={TEXT.search} title={TEXT.search}><MusicIcon name="search" /></button></form><p className="music-disclaimer music-disclaimer--search">免责声明：本页仅提供搜索与播放界面，不托管、不复制、不代理任何音频文件，资源均来源网络。</p></header>
         <div className="music-workspace"><section className="music-results"><div className="music-list-head"><span>{results.length ? TEXT.search : TEXT.queue}</span><small>{results.length || tracks.length} {TEXT.tracks}</small></div><div className="music-list" onScroll={loadNextPage}>{(results.length ? results : tracks).map((track, index) => <button key={`${track.source || 'queue'}:${track.id}`} className={`music-row${track.id === currentId ? ' current' : ''}`} onClick={() => results.length ? playResult(track) : setCurrentId(track.id)}><span className="track-index">{String(index + 1).padStart(2, '0')}</span><img src={track.art || EMPTY_ART} alt="" /><span className="track-title">{track.title}<small>{track.artist}{track.year ? ` · ${track.year}` : ''}</small></span><span className="track-action">{results.length ? TEXT.play : liked.has(track.id) ? TEXT.likes : TEXT.play}</span></button>)}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!results.length && !tracks.length && <div className="music-empty"><strong>{TEXT.noResult}</strong><span>{TEXT.choose}</span></div>}</div><p className="source-summary">{searchState || TEXT.source}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" /><div><p>歌词</p><h2>{current?.title || TEXT.noTrack}</h2><span>{current?.artist || TEXT.choose}</span></div><button className={`like-button${current && liked.has(current.id) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.id)}>{TEXT.likes}</button></div><div className="lyrics-body">{lyrics ? lyrics.split(/\r?\n/).filter(Boolean).map((line, index) => <p key={`${line}-${index}`}>{line.replace(/^\[\d{2}:\d{2}(?:\.\d{2,3})?\]/, '')}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
     <footer className="music-player"><div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" /><span>{current?.title || TEXT.noTrack}<small>{current?.artist || 'LURI MUSIC'}</small></span></div><div className="music-controls"><div><button className="music-icon-button" onClick={() => { const index = tracks.findIndex((track) => track.id === currentId); if (tracks.length) setCurrentId(tracks[(index - 1 + tracks.length) % tracks.length].id); }} aria-label={TEXT.prev} title={TEXT.prev}><MusicIcon name="previous" /></button><button className="music-icon-button play-button" onClick={toggle} aria-label={playing ? TEXT.pause : TEXT.play} title={playing ? TEXT.pause : TEXT.play}><MusicIcon name={playing ? 'pause' : 'play'} /></button><button className="music-icon-button" onClick={next} aria-label={TEXT.next} title={TEXT.next}><MusicIcon name="next" /></button></div><div className="timeline"><span>{time(progress)}</span><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /><span>{time(duration)}</span></div></div><div className="music-volume"><button className="music-icon-button" onClick={() => setMuted((value) => !value)} aria-label={muted || volume === 0 ? '取消静音' : '静音'} title={muted || volume === 0 ? '取消静音' : '静音'}><MusicIcon name={muted || volume === 0 ? 'mute' : 'volume'} /></button><input type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} aria-label="音量" onChange={(event) => { const value = Number(event.target.value); setVolume(value); setMuted(value === 0); }} /></div></footer>
