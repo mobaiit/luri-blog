@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Blog from './pages/Blog';
 import PostDetail from './pages/PostDetail';
+import Music from './pages/Music';
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<PostDetail />} />
+        <Route path="/music" element={<Music />} />
         {/* 404 */}
         <Route
           path="*"
