@@ -62,3 +62,6 @@
 /* Search rows are text-first; the full cover belongs to the active song. */
 .music-row{grid-template-columns:38px minmax(0,1fr) 42px}.music-row img{display:none}
 @media(min-width:761px){.music-row{grid-template-columns:42px minmax(0,1fr) 50px}}
+
+/* Do not pull the lyric panel upward: metadata and lyrics flow naturally. */
+@media(min-width:761px){.music-lyrics{margin-top:0;padding-top:0}.lyrics-track{text-align:left}.lyrics-body{padding:.35rem 0 1.5rem;scroll-padding-block:0}}
