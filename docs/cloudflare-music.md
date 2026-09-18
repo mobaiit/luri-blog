@@ -1,6 +1,6 @@
-# Music catalog deployment
+# Music source deployment
 
-The music page is a static React page. Its extension discovery endpoint is a Cloudflare Pages Function at `/api/music/sources`.
+The music page is a static React page. Cloudflare Pages Functions run only small search and URL-resolution requests; audio is always delivered directly from the source to the visitor's browser.
 
 Deploy this repository through Cloudflare Pages as usual. Pages automatically publishes the `functions/` directory alongside the Vite build output.
 
@@ -8,9 +8,11 @@ The endpoint searches public GitHub repositories for LX Music source projects an
 
 `/api/music/sources` returns repository metadata only: repository name, URL, description, star count, and update time.
 
-The player uses two private Pages Function adapters:
+The extension discovery endpoint is a Cloudflare Pages Function at `/api/music/sources`; it returns repository metadata only.
 
-- `GET /api/music/search?q=...` calls the endpoint in `MUSIC_SEARCH_ENDPOINT` and normalizes its results.
-- `GET /api/music/resolve?id=...&source=...` calls the endpoint in `MUSIC_RESOLVE_ENDPOINT` and returns only the final audio URL.
+- `GET /api/music/search?q=...` runs every loaded source that declares `search`, merges their results, and returns small JSON metadata.
+- `GET /api/music/resolve?id=...&source=...` runs `musicUrl` for the selected source and returns a URL only.
 
-Set these two values, and optionally `MUSIC_SOURCE_TOKEN`, as encrypted Pages environment variables. They are never sent to the browser or committed to Git. Audio itself is not proxied: once a URL is resolved, the browser connects to it directly.
+Source scripts are kept in `music-sources/`. To add another source, put its script there and add a loader in `music-sources/index.js`; Cloudflare Workers need explicit imports to include scripts in the deployed bundle. A searchable script must register an `lx.on(EVENT_NAMES.request, ...)` handler for the `search` action and return tracks with `id` (or `songmid`/`hash`), `title`, and `source`. Preserve the full source-specific track object as `musicInfo` when resolving needs fields beyond the ID.
+
+The bundled `itunes-preview.js` source provides a working music list using public preview URLs. Search and resolution use Cloudflare, but the browser connects directly to the returned audio URL; Cloudflare never proxies audio bytes. HTTPS deployments require HTTPS audio URLs (browsers block mixed `http` media).

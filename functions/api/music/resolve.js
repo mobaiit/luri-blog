@@ -1,11 +1,20 @@
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 
 export async function onRequestGet({ request, env }) {
-  const url = new URL(request.url); const id = url.searchParams.get('id'); const source = url.searchParams.get('source');
+  const url = new URL(request.url); const id = url.searchParams.get('id'); const source = url.searchParams.get('source'); const meta = url.searchParams.get('meta');
   if (!id) return json({ error: 'Missing track id' }, 400);
-  if (!env.MUSIC_RESOLVE_ENDPOINT) return json({ error: 'Music resolver is not configured' }, 503);
-  const target = new URL(env.MUSIC_RESOLVE_ENDPOINT); target.searchParams.set('id', id); if (source) target.searchParams.set('source', source);
-  const response = await fetch(target, { headers: env.MUSIC_SOURCE_TOKEN ? { Authorization: `Bearer ${env.MUSIC_SOURCE_TOKEN}` } : {} });
-  if (!response.ok) return json({ error: 'Music resolver is unavailable' }, 502);
-  const payload = await response.json(); return json({ url: payload.url || payload.data?.url || payload.data || '' });
+  if (!source) return json({ error: 'Missing music source' }, 400);
+  try {
+    let musicInfo = { songmid: id, hash: id };
+    if (meta && meta.length <= 8192) {
+      const parsed = JSON.parse(meta);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) musicInfo = parsed;
+    }
+    const { getMusicRuntime } = await import('../../_music/source-runtime.js');
+    const runtime = await getMusicRuntime();
+    const result = await runtime.invoke({ source, action: 'musicUrl', info: { musicInfo, type: '128k' } });
+    return json({ url: typeof result === 'string' ? result : result?.url || '' });
+  } catch {
+    return json({ error: 'Music resolver is unavailable' }, 502);
+  }
 }

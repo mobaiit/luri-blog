@@ -41,7 +41,8 @@ export default function Music() {
   const playResult = async (result) => {
     setSearchState(TEXT.load);
     try {
-      const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(result.id)}&source=${encodeURIComponent(result.source || '')}`); if (!response.ok) throw Error();
+      const meta = result.meta ? `&meta=${encodeURIComponent(JSON.stringify(result.meta))}` : '';
+      const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(result.id)}&source=${encodeURIComponent(result.source || '')}${meta}`); if (!response.ok) throw Error();
       const payload = await response.json(); if (!payload.url) throw Error();
       const track = { ...result, id: `track:${result.source || 'default'}:${result.id}`, url: payload.url, art: result.art || EMPTY_ART };
       setTracks((items) => items.some((item) => item.id === track.id) ? items : [...items, track]); setCurrentId(track.id); setSearchState('');
