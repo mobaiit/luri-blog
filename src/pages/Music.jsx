@@ -9,6 +9,7 @@ const STORE_QUEUE = 'luri.music.queue.v1'; const STORE_LIKES = 'luri.music.likes
 const readStore = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
 // The source status is shown only while an operation is in progress.
 TEXT.source = '';
+TEXT.unavailable = '加载失败，请重新播放';
 
 function MusicIcon({ name }) {
   const paths = {

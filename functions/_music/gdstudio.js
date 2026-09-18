@@ -9,9 +9,12 @@ async function request(types, parameters) {
   for (const [key, value] of Object.entries(parameters)) {
     if (value !== undefined && value !== null && value !== '') target.searchParams.set(key, String(value));
   }
-  const response = await fetch(target, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
-  if (!response.ok) throw new Error(`GD Studio returned ${response.status}`);
-  return response.json();
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort('GD Studio request timed out'), 6000);
+  try {
+    const response = await fetch(target, { headers: { Accept: 'application/json' }, signal: controller.signal });
+    if (!response.ok) throw new Error(`GD Studio returned ${response.status}`);
+    return response.json();
+  } finally { clearTimeout(timer); }
 }
 
 export async function searchGDStudio(keyword, page) {

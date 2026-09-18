@@ -1,4 +1,6 @@
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+const FALLBACK_ATTEMPT_TIMEOUT_MS = 1200;
+const FALLBACK_BUDGET_MS = 3000;
 
 function browserSafeUrl(value) {
   const url = new URL(value);
@@ -13,6 +15,23 @@ function browserSafeUrl(value) {
 async function cacheResponse(cache, cacheKey, response) {
   try { await cache.put(cacheKey, response.clone()); }
   catch (error) { console.warn('Music resolver cache write failed', error); }
+}
+
+function withTimeout(promise, timeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Music fallback attempt timed out')), timeoutMs)),
+  ]);
+}
+
+async function isReachableAudio(url, timeoutMs) {
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort('Music fallback audio check timed out'), timeoutMs);
+  try {
+    const response = await fetch(url, { headers: { Range: 'bytes=0-1' }, signal: controller.signal });
+    await response.body?.cancel();
+    return response.ok || response.status === 206;
+  } catch { return false; }
+  finally { clearTimeout(timer); }
 }
 
 export async function onRequestGet({ request }) {
@@ -48,12 +67,22 @@ export async function onRequestGet({ request }) {
       const runtime = await getMusicRuntime();
       const entries = await runtime.search(title, 1);
       const normalizedTitle = title.toLocaleLowerCase(); const normalizedArtist = artist?.toLocaleLowerCase();
-      const match = entries.find((item) => (item.title || item.name || '').toLocaleLowerCase() === normalizedTitle && String(item.artist || item.singer || '').toLocaleLowerCase().includes(normalizedArtist));
-      if (!match?.source) return json({ url: '', provider: 'gdstudio' });
-      const fallback = await runtime.invoke({ source: match.source, action: 'musicUrl', info: { musicInfo: match.musicInfo || match, type: '128k' } });
-      const fallbackUrl = typeof fallback === 'string' ? fallback : fallback?.url || '';
-      const response = json({ url: fallbackUrl ? browserSafeUrl(fallbackUrl) : '', provider: 'fallback', fallbackSource: match.source });
-      return response;
+      const candidates = [...new Map(entries.filter((item) => (item.title || item.name || '').toLocaleLowerCase() === normalizedTitle && String(item.artist || item.singer || '').toLocaleLowerCase().includes(normalizedArtist)).map((item) => [`${item.source}:${item.id || item.songmid || item.hash || ''}`, item])).values()];
+      const deadline = Date.now() + FALLBACK_BUDGET_MS; const attemptedSources = [];
+      for (const candidate of candidates) {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) break;
+        const timeout = Math.min(FALLBACK_ATTEMPT_TIMEOUT_MS, remaining);
+        attemptedSources.push(candidate.source);
+        try {
+          const fallback = await withTimeout(runtime.invoke({ source: candidate.source, action: 'musicUrl', info: { musicInfo: candidate.musicInfo || candidate, type: '128k' } }), timeout);
+          const fallbackUrl = typeof fallback === 'string' ? fallback : fallback?.url || '';
+          const playableUrl = browserSafeUrl(fallbackUrl);
+          if (await isReachableAudio(playableUrl, Math.min(timeout, Math.max(1, deadline - Date.now())))) return json({ url: playableUrl, provider: 'fallback', fallbackSource: candidate.source });
+          console.warn('Music fallback audio endpoint is unavailable', candidate.source);
+        } catch (error) { console.warn('Music fallback attempt failed', candidate.source, error); }
+      }
+      return json({ url: '', provider: 'fallback', attemptedSources });
     }
     const { getMusicRuntime } = await import('../../_music/source-runtime.js');
     const runtime = await getMusicRuntime();
