@@ -17,3 +17,5 @@
 
 /* Keep request status with the search rows instead of below the list. */
 .music-results{display:flex;min-width:0;flex-direction:column}.music-list-head{order:1}.source-summary{order:2;margin:.75rem 0;padding:.7rem .25rem;border-bottom:1px solid var(--color-border);color:var(--color-text-muted);font-size:.75rem}.source-summary:empty{display:none}.music-list{order:3}
+
+.track-action{font-size:0}.track-action::before{display:inline-block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid currentColor;content:""}.lyrics-body p.active{color:var(--color-text);font-weight:500}.music-download:disabled{opacity:.3;cursor:not-allowed}
