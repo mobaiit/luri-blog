@@ -57,9 +57,8 @@ async function boot() {
         const tracks = Array.isArray(result) ? result : result?.tracks || result?.data || result?.list || [];
         return tracks.map((track) => ({ ...track, source: track.source || source }));
       }));
-      return results.flatMap((result, index) => {
+      return results.flatMap((result) => {
         if (result.status === 'fulfilled') return result.value;
-        console.error(`Music source search failed: ${searchableSources[index]}`, result.reason);
         return [];
       });
     },
