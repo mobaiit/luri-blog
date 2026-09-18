@@ -5,7 +5,7 @@ const EMPTY_ART = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" 
 const TEXT = { title: '\u97f3\u4e50', discover: '\u53d1\u73b0\u97f3\u4e50', likes: '\u6211\u7684\u559c\u6b22', search: '\u641c\u7d22', searchHint: '\u641c\u7d22\u6b4c\u66f2\u3001\u827a\u4eba\u6216\u4e13\u8f91', searching: '\u6b63\u5728\u641c\u7d22\u2026', queue: '\u64ad\u653e\u961f\u5217', tracks: '\u9996\u6b4c\u66f2', noResult: '\u6682\u65e0\u641c\u7d22\u7ed3\u679c', noTrack: '\u6682\u65e0\u6b4c\u66f2', choose: '\u8bf7\u641c\u7d22\u540e\u9009\u62e9\u6b4c\u66f2', now: '\u6b63\u5728\u64ad\u653e', play: '\u64ad\u653e', pause: '\u6682\u505c', prev: '\u4e0a\u4e00\u9996', next: '\u4e0b\u4e00\u9996', load: '\u6b63\u5728\u83b7\u53d6\u53ef\u64ad\u653e\u6587\u4ef6\u2026', unavailable: '\u6ca1\u6709\u627e\u5230\u53ef\u76f4\u64ad\u7684\u97f3\u9891\u6587\u4ef6', source: '\u516c\u5f00\u97f3\u9891\u76ee\u5f55', disclaimer: '\u672c\u9875\u4ec5\u63d0\u4f9b\u641c\u7d22\u4e0e\u64ad\u653e\u754c\u9762\uff0c\u4e0d\u6258\u7ba1\u3001\u4e0d\u590d\u5236\u3001\u4e0d\u4ee3\u7406\u4efb\u4f55\u97f3\u9891\u6587\u4ef6\u3002\u8bf7\u4ec5\u4f7f\u7528\u5df2\u83b7\u6388\u6743\u7684\u97f3\u6e90\uff0c\u5e76\u9075\u5b88\u5176\u670d\u52a1\u6761\u6b3e\u4e0e\u9002\u7528\u6cd5\u5f8b\u3002' };
 const time = (value = 0) => Number.isFinite(value) ? `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}` : '0:00';
 const lyricLine = (line) => { const match = /^\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\](.*)$/.exec(line); return match ? { time: Number(match[1]) * 60 + Number(match[2]), text: match[3].trim() } : { time: -1, text: line }; };
-const STORE_QUEUE = 'luri.music.queue.v1'; const STORE_LIKES = 'luri.music.likes.v1';
+const STORE_QUEUE = 'luri.music.queue.v1'; const STORE_LIKES = 'luri.music.likes.v1'; const STORE_SEARCH = 'luri.music.search.v1'; const STORE_QUERY = 'luri.music.query.v1';
 const readStore = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
 // The source status is shown only while an operation is in progress.
 TEXT.source = '';
@@ -26,7 +26,7 @@ function MusicIcon({ name }) {
 
 export default function Music() {
   const audio = useRef(null);
-  const [query, setQuery] = useState(''); const [results, setResults] = useState([]); const [cachedResults, setCachedResults] = useState([]); const [searchState, setSearchState] = useState('');
+  const [query, setQuery] = useState(() => localStorage.getItem(STORE_QUERY) || ''); const [results, setResults] = useState(() => readStore(STORE_SEARCH)); const [cachedResults, setCachedResults] = useState(() => readStore(STORE_SEARCH)); const [searchState, setSearchState] = useState('');
   const [listView, setListView] = useState('search');
   const [resultPage, setResultPage] = useState(0); const [hasMoreResults, setHasMoreResults] = useState(false); const [loadingMore, setLoadingMore] = useState(false);
   const [tracks, setTracks] = useState(() => readStore(STORE_QUEUE)); const [likedTracks, setLikedTracks] = useState(() => readStore(STORE_LIKES)); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false);
@@ -40,6 +40,7 @@ export default function Music() {
 
   useEffect(() => { if (!audio.current || !current?.url) return; audio.current.src = current.url; audio.current.load(); audio.current.play().catch(() => setPlaying(false)); }, [currentId, current?.url]);
   useEffect(() => { if (listView === 'search') setCachedResults(results); }, [listView, results]);
+  useEffect(() => { try { localStorage.setItem(STORE_SEARCH, JSON.stringify(cachedResults)); localStorage.setItem(STORE_QUERY, query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
   useEffect(() => {
     if (!current || current.url) return undefined;
     const controller = new AbortController(); const meta = current.meta ? `&meta=${encodeURIComponent(JSON.stringify(current.meta))}` : '';
