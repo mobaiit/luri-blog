@@ -1,34 +1,54 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './Music.css';
 
-const EMPTY_ART = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect width="400" height="400" fill="%23141920"/%3E%3Ccircle cx="200" cy="200" r="106" fill="%23273343"/%3E%3Ccircle cx="200" cy="200" r="22" fill="%23d6ff62"/%3E%3C/svg%3E';
+const EMPTY_ART = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect width="400" height="400" fill="%23ece9e1"/%3E%3Ccircle cx="200" cy="200" r="106" fill="%23c8c2b7"/%3E%3Ccircle cx="200" cy="200" r="22" fill="%23111111"/%3E%3C/svg%3E';
+const TEXT = { title: '\u97f3\u4e50', discover: '\u53d1\u73b0\u97f3\u4e50', likes: '\u6211\u7684\u559c\u6b22', search: '\u641c\u7d22', searchHint: '\u641c\u7d22\u6b4c\u66f2\u3001\u827a\u4eba\u6216\u4e13\u8f91', searching: '\u6b63\u5728\u641c\u7d22\u2026', queue: '\u64ad\u653e\u961f\u5217', tracks: '\u9996\u6b4c\u66f2', noResult: '\u6682\u65e0\u641c\u7d22\u7ed3\u679c', noTrack: '\u6682\u65e0\u6b4c\u66f2', choose: '\u8bf7\u641c\u7d22\u540e\u9009\u62e9\u6b4c\u66f2', now: '\u6b63\u5728\u64ad\u653e', play: '\u64ad\u653e', pause: '\u6682\u505c', prev: '\u4e0a\u4e00\u9996', next: '\u4e0b\u4e00\u9996', load: '\u6b63\u5728\u83b7\u53d6\u53ef\u64ad\u653e\u6587\u4ef6\u2026', unavailable: '\u6ca1\u6709\u627e\u5230\u53ef\u76f4\u64ad\u7684\u97f3\u9891\u6587\u4ef6', source: '\u516c\u5f00\u97f3\u9891\u76ee\u5f55', disclaimer: '\u672c\u9875\u4ec5\u63d0\u4f9b\u641c\u7d22\u4e0e\u64ad\u653e\u754c\u9762\uff0c\u4e0d\u6258\u7ba1\u3001\u4e0d\u590d\u5236\u3001\u4e0d\u4ee3\u7406\u4efb\u4f55\u97f3\u9891\u6587\u4ef6\u3002\u8bf7\u4ec5\u4f7f\u7528\u5df2\u83b7\u6388\u6743\u7684\u97f3\u6e90\uff0c\u5e76\u9075\u5b88\u5176\u670d\u52a1\u6761\u6b3e\u4e0e\u9002\u7528\u6cd5\u5f8b\u3002' };
 const time = (value = 0) => Number.isFinite(value) ? `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}` : '0:00';
-const DISCLAIMER = '\u672c\u9875\u4ec5\u63d0\u4f9b\u97f3\u4e50\u6269\u5c55\u76ee\u5f55\u4e0e\u64ad\u653e\u754c\u9762\uff0c\u4e0d\u6258\u7ba1\u3001\u4e0d\u590d\u5236\u3001\u4e0d\u4ee3\u7406\u4efb\u4f55\u97f3\u9891\u6587\u4ef6\u3002\u8bf7\u4ec5\u4f7f\u7528\u4f60\u5df2\u83b7\u6388\u6743\u7684\u97f3\u6e90\uff0c\u5e76\u9075\u5b88\u5176\u670d\u52a1\u6761\u6b3e\u4e0e\u9002\u7528\u6cd5\u5f8b\u3002';
-const UI = { discover: '\u53d1\u73b0\u97f3\u4e50', liked: '\u6211\u7684\u559c\u6b22', preview: '\u5bfc\u5165\u672c\u5730\u8bd5\u542c', local: '\u672c\u5730\u8bd5\u542c', files: '\u6587\u4ef6\u4ec5\u7559\u5728\u5f53\u524d\u6d4f\u89c8\u5668\u4f1a\u8bdd\uff0c\u4e0d\u4f1a\u4e0a\u4f20\u6216\u4fdd\u5b58\u3002', catalog: '\u97f3\u6e90\u76ee\u5f55', checking: '\u6b63\u5728\u68c0\u67e5\u66f4\u65b0\u2026', unavailable: '\u66f4\u65b0\u670d\u52a1\u5c1a\u672a\u90e8\u7f72', update: '\u68c0\u67e5 GitHub \u66f4\u65b0', now: '\u6b63\u5728\u64ad\u653e', emptyTitle: '\u6682\u65e0\u6b4c\u66f2', emptyText: '\u5bfc\u5165\u97f3\u9891\uff0c\u6216\u90e8\u7f72\u97f3\u6e90\u9002\u914d\u5668\u540e\u5f00\u59cb\u641c\u7d22\u3002', queue: '\u64ad\u653e\u961f\u5217', tracks: '\u9996\u6b4c\u66f2', previous: '\u4e0a\u4e00\u9996', next: '\u4e0b\u4e00\u9996', play: '\u64ad\u653e', pause: '\u6682\u505c' };
+
+function audioFile(files = []) {
+  return files.find((file) => /\.(mp3|m4a|aac|ogg|opus|flac|wav)$/i.test(file.name || '') && !/(metadata|spectrogram|thumb|64kb)/i.test(file.name));
+}
 
 export default function Music() {
   const audio = useRef(null);
-  const urls = useRef(new Set());
-  const [tracks, setTracks] = useState([]); const [currentId, setCurrentId] = useState(null);
-  const [playing, setPlaying] = useState(false); const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0);
-  const [query, setQuery] = useState(''); const [liked, setLiked] = useState(new Set());
-  const [sourceStatus, setSourceStatus] = useState('Not checked'); const [sources, setSources] = useState([]);
+  const [query, setQuery] = useState(''); const [results, setResults] = useState([]); const [searchState, setSearchState] = useState('');
+  const [tracks, setTracks] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0); const [liked, setLiked] = useState(new Set());
   const current = tracks.find((track) => track.id === currentId);
-  const visible = useMemo(() => tracks.filter((track) => track.title.toLowerCase().includes(query.trim().toLowerCase())), [tracks, query]);
-  useEffect(() => () => urls.current.forEach((url) => URL.revokeObjectURL(url)), []);
-  useEffect(() => { if (!audio.current || !current) return; audio.current.src = current.url; audio.current.load(); if (playing) audio.current.play().catch(() => setPlaying(false)); }, [currentId]);
-  const select = (id) => { setCurrentId(id); setPlaying(true); };
-  const next = () => { const index = tracks.findIndex((track) => track.id === currentId); if (tracks.length) select(tracks[(index + 1 + tracks.length) % tracks.length].id); };
-  const toggle = () => { if (!current && tracks[0]) return select(tracks[0].id); if (playing) audio.current?.pause(); else audio.current?.play().catch(() => setPlaying(false)); };
-  const like = (id) => setLiked((value) => { const nextValue = new Set(value); nextValue.has(id) ? nextValue.delete(id) : nextValue.add(id); return nextValue; });
-  const addFiles = (event) => { const added = Array.from(event.target.files || []).map((file) => { const url = URL.createObjectURL(file); urls.current.add(url); return { id: crypto.randomUUID(), title: file.name.replace(/\.[^.]+$/, '').replace(/[._-]+/g, ' '), artist: UI.local, url, art: EMPTY_ART }; }); setTracks((value) => [...value, ...added]); if (!currentId && added[0]) setCurrentId(added[0].id); event.target.value = ''; };
-  const checkSources = async () => { setSourceStatus(UI.checking); try { const response = await fetch('/api/music/sources'); if (!response.ok) throw Error(); const payload = await response.json(); setSources(payload.sources || []); setSourceStatus(`${payload.sources?.length || 0} ${'\u4e2a\u6269\u5c55'}`); } catch { setSourceStatus(UI.unavailable); } };
-  useEffect(() => { checkSources(); }, []);
+
+  useEffect(() => { if (!audio.current || !current?.url) return; audio.current.src = current.url; audio.current.load(); audio.current.play().catch(() => setPlaying(false)); }, [currentId, current?.url]);
+  const next = () => { const index = tracks.findIndex((track) => track.id === currentId); if (tracks.length) setCurrentId(tracks[(index + 1 + tracks.length) % tracks.length].id); };
+  const toggle = () => { if (!current && tracks[0]) return setCurrentId(tracks[0].id); if (playing) audio.current?.pause(); else audio.current?.play().catch(() => setPlaying(false)); };
+  const like = (id) => setLiked((items) => { const nextItems = new Set(items); nextItems.has(id) ? nextItems.delete(id) : nextItems.add(id); return nextItems; });
+
+  const search = async (event) => {
+    event.preventDefault(); const keyword = query.trim(); if (!keyword) return;
+    setSearchState(TEXT.searching); setResults([]);
+    try {
+      const params = new URLSearchParams({ q: `mediatype:audio AND (title:(\"${keyword.replaceAll('"', '')}\") OR creator:(\"${keyword.replaceAll('"', '')}\"))`, rows: '24', page: '1', output: 'json' });
+      ['identifier', 'title', 'creator', 'year'].forEach((field) => params.append('fl[]', field));
+      const response = await fetch(`https://archive.org/advancedsearch.php?${params}`); if (!response.ok) throw Error();
+      const payload = await response.json();
+      setResults((payload.response?.docs || []).map((item) => ({ id: item.identifier, title: item.title || item.identifier, artist: Array.isArray(item.creator) ? item.creator.join(', ') : item.creator || TEXT.source, year: item.year || '' })));
+      setSearchState('');
+    } catch { setSearchState('\u641c\u7d22\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528'); }
+  };
+
+  const playResult = async (result) => {
+    setSearchState(TEXT.load);
+    try {
+      const response = await fetch(`https://archive.org/metadata/${encodeURIComponent(result.id)}`); if (!response.ok) throw Error();
+      const payload = await response.json(); const file = audioFile(payload.files); if (!file) throw Error();
+      const track = { ...result, id: `archive:${result.id}`, url: `https://archive.org/download/${encodeURIComponent(result.id)}/${encodeURIComponent(file.name)}`, art: EMPTY_ART };
+      setTracks((items) => items.some((item) => item.id === track.id) ? items : [...items, track]); setCurrentId(track.id); setSearchState('');
+    } catch { setSearchState(TEXT.unavailable); }
+  };
+
   return <main className="music-page"><audio ref={audio} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={next} />
-    <section className="music-shell"><aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className="music-nav active">{UI.discover}</button><button className="music-nav">{UI.liked} <span>{liked.size}</span></button><div className="music-divider" /><label className="music-upload"><input type="file" accept="audio/*" multiple onChange={addFiles} />{UI.preview}</label><p className="music-note">{UI.files}</p><div className="music-source-card"><span>{UI.catalog}</span><strong>{sourceStatus}</strong><button onClick={checkSources}>{UI.update}</button></div></aside>
-      <section className="music-content"><header className="music-header"><div><p className="music-kicker">PERSONAL LISTENING SPACE</p><h1>{'\u97f3\u4e50'}</h1></div><label className="music-search"><span>{'\u641c\u7d22'}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={'\u7b5b\u9009\u5f53\u524d\u961f\u5217'} /></label></header>
-        <div className="now-playing"><img src={current?.art || EMPTY_ART} alt="" /><div className="now-playing__copy"><p>{UI.now}</p><h2>{current?.title || UI.emptyTitle}</h2><span>{current?.artist || UI.emptyText}</span></div><button className={`like-button${current && liked.has(current.id) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.id)}>{UI.liked}</button></div>
-        <div className="music-list-head"><span>{UI.queue}</span><small>{visible.length} {UI.tracks}</small></div><div className="music-list">{visible.map((track, index) => <button key={track.id} className={`music-row${track.id === currentId ? ' current' : ''}`} onClick={() => select(track.id)}><span className="track-index">{track.id === currentId && playing ? 'On' : String(index + 1).padStart(2, '0')}</span><img src={track.art} alt="" /><span className="track-title">{track.title}<small>{track.artist}</small></span><span className="track-action" onClick={(event) => { event.stopPropagation(); like(track.id); }}>{liked.has(track.id) ? UI.liked : UI.play}</span></button>)}{!visible.length && <div className="music-empty"><strong>{UI.emptyTitle}</strong><span>{UI.emptyText}</span></div>}</div>{sources.length > 0 && <p className="source-summary">{UI.catalog}：{sources.map((source) => source.name).join(' / ')}</p>}<p className="music-disclaimer">{DISCLAIMER}</p></section></section>
-    <footer className="music-player"><div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" /><span>{current?.title || UI.emptyTitle}<small>{current?.artist || 'LURI MUSIC'}</small></span></div><div className="music-controls"><div><button onClick={() => { const index = tracks.findIndex((track) => track.id === currentId); if (tracks.length) select(tracks[(index - 1 + tracks.length) % tracks.length].id); }}>{UI.previous}</button><button className="play-button" onClick={toggle}>{playing ? UI.pause : UI.play}</button><button onClick={next}>{UI.next}</button></div><div className="timeline"><span>{time(progress)}</span><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /><span>{time(duration)}</span></div></div></footer>
+    <section className="music-shell"><aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className="music-nav active">{TEXT.discover}</button><button className="music-nav">{TEXT.likes}<span>{liked.size}</span></button><div className="music-divider" /><div className="music-source-card"><span>{TEXT.source}</span><strong>Internet Archive</strong><small>Direct browser connection</small></div></aside>
+      <section className="music-content"><header className="music-header"><div><p className="music-kicker">LURI MUSIC</p><h1>{TEXT.title}</h1></div><form className="music-search" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={TEXT.searchHint} /><button type="submit">{TEXT.search}</button></form></header>
+        <div className="now-playing"><img src={current?.art || EMPTY_ART} alt="" /><div className="now-playing__copy"><p>{TEXT.now}</p><h2>{current?.title || TEXT.noTrack}</h2><span>{current?.artist || TEXT.choose}</span></div><button className={`like-button${current && liked.has(current.id) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.id)}>{TEXT.likes}</button></div>
+        <div className="music-list-head"><span>{results.length ? TEXT.search : TEXT.queue}</span><small>{results.length || tracks.length} {TEXT.tracks}</small></div><div className="music-list">{(results.length ? results : tracks).map((track, index) => <button key={track.id} className={`music-row${track.id === currentId ? ' current' : ''}`} onClick={() => results.length ? playResult(track) : setCurrentId(track.id)}><span className="track-index">{String(index + 1).padStart(2, '0')}</span><img src={track.art || EMPTY_ART} alt="" /><span className="track-title">{track.title}<small>{track.artist}{track.year ? ` · ${track.year}` : ''}</small></span><span className="track-action">{results.length ? TEXT.play : liked.has(track.id) ? TEXT.likes : TEXT.play}</span></button>)}{!results.length && !tracks.length && <div className="music-empty"><strong>{TEXT.noResult}</strong><span>{TEXT.choose}</span></div>}</div><p className="source-summary">{searchState || TEXT.source}</p><p className="music-disclaimer">{TEXT.disclaimer}</p></section></section>
+    <footer className="music-player"><div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" /><span>{current?.title || TEXT.noTrack}<small>{current?.artist || 'LURI MUSIC'}</small></span></div><div className="music-controls"><div><button onClick={() => { const index = tracks.findIndex((track) => track.id === currentId); if (tracks.length) setCurrentId(tracks[(index - 1 + tracks.length) % tracks.length].id); }}>{TEXT.prev}</button><button className="play-button" onClick={toggle}>{playing ? TEXT.pause : TEXT.play}</button><button onClick={next}>{TEXT.next}</button></div><div className="timeline"><span>{time(progress)}</span><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /><span>{time(duration)}</span></div></div></footer>
   </main>;
 }
