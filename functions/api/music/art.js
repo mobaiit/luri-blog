@@ -4,17 +4,28 @@ export async function onRequestGet({ request }) {
   const requestUrl = new URL(request.url);
   const source = requestUrl.searchParams.get('source') || '';
   const metaValue = requestUrl.searchParams.get('meta');
-  if (!metaValue || metaValue.length > 8192) return json({ error: 'Missing artwork metadata' }, 400);
+  const title = requestUrl.searchParams.get('title')?.trim() || '';
+  const artist = requestUrl.searchParams.get('artist')?.trim() || '';
+  if (metaValue && metaValue.length > 8192) return json({ error: 'Artwork metadata is too large' }, 400);
   try {
-    const meta = JSON.parse(metaValue);
+    const meta = metaValue ? JSON.parse(metaValue) : {};
     const { isGDStudio, artworkGDStudio } = await import('../../_music/gdstudio.js');
-    if (!isGDStudio(source) || !meta?.picId) return json({ error: 'Artwork source is unavailable' }, 400);
     const cache = caches.default;
-    const cacheKey = new Request(`https://luri-music-cache.internal/gdstudio/art?source=${encodeURIComponent(meta.source || '')}&id=${encodeURIComponent(meta.picId)}`);
+    const cacheId = isGDStudio(source) ? `${meta.source || ''}:${meta.picId || ''}` : `${source}:${title}:${artist}`;
+    const cacheKey = new Request(`https://luri-music-cache.internal/art/v2?id=${encodeURIComponent(cacheId)}`);
     const cached = await cache.match(cacheKey);
     if (cached) return cached;
-    const result = await artworkGDStudio(source, meta);
-    const imageUrl = new URL(result?.url || '');
+    let artworkUrl = '';
+    if (isGDStudio(source) && meta?.picId) artworkUrl = (await artworkGDStudio(source, meta))?.url || '';
+    else if (source && title && artist) {
+      const { getMusicRuntime } = await import('../../_music/source-runtime.js');
+      const entries = await (await getMusicRuntime()).search(title, 1);
+      const normalizedTitle = title.toLocaleLowerCase(); const normalizedArtist = artist.toLocaleLowerCase();
+      const match = entries.find((item) => item.source === source && (item.title || item.name || '').toLocaleLowerCase() === normalizedTitle && String(item.artist || item.singer || '').toLocaleLowerCase().includes(normalizedArtist));
+      artworkUrl = match?.art || match?.pic || '';
+    }
+    const imageUrl = new URL(artworkUrl);
+    if (imageUrl.protocol === 'http:') imageUrl.protocol = 'https:';
     if (imageUrl.protocol !== 'https:') throw new Error('Artwork URL is not HTTPS');
     const response = json({ url: imageUrl.href });
     await cache.put(cacheKey, response.clone());

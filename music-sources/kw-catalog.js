@@ -29,7 +29,7 @@ on(EVENT_NAMES.request, async ({ source, action, info }) => {
       artist: clean(item.ARTIST),
       album: clean(item.ALBUM),
       duration: Number(item.DURATION) || 0,
-      art: '',
+      art: String(item.web_albumpic_short || item.hts_MVPIC || item.albumpic || '').replace(/^http:/, 'https:'),
       // The resolver requires this identifier, not an audio URL.
       musicInfo: { songmid },
     };

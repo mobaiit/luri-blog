@@ -57,9 +57,9 @@ export default function Music() {
     return () => controller.abort();
   }, [activeQueue, current]);
   useEffect(() => {
-    if (!current || (current.art && current.art !== EMPTY_ART) || !current.source?.startsWith('gdstudio_') || !current.meta?.picId) return undefined;
-    const controller = new AbortController(); const meta = encodeURIComponent(JSON.stringify(current.meta));
-    fetch(`/api/music/art?source=${encodeURIComponent(current.source)}&meta=${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => {
+    if (!current || (current.art && current.art !== EMPTY_ART) || !current.source) return undefined;
+    const controller = new AbortController(); const meta = current.meta ? `&meta=${encodeURIComponent(JSON.stringify(current.meta))}` : '';
+    fetch(`/api/music/art?source=${encodeURIComponent(current.source)}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => {
       if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, art: payload.url } : track));
     }).catch(() => {});
     return () => controller.abort();

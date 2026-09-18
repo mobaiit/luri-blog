@@ -28,7 +28,7 @@ on(EVENT_NAMES.request, async ({ source, action, info }) => {
       artist: clean(Array.isArray(item.Singers) ? item.Singers.map((singer) => singer.name).join(', ') : item.SingerName),
       album: clean(item.AlbumName),
       duration: Number(item.Duration) || 0,
-      art: '',
+      art: String(item.Image || item.AlbumImage || '').replace('{size}', '400').replace(/^http:/, 'https:'),
       musicInfo: { hash, songmid },
     };
   }).filter((track) => track.id && track.title && track.musicInfo.hash);
