@@ -74,3 +74,7 @@
 .lyrics-body{width:100%;padding-left:0;padding-right:0}
 .lyrics-body p{width:100%;margin-left:0;margin-right:0;padding:0;text-align:center;transform-origin:center}
 .lyrics-body .lyrics-empty{text-align:center}
+
+/* Keep the line box fixed while emphasizing the active lyric. Scaling around
+   its center preserves the common center point without reflowing neighbours. */
+.lyrics-body p.active{font-size:.88rem;transform:scale(1.2)}
