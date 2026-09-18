@@ -39,6 +39,9 @@
 
 @media(min-width:761px){.music-lyrics{height:100%;overflow:hidden}.lyrics-body{overflow-y:auto;overscroll-behavior:contain}.lyrics-body p{cursor:pointer}.lyrics-body p:hover{color:var(--color-text)}}
 
+/* Playback feedback belongs to the player, not the queue. */
+.source-summary{position:fixed;z-index:102;bottom:5px;left:max(var(--space-md),calc((100vw - 980px)/2));display:flex;align-items:center;gap:.4rem;margin:0;padding:0;border:0;background:transparent;color:var(--color-text-muted);font-size:.62rem;line-height:1}.source-summary:not(:empty)::before{width:.62rem;height:.62rem;border:1px solid currentColor;border-top-color:transparent;border-radius:50%;content:"";animation:music-status-spin .7s linear infinite}@keyframes music-status-spin{to{transform:rotate(360deg)}}.like-button{font-size:0;line-height:1}.like-button::before{font-size:1rem;content:"♡"}.like-button.liked::before{content:"♥"}.music-row{transition:background .18s ease}.music-row:hover .track-action,.music-row.current .track-action{color:var(--color-text)}.track-action{opacity:.35}.music-row:hover .track-action,.music-row.current .track-action{opacity:1}@media(max-width:760px){.source-summary{bottom:4px;left:var(--space-sm)}.music-row{padding:12px 4px}.track-index{opacity:.55}}
+
 .track-action{font-size:0}.track-action::before{display:inline-block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid currentColor;content:""}.lyrics-body p.active{color:var(--color-text);font-weight:500}.music-download:disabled{opacity:.3;cursor:not-allowed}
 
 /* QQ Music-inspired lyric focus: scrollable, but without a visible rail. */
