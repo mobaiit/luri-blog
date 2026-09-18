@@ -20,6 +20,11 @@ export async function onRequestGet({ request, env }) {
       const parsed = JSON.parse(meta);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) musicInfo = parsed;
     }
+    const { isGDStudio, resolveGDStudio } = await import('../../_music/gdstudio.js');
+    if (isGDStudio(source)) {
+      const result = await resolveGDStudio(source, id, musicInfo);
+      return json({ url: result?.url ? browserSafeUrl(result.url) : '', br: result?.br || null, size: result?.size || null, provider: 'gdstudio' });
+    }
     const { getMusicRuntime } = await import('../../_music/source-runtime.js');
     const runtime = await getMusicRuntime();
     const result = await runtime.invoke({ source, action: 'musicUrl', info: { musicInfo, type: '128k' } });

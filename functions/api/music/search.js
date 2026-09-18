@@ -5,6 +5,20 @@ export async function onRequestGet({ request, env }) {
   const page = Math.max(1, Number(requestUrl.searchParams.get('page')) || 1);
   if (!keyword) return json({ error: 'Missing search keyword' }, 400);
   try {
+    const cache = caches.default;
+    const cacheKey = new Request(`https://luri-music-cache.internal/gdstudio/search?q=${encodeURIComponent(keyword)}&page=${page}`);
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+    const { searchGDStudio } = await import('../../_music/gdstudio.js');
+    let primaryTracks = [];
+    try { primaryTracks = await searchGDStudio(keyword, page); } catch { /* Use the local source chain below. */ }
+    if (primaryTracks.length) {
+      const result = json({ tracks: primaryTracks, page, hasMore: primaryTracks.length >= 30, provider: 'gdstudio' });
+      result.headers.set('cache-control', 'public, max-age=300, s-maxage=300');
+      await cache.put(cacheKey, result.clone());
+      return result;
+    }
+    // Keep existing approved source scripts as a failure-only fallback.
     const { getMusicRuntime } = await import('../../_music/source-runtime.js');
     const runtime = await getMusicRuntime();
     const entries = await runtime.search(keyword, page);
