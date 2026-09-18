@@ -28,6 +28,9 @@
 /* Desktop: a compact library on the left, lyrics given the open right side. */
 @media(min-width:761px){.music-content{padding-top:.25rem}.music-header{width:clamp(230px,31%,300px)}.music-header h1{font-size:1.35rem}.music-kicker{font-size:.6rem}.music-search{width:100%;margin-top:.8rem;padding-bottom:.5rem}.music-search input{font-size:.82rem}.music-disclaimer--search{display:none}.music-workspace{grid-template-columns:minmax(230px,.72fr) minmax(0,1.42fr);gap:4.5rem;margin-top:1.1rem}.music-sidebar{top:8.8rem}.music-list-head{padding-top:2.3rem}.music-lyrics{padding-left:0}.lyrics-track{padding-bottom:1.5rem}.music-results{padding-top:0}}
 
+/* Keep the desktop player as one viewport; inner lists scroll silently. */
+@media(min-width:761px){.music-page{height:100dvh;min-height:0;overflow:hidden}.music-shell{height:calc(100dvh - var(--nav-height) - 10rem);min-height:0}.music-content{display:flex;min-height:0;height:100%;flex-direction:column}.music-workspace{min-height:0;flex:1}.music-results,.music-lyrics{min-height:0}.music-list{max-height:none;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}.music-list::-webkit-scrollbar{display:none}.music-lyrics{display:flex;flex-direction:column}.lyrics-body{min-height:0;max-height:none;flex:1;overflow-y:auto}}
+
 .track-action{font-size:0}.track-action::before{display:inline-block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid currentColor;content:""}.lyrics-body p.active{color:var(--color-text);font-weight:500}.music-download:disabled{opacity:.3;cursor:not-allowed}
 
 /* QQ Music-inspired lyric focus: scrollable, but without a visible rail. */
