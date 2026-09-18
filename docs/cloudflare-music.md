@@ -1,6 +1,6 @@
 # Music source deployment
 
-The music page is a static React page. Cloudflare Pages Functions run only small search and URL-resolution requests; audio is always delivered directly from the source to the visitor's browser.
+The music page is a static React page. The `luri-blog` Cloudflare Worker runs only small search and URL-resolution requests; audio is always delivered directly from the source to the visitor's browser.
 
 Deploy this repository through Cloudflare Pages as usual. Pages automatically publishes the `functions/` directory alongside the Vite build output.
 
@@ -8,7 +8,7 @@ The endpoint searches public GitHub repositories for LX Music source projects an
 
 `/api/music/sources` returns repository metadata only: repository name, URL, description, star count, and update time.
 
-The extension discovery endpoint is a Cloudflare Pages Function at `/api/music/sources`; it returns repository metadata only.
+The extension discovery endpoint is implemented separately at `/api/music/sources`; it returns repository metadata only.
 
 - `GET /api/music/search?q=...` runs every loaded source that declares `search`, merges their results, and returns small JSON metadata.
 - `GET /api/music/resolve?id=...&source=...` runs `musicUrl` for the selected source and returns a URL only.
