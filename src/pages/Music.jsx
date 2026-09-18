@@ -12,6 +12,8 @@ function MusicIcon({ name }) {
     pause: <><path d="M9 6v12M15 6v12" /></>,
     previous: <><path d="M7 6v12" /><path d="m17 6-7 6 7 6Z" fill="currentColor" stroke="none" /></>,
     next: <><path d="M17 6v12" /><path d="m7 6 7 6-7 6Z" fill="currentColor" stroke="none" /></>,
+    volume: <><path d="M5 10h3l4-3v10l-4-3H5Z" fill="currentColor" stroke="none" /><path d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.7a7.4 7.4 0 0 1 0 10.6" /></>,
+    mute: <><path d="M5 10h3l4-3v10l-4-3H5Z" fill="currentColor" stroke="none" /><path d="m16 10 4 4m0-4-4 4" /></>,
   };
   return <svg className="music-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
@@ -19,12 +21,15 @@ function MusicIcon({ name }) {
 export default function Music() {
   const audio = useRef(null);
   const [query, setQuery] = useState(''); const [results, setResults] = useState([]); const [searchState, setSearchState] = useState('');
+  const [resultPage, setResultPage] = useState(0); const [hasMoreResults, setHasMoreResults] = useState(false); const [loadingMore, setLoadingMore] = useState(false);
   const [tracks, setTracks] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0); const [liked, setLiked] = useState(new Set());
+  const [volume, setVolume] = useState(0.8); const [muted, setMuted] = useState(false);
   const [lyrics, setLyrics] = useState(''); const [lyricsState, setLyricsState] = useState('');
   const current = tracks.find((track) => track.id === currentId);
 
   useEffect(() => { if (!audio.current || !current?.url) return; audio.current.src = current.url; audio.current.load(); audio.current.play().catch(() => setPlaying(false)); }, [currentId, current?.url]);
+  useEffect(() => { if (!audio.current) return; audio.current.volume = volume; audio.current.muted = muted; }, [volume, muted]);
   useEffect(() => {
     if (!current) { setLyrics(''); setLyricsState(''); return undefined; }
     const controller = new AbortController(); setLyrics(''); setLyricsState('正在加载歌词…');
@@ -36,14 +41,24 @@ export default function Music() {
   const toggle = () => { if (!current && tracks[0]) return setCurrentId(tracks[0].id); if (playing) audio.current?.pause(); else audio.current?.play().catch(() => setPlaying(false)); };
   const like = (id) => setLiked((items) => { const nextItems = new Set(items); nextItems.has(id) ? nextItems.delete(id) : nextItems.add(id); return nextItems; });
 
+  const loadResults = async (keyword, page, append = false) => {
+    if (append) setLoadingMore(true); else setSearchState(TEXT.searching);
+    try {
+      const response = await fetch(`/api/music/search?q=${encodeURIComponent(keyword)}&page=${page}`); if (!response.ok) throw Error();
+      const payload = await response.json(); const incoming = payload.tracks || [];
+      setResults((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.source === track.source && item.id === track.id))] : incoming);
+      setResultPage(page); setHasMoreResults(Boolean(payload.hasMore && incoming.length)); setSearchState('');
+    } catch { setHasMoreResults(false); setSearchState('\u641c\u7d22\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528'); }
+    finally { setLoadingMore(false); }
+  };
   const search = async (event) => {
     event.preventDefault(); const keyword = query.trim(); if (!keyword) return;
-    setSearchState(TEXT.searching); setResults([]);
-    try {
-      const response = await fetch(`/api/music/search?q=${encodeURIComponent(keyword)}`); if (!response.ok) throw Error();
-      const payload = await response.json(); setResults(payload.tracks || []);
-      setSearchState('');
-    } catch { setSearchState('\u641c\u7d22\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528'); }
+    setResults([]); setResultPage(0); setHasMoreResults(false); await loadResults(keyword, 1);
+  };
+  const loadNextPage = (event) => {
+    const element = event.currentTarget;
+    if (!results.length || !hasMoreResults || loadingMore || element.scrollTop + element.clientHeight < element.scrollHeight - 80) return;
+    loadResults(query.trim(), resultPage + 1, true);
   };
 
   const playResult = async (result) => {
@@ -59,8 +74,8 @@ export default function Music() {
 
   return <main className="music-page"><audio ref={audio} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={next} />
     <section className="music-shell"><aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className="music-nav active">{TEXT.discover}</button><button className="music-nav">{TEXT.likes}<span>{liked.size}</span></button><div className="music-divider" /><div className="music-source-card"><span>{TEXT.source}</span><strong>{'\u5df2\u542f\u7528\u97f3\u6e90\u670d\u52a1'}</strong><small>{'\u641c\u7d22\u4e0e\u89e3\u6790\u7531\u672c\u7ad9\u63a5\u53e3\u5904\u7406'}</small></div></aside>
-      <section className="music-content"><header className="music-header"><div><p className="music-kicker">LURI MUSIC</p><h1>{TEXT.title}</h1></div><form className="music-search" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={TEXT.searchHint} /><button className="music-icon-button" type="submit" aria-label={TEXT.search} title={TEXT.search}><MusicIcon name="search" /></button></form></header>
-        <div className="music-workspace"><section className="music-results"><div className="music-list-head"><span>{results.length ? TEXT.search : TEXT.queue}</span><small>{results.length || tracks.length} {TEXT.tracks}</small></div><div className="music-list">{(results.length ? results : tracks).map((track, index) => <button key={track.id} className={`music-row${track.id === currentId ? ' current' : ''}`} onClick={() => results.length ? playResult(track) : setCurrentId(track.id)}><span className="track-index">{String(index + 1).padStart(2, '0')}</span><img src={track.art || EMPTY_ART} alt="" /><span className="track-title">{track.title}<small>{track.artist}{track.year ? ` · ${track.year}` : ''}</small></span><span className="track-action">{results.length ? TEXT.play : liked.has(track.id) ? TEXT.likes : TEXT.play}</span></button>)}{!results.length && !tracks.length && <div className="music-empty"><strong>{TEXT.noResult}</strong><span>{TEXT.choose}</span></div>}</div><p className="source-summary">{searchState || TEXT.source}</p><p className="music-disclaimer">{TEXT.disclaimer}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" /><div><p>歌词</p><h2>{current?.title || TEXT.noTrack}</h2><span>{current?.artist || TEXT.choose}</span></div><button className={`like-button${current && liked.has(current.id) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.id)}>{TEXT.likes}</button></div><div className="lyrics-body">{lyrics ? lyrics.split(/\r?\n/).filter(Boolean).map((line, index) => <p key={`${line}-${index}`}>{line.replace(/^\[\d{2}:\d{2}(?:\.\d{2,3})?\]/, '')}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
-    <footer className="music-player"><div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" /><span>{current?.title || TEXT.noTrack}<small>{current?.artist || 'LURI MUSIC'}</small></span></div><div className="music-controls"><div><button className="music-icon-button" onClick={() => { const index = tracks.findIndex((track) => track.id === currentId); if (tracks.length) setCurrentId(tracks[(index - 1 + tracks.length) % tracks.length].id); }} aria-label={TEXT.prev} title={TEXT.prev}><MusicIcon name="previous" /></button><button className="music-icon-button play-button" onClick={toggle} aria-label={playing ? TEXT.pause : TEXT.play} title={playing ? TEXT.pause : TEXT.play}><MusicIcon name={playing ? 'pause' : 'play'} /></button><button className="music-icon-button" onClick={next} aria-label={TEXT.next} title={TEXT.next}><MusicIcon name="next" /></button></div><div className="timeline"><span>{time(progress)}</span><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /><span>{time(duration)}</span></div></div></footer>
+      <section className="music-content"><header className="music-header"><div><p className="music-kicker">LURI MUSIC</p><h1>{TEXT.title}</h1></div><form className="music-search" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={TEXT.searchHint} /><button className="music-icon-button" type="submit" aria-label={TEXT.search} title={TEXT.search}><MusicIcon name="search" /></button></form><p className="music-disclaimer music-disclaimer--search">免责声明：本页仅提供搜索与播放界面，不托管、不复制、不代理任何音频文件，资源均来源网络。</p></header>
+        <div className="music-workspace"><section className="music-results"><div className="music-list-head"><span>{results.length ? TEXT.search : TEXT.queue}</span><small>{results.length || tracks.length} {TEXT.tracks}</small></div><div className="music-list" onScroll={loadNextPage}>{(results.length ? results : tracks).map((track, index) => <button key={`${track.source || 'queue'}:${track.id}`} className={`music-row${track.id === currentId ? ' current' : ''}`} onClick={() => results.length ? playResult(track) : setCurrentId(track.id)}><span className="track-index">{String(index + 1).padStart(2, '0')}</span><img src={track.art || EMPTY_ART} alt="" /><span className="track-title">{track.title}<small>{track.artist}{track.year ? ` · ${track.year}` : ''}</small></span><span className="track-action">{results.length ? TEXT.play : liked.has(track.id) ? TEXT.likes : TEXT.play}</span></button>)}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!results.length && !tracks.length && <div className="music-empty"><strong>{TEXT.noResult}</strong><span>{TEXT.choose}</span></div>}</div><p className="source-summary">{searchState || TEXT.source}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" /><div><p>歌词</p><h2>{current?.title || TEXT.noTrack}</h2><span>{current?.artist || TEXT.choose}</span></div><button className={`like-button${current && liked.has(current.id) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.id)}>{TEXT.likes}</button></div><div className="lyrics-body">{lyrics ? lyrics.split(/\r?\n/).filter(Boolean).map((line, index) => <p key={`${line}-${index}`}>{line.replace(/^\[\d{2}:\d{2}(?:\.\d{2,3})?\]/, '')}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
+    <footer className="music-player"><div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" /><span>{current?.title || TEXT.noTrack}<small>{current?.artist || 'LURI MUSIC'}</small></span></div><div className="music-controls"><div><button className="music-icon-button" onClick={() => { const index = tracks.findIndex((track) => track.id === currentId); if (tracks.length) setCurrentId(tracks[(index - 1 + tracks.length) % tracks.length].id); }} aria-label={TEXT.prev} title={TEXT.prev}><MusicIcon name="previous" /></button><button className="music-icon-button play-button" onClick={toggle} aria-label={playing ? TEXT.pause : TEXT.play} title={playing ? TEXT.pause : TEXT.play}><MusicIcon name={playing ? 'pause' : 'play'} /></button><button className="music-icon-button" onClick={next} aria-label={TEXT.next} title={TEXT.next}><MusicIcon name="next" /></button></div><div className="timeline"><span>{time(progress)}</span><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /><span>{time(duration)}</span></div></div><div className="music-volume"><button className="music-icon-button" onClick={() => setMuted((value) => !value)} aria-label={muted || volume === 0 ? '取消静音' : '静音'} title={muted || volume === 0 ? '取消静音' : '静音'}><MusicIcon name={muted || volume === 0 ? 'mute' : 'volume'} /></button><input type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} aria-label="音量" onChange={(event) => { const value = Number(event.target.value); setVolume(value); setMuted(value === 0); }} /></div></footer>
   </main>;
 }

@@ -1,5 +1,15 @@
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 
+function browserSafeUrl(value) {
+  const url = new URL(value);
+  // This authorised resolver returns an HTTP redirect which leads to HTTPS.
+  // Upgrade its known TLS-capable origin so the browser never starts a mixed-
+  // content request; audio bytes still go directly from the browser to source.
+  if (url.protocol === 'http:' && url.hostname === 'yinyue.haitangw.net') url.protocol = 'https:';
+  if (url.protocol !== 'https:') throw new Error('The resolved audio URL is not HTTPS');
+  return url.href;
+}
+
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url); const id = url.searchParams.get('id'); const source = url.searchParams.get('source'); const meta = url.searchParams.get('meta');
   if (!id) return json({ error: 'Missing track id' }, 400);
@@ -13,7 +23,8 @@ export async function onRequestGet({ request, env }) {
     const { getMusicRuntime } = await import('../../_music/source-runtime.js');
     const runtime = await getMusicRuntime();
     const result = await runtime.invoke({ source, action: 'musicUrl', info: { musicInfo, type: '128k' } });
-    return json({ url: typeof result === 'string' ? result : result?.url || '' });
+    const value = typeof result === 'string' ? result : result?.url || '';
+    return json({ url: value ? browserSafeUrl(value) : '' });
   } catch {
     return json({ error: 'Music resolver is unavailable' }, 502);
   }
