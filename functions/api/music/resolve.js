@@ -20,11 +20,13 @@ export async function onRequestGet({ request, env }) {
       const parsed = JSON.parse(meta);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) musicInfo = parsed;
     }
-    const { isGDStudio, resolveGDStudio } = await import('../../_music/gdstudio.js');
+    const { isGDStudio, resolveGDStudio, artworkGDStudio } = await import('../../_music/gdstudio.js');
     if (isGDStudio(source)) {
       try {
-        const result = await resolveGDStudio(source, id, musicInfo);
-        if (result?.url) return json({ url: browserSafeUrl(result.url), br: result.br || null, size: result.size || null, provider: 'gdstudio' });
+        const [musicResult, artworkResult] = await Promise.allSettled([resolveGDStudio(source, id, musicInfo), artworkGDStudio(source, musicInfo)]);
+        const result = musicResult.status === 'fulfilled' ? musicResult.value : null;
+        const artwork = artworkResult.status === 'fulfilled' ? artworkResult.value?.url || '' : '';
+        if (result?.url) return json({ url: browserSafeUrl(result.url), art: artwork ? browserSafeUrl(artwork) : '', br: result.br || null, size: result.size || null, provider: 'gdstudio' });
       } catch { /* Try the approved local resolvers below for this track only. */ }
       if (!title) return json({ url: '', provider: 'gdstudio' });
       const { getMusicRuntime } = await import('../../_music/source-runtime.js');

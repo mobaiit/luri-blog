@@ -59,7 +59,7 @@ export default function Music() {
   useEffect(() => {
     if (!current || current.url) return undefined;
     const controller = new AbortController(); const meta = current.meta ? `&meta=${encodeURIComponent(JSON.stringify(current.meta))}` : '';
-    fetch(`/api/music/resolve?id=${encodeURIComponent(current.id.replace(/^track:[^:]+:/, ''))}&source=${encodeURIComponent(current.source || '')}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, url: payload.url } : track)); }).catch(() => {});
+    fetch(`/api/music/resolve?id=${encodeURIComponent(current.id.replace(/^track:[^:]+:/, ''))}&source=${encodeURIComponent(current.source || '')}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, url: payload.url, art: payload.art || track.art } : track)); }).catch(() => {});
     return () => controller.abort();
   }, [current?.id, current?.url]);
   useEffect(() => {
@@ -127,7 +127,7 @@ export default function Music() {
       const meta = result.meta ? `&meta=${encodeURIComponent(JSON.stringify(result.meta))}` : '';
       const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(rawId)}&source=${encodeURIComponent(result.source || '')}&title=${encodeURIComponent(result.title || '')}&artist=${encodeURIComponent(result.artist || '')}${meta}`); if (!response.ok) throw Error();
       const payload = await response.json(); if (!payload.url) throw Error();
-      const track = { ...result, id: `track:${result.source || 'default'}:${rawId}`, url: payload.url, art: result.art || '' };
+      const track = { ...result, id: `track:${result.source || 'default'}:${rawId}`, url: payload.url, art: payload.art || result.art || '' };
       if (queue === 'favorites') setLikedTracks((items) => items.map((item) => item.id === track.id ? track : item)); else setTracks((items) => [track, ...items.filter((item) => item.id !== track.id)].slice(0, 50)); setCurrentId(track.id); setSearchState('正在加载音频…');
     } catch { setSearchState(TEXT.unavailable); }
   };
