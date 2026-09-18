@@ -323,6 +323,18 @@
   overflow-wrap: anywhere;
 }
 
+/* Music previously used the generic .timeline selector for its progress bar.
+   Reset those unrelated grid declarations for the blog timeline. */
+.blog-page .timeline {
+  display: block;
+  grid-template-columns: none;
+  align-items: normal;
+  gap: normal;
+  margin-top: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
 @media (max-width: 720px) {
   .tag-filter {
     flex-wrap: nowrap;
