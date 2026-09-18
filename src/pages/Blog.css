@@ -307,3 +307,37 @@
     left: -20px;
   }
 }
+
+/* An article is the full-width timeline row.  Only the title and tags are
+   links, so the DOM never nests anchors or lets a browser collapse the row. */
+.timeline__item {
+  width: 100%;
+  min-width: 0;
+}
+
+.timeline__item-title {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border-bottom: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .tag-filter {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tag-filter::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tag-filter__btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
