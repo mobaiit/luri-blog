@@ -76,6 +76,7 @@ export default function Music() {
     try {
       const response = await fetch(`/api/music/search?q=${encodeURIComponent(keyword)}&page=${page}`); if (!response.ok) throw Error();
       const payload = await response.json(); const incoming = payload.tracks || [];
+      if (!append) setTracks(incoming.slice(0, 50).map((track) => ({ ...track, id: `track:${track.source || 'default'}:${track.id}`, url: undefined })));
       setResults((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.source === track.source && item.id === track.id))] : incoming);
       setResultPage(page); setHasMoreResults(Boolean(payload.hasMore && incoming.length)); setSearchState('');
     } catch { setHasMoreResults(false); setSearchState('\u641c\u7d22\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528'); }
