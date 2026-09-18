@@ -31,7 +31,7 @@
 /* Keep the desktop player as one viewport; inner lists scroll silently. */
 @media(min-width:761px){.music-page{height:100dvh;min-height:0;overflow:hidden}.music-shell{height:calc(100dvh - var(--nav-height) - 10rem);min-height:0}.music-content{display:flex;min-height:0;height:100%;flex-direction:column}.music-workspace{min-height:0;flex:1}.music-results,.music-lyrics{min-height:0}.music-list{max-height:none;overflow-y:auto;-ms-overflow-style:none;scrollbar-width:none}.music-list::-webkit-scrollbar{display:none}.music-lyrics{display:flex;flex-direction:column}.lyrics-body{min-height:0;max-height:none;flex:1;overflow-y:auto}}
 
-@media(min-width:761px){.music-list-head{justify-content:flex-end;padding-top:1.8rem}.music-list-head>span{display:none}}
+@media(min-width:761px){.music-list-head{justify-content:flex-end;padding-top:1.25rem}.music-list-head>span{display:none}}
 
 @media(min-width:761px){.lyrics-body{padding:1rem 0 42%}}
 
