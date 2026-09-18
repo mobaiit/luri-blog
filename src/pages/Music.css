@@ -14,3 +14,6 @@
 
 .music-volume{display:flex;align-items:center;justify-self:end;gap:.45rem}.music-volume input{width:120px;accent-color:var(--color-text);cursor:pointer}.music-volume .music-icon-button{flex:0 0 auto}
 @media(max-width:640px){.music-volume{display:none}}
+
+/* Keep request status with the search rows instead of below the list. */
+.music-results{display:flex;min-width:0;flex-direction:column}.music-list-head{order:1}.source-summary{order:2;margin:.75rem 0;padding:.7rem .25rem;border-bottom:1px solid var(--color-border);color:var(--color-text-muted);font-size:.75rem}.source-summary:empty{display:none}.music-list{order:3}
