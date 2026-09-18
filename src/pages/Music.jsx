@@ -42,8 +42,8 @@ export default function Music() {
   useEffect(() => {
     const element = audio.current; if (!element) return undefined;
     const waiting = () => setSearchState('正在加载音频…'); const playingNow = () => setSearchState(''); const failed = () => setSearchState('音频加载失败，请尝试其他歌曲');
-    element.addEventListener('waiting', waiting); element.addEventListener('playing', playingNow); element.addEventListener('error', failed);
-    return () => { element.removeEventListener('waiting', waiting); element.removeEventListener('playing', playingNow); element.removeEventListener('error', failed); };
+    element.addEventListener('loadstart', waiting); element.addEventListener('waiting', waiting); element.addEventListener('playing', playingNow); element.addEventListener('error', failed);
+    return () => { element.removeEventListener('loadstart', waiting); element.removeEventListener('waiting', waiting); element.removeEventListener('playing', playingNow); element.removeEventListener('error', failed); };
   }, []);
   useEffect(() => { if (listView === 'search') setCachedResults(results); }, [listView, results]);
   useEffect(() => { try { localStorage.setItem(STORE_SEARCH, JSON.stringify(cachedResults)); localStorage.setItem(STORE_QUERY, query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
@@ -57,6 +57,7 @@ export default function Music() {
   useEffect(() => { try { localStorage.setItem(STORE_LIKES, JSON.stringify(likedTracks)); } catch { /* Storage is unavailable in private browsing. */ } }, [likedTracks]);
   useEffect(() => { if (!audio.current) return; audio.current.volume = volume; audio.current.muted = muted; }, [volume, muted]);
   useEffect(() => { const nodes = document.querySelectorAll('.lyrics-body p'); nodes.forEach((node, index) => node.classList.toggle('active', index === activeLyric)); const active = nodes[activeLyric]; active?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, [activeLyric]);
+  useEffect(() => { const body = document.querySelector('.lyrics-body'); if (!body) return undefined; const seek = (event) => { const index = [...body.querySelectorAll('p')].indexOf(event.target.closest('p')); const lyric = lyricLines[index]; if (lyric?.time >= 0 && audio.current) { audio.current.currentTime = lyric.time; setProgress(lyric.time); } }; body.addEventListener('click', seek); return () => body.removeEventListener('click', seek); }, [lyrics]);
   useEffect(() => {
     if (!current) { setLyrics(''); setLyricsState(''); return undefined; }
     const controller = new AbortController(); setLyrics(''); setLyricsState('正在加载歌词…');
@@ -99,7 +100,7 @@ export default function Music() {
       const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(result.id)}&source=${encodeURIComponent(result.source || '')}${meta}`); if (!response.ok) throw Error();
       const payload = await response.json(); if (!payload.url) throw Error();
       const track = { ...result, id: `track:${result.source || 'default'}:${result.id}`, url: payload.url, art: result.art || EMPTY_ART };
-      setTracks((items) => [track, ...items.filter((item) => item.id !== track.id)].slice(0, 50)); setCurrentId(track.id); setSearchState('');
+      setTracks((items) => [track, ...items.filter((item) => item.id !== track.id)].slice(0, 50)); setCurrentId(track.id); setSearchState('正在加载音频…');
     } catch { setSearchState(TEXT.unavailable); }
   };
   const downloadCurrent = () => {
