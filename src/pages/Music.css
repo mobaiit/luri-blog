@@ -69,7 +69,8 @@
 /* Keep the active-song metadata aligned with the lyric panel on every layout. */
 .lyrics-track,.lyrics-track>div,.lyrics-track h2,.lyrics-track p,.lyrics-track span{text-align:left}
 
-/* Lyrics share one left baseline; active lines grow from that baseline instead
-   of appearing to drift sideways as their length changes. */
-.lyrics-body p{padding:0;text-align:left;transform-origin:left center}
-.lyrics-body .lyrics-empty{text-align:left}
+/* Every lyric line uses the same full-width center, including its active
+   scale, so it stays centered without a horizontal offset. */
+.lyrics-body{width:100%;padding-left:0;padding-right:0}
+.lyrics-body p{width:100%;margin-left:0;margin-right:0;padding:0;text-align:center;transform-origin:center}
+.lyrics-body .lyrics-empty{text-align:center}
