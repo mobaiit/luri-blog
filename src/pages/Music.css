@@ -101,3 +101,5 @@
 .music-global-disclaimer{position:static!important;z-index:auto!important;max-width:980px!important;margin:2rem auto 0!important;overflow:visible!important;color:var(--color-text-muted);font-size:.62rem!important;line-height:1.6!important;text-align:left!important;white-space:normal!important;pointer-events:auto!important}.music-page{padding-bottom:9rem}.music-sidebar{gap:.25rem;padding-bottom:.35rem}.music-nav{padding:.25rem .5rem;font-size:.68rem}
 @media(min-width:761px){.music-page{height:auto;min-height:100dvh;overflow:visible}.music-shell{height:auto;min-height:calc(100dvh - var(--nav-height) - 12rem)}.music-sidebar{padding:0}.music-nav{padding:.25rem .5rem;font-size:.66rem}}
 @media(max-width:760px){.music-page{padding-bottom:9rem}.music-sidebar{padding:0 0 .35rem}.music-workspace{margin-top:.35rem}.music-nav{padding:.25rem .5rem;font-size:.68rem}}
+
+@media(max-width:760px){.music-page:has(.music-mobile-tabs button:last-child.active) .music-header,.music-page:has(.music-mobile-tabs button:last-child.active) .music-sidebar{display:none}}
