@@ -25,6 +25,9 @@
 
 @media(min-width:761px){.music-shell{position:relative}.music-sidebar{position:absolute;z-index:1;top:12.35rem;left:0;padding:0}.music-brand{display:none}.music-nav{padding:.32rem .62rem;font-size:.68rem}.music-list-head{padding-top:2.65rem}.music-workspace{grid-template-columns:minmax(220px,.72fr) minmax(0,1.28fr);gap:4rem}.music-lyrics{padding-left:1.5rem}.lyrics-track{grid-template-columns:86px minmax(0,1fr) auto}.lyrics-track img{width:86px;height:86px}.lyrics-track h2{font-size:1.15rem}.lyrics-body p{font-size:1rem;line-height:2.2}.lyrics-body p.active{font-size:1.2rem}}
 
+/* Desktop: a compact library on the left, lyrics given the open right side. */
+@media(min-width:761px){.music-content{padding-top:.25rem}.music-header{width:clamp(230px,31%,300px)}.music-header h1{font-size:1.35rem}.music-kicker{font-size:.6rem}.music-search{width:100%;margin-top:.8rem;padding-bottom:.5rem}.music-search input{font-size:.82rem}.music-disclaimer--search{display:none}.music-workspace{grid-template-columns:minmax(230px,.72fr) minmax(0,1.42fr);gap:4.5rem;margin-top:1.1rem}.music-sidebar{top:8.8rem}.music-list-head{padding-top:2.3rem}.music-lyrics{padding-left:0}.lyrics-track{padding-bottom:1.5rem}.music-results{padding-top:0}}
+
 .track-action{font-size:0}.track-action::before{display:inline-block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid currentColor;content:""}.lyrics-body p.active{color:var(--color-text);font-weight:500}.music-download:disabled{opacity:.3;cursor:not-allowed}
 
 /* QQ Music-inspired lyric focus: scrollable, but without a visible rail. */
