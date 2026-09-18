@@ -40,7 +40,7 @@ export default function Music() {
   const lyricLines = lyrics.split(/\r?\n/).filter(Boolean).map(lyricLine).filter((line) => line.text);
   const activeLyric = lyricLines.reduce((active, line, index) => line.time >= 0 && line.time <= progress ? index : active, -1);
 
-  useEffect(() => { if (!audio.current || !current?.url) return; audio.current.src = current.url; audio.current.load(); audio.current.play().catch(() => setPlaying(false)); }, [currentId, current?.url]);
+  useEffect(() => { if (!audio.current || !current?.url) return; setProgress(0); setDuration(0); audio.current.src = current.url; audio.current.load(); audio.current.play().catch(() => setPlaying(false)); }, [currentId, current?.url]);
   useEffect(() => {
     const element = audio.current; if (!element) return undefined;
     const waiting = () => setSearchState('正在加载音频…'); const playingNow = () => setSearchState(''); const failed = () => setSearchState('音频加载失败，请尝试其他歌曲');
