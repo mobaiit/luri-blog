@@ -43,3 +43,4 @@ export function gdStudioSource(source, meta) {
 
 export const resolveGDStudio = (source, id, meta) => request('url', { source: gdStudioSource(source, meta), id, br: 320 });
 export const lyricsGDStudio = (source, id, meta) => request('lyric', { source: gdStudioSource(source, meta), id: meta?.lyricId || id });
+export const artworkGDStudio = (source, meta) => request('pic', { source: gdStudioSource(source, meta), id: meta?.picId, size: 300 });

@@ -11,7 +11,7 @@ function browserSafeUrl(value) {
 }
 
 export async function onRequestGet({ request, env }) {
-  const url = new URL(request.url); const id = url.searchParams.get('id'); const source = url.searchParams.get('source'); const meta = url.searchParams.get('meta');
+  const url = new URL(request.url); const id = url.searchParams.get('id'); const source = url.searchParams.get('source'); const meta = url.searchParams.get('meta'); const title = url.searchParams.get('title')?.trim(); const artist = url.searchParams.get('artist')?.trim();
   if (!id) return json({ error: 'Missing track id' }, 400);
   if (!source) return json({ error: 'Missing music source' }, 400);
   try {
@@ -22,8 +22,20 @@ export async function onRequestGet({ request, env }) {
     }
     const { isGDStudio, resolveGDStudio } = await import('../../_music/gdstudio.js');
     if (isGDStudio(source)) {
-      const result = await resolveGDStudio(source, id, musicInfo);
-      return json({ url: result?.url ? browserSafeUrl(result.url) : '', br: result?.br || null, size: result?.size || null, provider: 'gdstudio' });
+      try {
+        const result = await resolveGDStudio(source, id, musicInfo);
+        if (result?.url) return json({ url: browserSafeUrl(result.url), br: result.br || null, size: result.size || null, provider: 'gdstudio' });
+      } catch { /* Try the approved local resolvers below for this track only. */ }
+      if (!title) return json({ url: '', provider: 'gdstudio' });
+      const { getMusicRuntime } = await import('../../_music/source-runtime.js');
+      const runtime = await getMusicRuntime();
+      const entries = await runtime.search(title, 1);
+      const normalizedTitle = title.toLocaleLowerCase(); const normalizedArtist = artist?.toLocaleLowerCase();
+      const match = entries.find((item) => (item.title || item.name || '').toLocaleLowerCase() === normalizedTitle && (!normalizedArtist || String(item.artist || item.singer || '').toLocaleLowerCase().includes(normalizedArtist))) || entries.find((item) => (item.title || item.name || '').toLocaleLowerCase() === normalizedTitle) || entries[0];
+      if (!match?.source) return json({ url: '', provider: 'gdstudio' });
+      const fallback = await runtime.invoke({ source: match.source, action: 'musicUrl', info: { musicInfo: match.musicInfo || match, type: '128k' } });
+      const fallbackUrl = typeof fallback === 'string' ? fallback : fallback?.url || '';
+      return json({ url: fallbackUrl ? browserSafeUrl(fallbackUrl) : '', provider: 'fallback', fallbackSource: match.source });
     }
     const { getMusicRuntime } = await import('../../_music/source-runtime.js');
     const runtime = await getMusicRuntime();

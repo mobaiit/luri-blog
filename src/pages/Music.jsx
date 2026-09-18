@@ -40,6 +40,12 @@ export default function Music() {
   const lyricLines = lyrics.split(/\r?\n/).filter(Boolean).map(lyricLine).filter((line) => line.text);
   const activeLyric = lyricLines.reduce((active, line, index) => line.time >= 0 && line.time <= progress ? index : active, -1);
 
+  useEffect(() => {
+    if (!currentId) return;
+    if (activeQueue === 'favorites' && !likedTracks.some((track) => track.id === currentId) && tracks.some((track) => track.id === currentId)) setActiveQueue('normal');
+    if (activeQueue === 'normal' && !tracks.some((track) => track.id === currentId) && likedTracks.some((track) => track.id === currentId)) setActiveQueue('favorites');
+  }, [currentId, activeQueue, tracks, likedTracks]);
+
   useEffect(() => { if (!audio.current || !current?.url) return; setProgress(0); setDuration(0); audio.current.src = current.url; audio.current.load(); audio.current.play().catch(() => setPlaying(false)); }, [currentId, current?.url]);
   useEffect(() => {
     const element = audio.current; if (!element) return undefined;
@@ -53,9 +59,17 @@ export default function Music() {
   useEffect(() => {
     if (!current || current.url) return undefined;
     const controller = new AbortController(); const meta = current.meta ? `&meta=${encodeURIComponent(JSON.stringify(current.meta))}` : '';
-    fetch(`/api/music/resolve?id=${encodeURIComponent(current.id.replace(/^track:[^:]+:/, ''))}&source=${encodeURIComponent(current.source || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, url: payload.url } : track)); }).catch(() => {});
+    fetch(`/api/music/resolve?id=${encodeURIComponent(current.id.replace(/^track:[^:]+:/, ''))}&source=${encodeURIComponent(current.source || '')}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, url: payload.url } : track)); }).catch(() => {});
     return () => controller.abort();
   }, [current?.id, current?.url]);
+  useEffect(() => {
+    if (!current || (current.art && current.art !== EMPTY_ART) || !current.source?.startsWith('gdstudio_') || !current.meta?.picId) return undefined;
+    const controller = new AbortController(); const meta = encodeURIComponent(JSON.stringify(current.meta));
+    fetch(`/api/music/art?source=${encodeURIComponent(current.source)}&meta=${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => {
+      if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, art: payload.url } : track));
+    }).catch(() => {});
+    return () => controller.abort();
+  }, [current?.id, current?.art]);
   useEffect(() => { try { localStorage.setItem(STORE_QUEUE, JSON.stringify(tracks.slice(0, 50).map(({ url, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [tracks]);
   useEffect(() => { try { localStorage.setItem(STORE_LIKES, JSON.stringify(likedTracks)); } catch { /* Storage is unavailable in private browsing. */ } }, [likedTracks]);
   useEffect(() => { if (!audio.current) return; audio.current.volume = volume; audio.current.muted = muted; }, [volume, muted]);
@@ -111,9 +125,9 @@ export default function Music() {
     try {
       const rawId = String(result.id).replace(/^track:[^:]+:/, ''); const queue = listView === 'likes' ? 'favorites' : 'normal'; setActiveQueue(queue);
       const meta = result.meta ? `&meta=${encodeURIComponent(JSON.stringify(result.meta))}` : '';
-      const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(rawId)}&source=${encodeURIComponent(result.source || '')}${meta}`); if (!response.ok) throw Error();
+      const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(rawId)}&source=${encodeURIComponent(result.source || '')}&title=${encodeURIComponent(result.title || '')}&artist=${encodeURIComponent(result.artist || '')}${meta}`); if (!response.ok) throw Error();
       const payload = await response.json(); if (!payload.url) throw Error();
-      const track = { ...result, id: `track:${result.source || 'default'}:${rawId}`, url: payload.url, art: result.art || EMPTY_ART };
+      const track = { ...result, id: `track:${result.source || 'default'}:${rawId}`, url: payload.url, art: result.art || '' };
       if (queue === 'favorites') setLikedTracks((items) => items.map((item) => item.id === track.id ? track : item)); else setTracks((items) => [track, ...items.filter((item) => item.id !== track.id)].slice(0, 50)); setCurrentId(track.id); setSearchState('正在加载音频…');
     } catch { setSearchState(TEXT.unavailable); }
   };
