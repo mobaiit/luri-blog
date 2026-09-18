@@ -58,3 +58,7 @@
 
 /* Compact horizontal metadata; lyrics begin at the top and scroll only on cue. */
 @media(min-width:761px){.lyrics-track{display:grid;grid-template-columns:74px minmax(0,1fr) auto;align-items:center;gap:.9rem;padding-bottom:.7rem;text-align:left}.lyrics-track img{width:74px;height:74px}.lyrics-track>div{display:block;min-width:0}.lyrics-track h2{margin:0 0 .18rem}.lyrics-track span[data-playback-state]:not([data-playback-state=""])::after{display:block;margin:.22rem 0 0}.lyrics-track .like-button{position:static;justify-self:end}.lyrics-body{padding:.35rem 0 50%;scroll-padding-block:0}.lyrics-body p{text-align:center}}
+
+/* Search rows are text-first; the full cover belongs to the active song. */
+.music-row{grid-template-columns:38px minmax(0,1fr) 42px}.music-row img{display:none}
+@media(min-width:761px){.music-row{grid-template-columns:42px minmax(0,1fr) 50px}}
