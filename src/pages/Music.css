@@ -55,3 +55,6 @@
 
 /* QQ Music-inspired lyric focus: scrollable, but without a visible rail. */
 .lyrics-body{padding:42% 0;scroll-behavior:smooth;scroll-padding-block:45%;-ms-overflow-style:none;scrollbar-width:none}.lyrics-body::-webkit-scrollbar{display:none}.lyrics-body p{padding:0 .5rem;color:var(--color-text-muted);font-size:.88rem;line-height:2.05;text-align:center;transition:color .25s ease,transform .25s ease,font-size .25s ease}.lyrics-body p.active{color:var(--color-text);font-size:1.03rem;font-weight:500;transform:scale(1.03)}.lyrics-body .lyrics-empty{padding:0;text-align:center}
+
+/* Compact horizontal metadata; lyrics begin at the top and scroll only on cue. */
+@media(min-width:761px){.lyrics-track{display:grid;grid-template-columns:74px minmax(0,1fr) auto;align-items:center;gap:.9rem;padding-bottom:.7rem;text-align:left}.lyrics-track img{width:74px;height:74px}.lyrics-track>div{display:block;min-width:0}.lyrics-track h2{margin:0 0 .18rem}.lyrics-track span[data-playback-state]:not([data-playback-state=""])::after{display:block;margin:.22rem 0 0}.lyrics-track .like-button{position:static;justify-self:end}.lyrics-body{padding:.35rem 0 50%;scroll-padding-block:0}.lyrics-body p{text-align:center}}

@@ -59,7 +59,15 @@ export default function Music() {
   useEffect(() => { try { localStorage.setItem(STORE_QUEUE, JSON.stringify(tracks.slice(0, 50).map(({ url, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [tracks]);
   useEffect(() => { try { localStorage.setItem(STORE_LIKES, JSON.stringify(likedTracks)); } catch { /* Storage is unavailable in private browsing. */ } }, [likedTracks]);
   useEffect(() => { if (!audio.current) return; audio.current.volume = volume; audio.current.muted = muted; }, [volume, muted]);
-  useEffect(() => { const nodes = document.querySelectorAll('.lyrics-body p'); nodes.forEach((node, index) => node.classList.toggle('active', index === activeLyric)); const active = nodes[activeLyric]; active?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, [activeLyric]);
+  useEffect(() => {
+    const body = lyricsRef.current || document.querySelector('.lyrics-body'); if (!body) return;
+    lyricsRef.current = body;
+    const nodes = body.querySelectorAll('p'); nodes.forEach((node, index) => node.classList.toggle('active', index === activeLyric));
+    const active = nodes[activeLyric]; if (!active) return;
+    // Begin at the top; follow only after the active line reaches mid-panel.
+    if (active.offsetTop > body.scrollTop + body.clientHeight / 2) body.scrollTo({ top: Math.max(0, active.offsetTop - body.clientHeight / 2 + active.offsetHeight / 2), behavior: 'smooth' });
+  }, [activeLyric]);
+  useEffect(() => { if (lyricsRef.current) lyricsRef.current.scrollTop = 0; }, [current?.id, lyrics]);
   useEffect(() => { const body = document.querySelector('.lyrics-body'); if (!body) return undefined; const seek = (event) => { const index = [...body.querySelectorAll('p')].indexOf(event.target.closest('p')); const lyric = lyricLines[index]; if (lyric?.time >= 0 && audio.current) { audio.current.currentTime = lyric.time; setProgress(lyric.time); } }; body.addEventListener('click', seek); return () => body.removeEventListener('click', seek); }, [lyrics]);
   useEffect(() => {
     if (!current) { setLyrics(''); setLyricsState(''); return undefined; }
