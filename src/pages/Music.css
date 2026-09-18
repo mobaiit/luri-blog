@@ -35,6 +35,8 @@
 
 @media(min-width:761px){.lyrics-body{padding:1rem 0 42%}}
 
+@media(min-width:761px){.music-kicker,.music-header h1{display:none}.music-header{width:clamp(230px,31%,300px)}.music-search{margin-top:0}.music-workspace{margin-top:1.4rem}.music-sidebar{top:4.45rem}.music-list-head{padding-top:1.25rem}.music-lyrics{padding-top:2.45rem}.music-disclaimer--search{position:absolute;bottom:.35rem;left:0;display:block;max-width:48ch;margin:0;font-size:.62rem;line-height:1.55;opacity:.72}}
+
 .track-action{font-size:0}.track-action::before{display:inline-block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid currentColor;content:""}.lyrics-body p.active{color:var(--color-text);font-weight:500}.music-download:disabled{opacity:.3;cursor:not-allowed}
 
 /* QQ Music-inspired lyric focus: scrollable, but without a visible rail. */
