@@ -31,29 +31,24 @@ export async function onRequestGet({ request }) {
       const parsed = JSON.parse(meta);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) musicInfo = parsed;
     }
-    const { isGDStudio, resolveGDStudio, artworkGDStudio } = await import('../../_music/gdstudio.js');
+    const { isGDStudio, resolveGDStudio } = await import('../../_music/gdstudio.js');
     if (isGDStudio(source)) {
-      const [musicResult, artworkResult] = await Promise.allSettled([resolveGDStudio(source, id, musicInfo), artworkGDStudio(source, musicInfo)]);
-      if (musicResult.status === 'fulfilled' && musicResult.value?.url) {
-        let artwork = '';
-        if (artworkResult.status === 'fulfilled' && artworkResult.value?.url) {
-          try { artwork = browserSafeUrl(artworkResult.value.url); }
-          catch (error) { console.warn('GD Studio artwork URL was rejected', error); }
-        } else if (artworkResult.status === 'rejected') console.warn('GD Studio artwork request failed', artworkResult.reason);
+      const musicResult = await Promise.allSettled([resolveGDStudio(source, id, musicInfo)]);
+      const [result] = musicResult;
+      if (result.status === 'fulfilled' && result.value?.url) {
         try {
-          const result = musicResult.value;
-          const response = json({ url: browserSafeUrl(result.url), art: artwork, br: result.br || null, size: result.size || null, provider: 'gdstudio' });
+          const response = json({ url: browserSafeUrl(result.value.url), art: '', br: result.value.br || null, size: result.value.size || null, provider: 'gdstudio' });
           response.headers.set('cache-control', 'public, max-age=60, s-maxage=60');
           await cacheResponse(cache, cacheKey, response);
           return response;
         } catch (error) { console.warn('GD Studio playback URL was rejected', error); }
-      } else console.warn('GD Studio playback URL request failed', musicResult.reason || 'No playable URL returned');
-      if (!title) return json({ url: '', provider: 'gdstudio' });
+      } else console.warn('GD Studio playback URL request failed', result.reason || 'No playable URL returned');
+      if (!title || !artist) return json({ url: '', provider: 'gdstudio' });
       const { getMusicRuntime } = await import('../../_music/source-runtime.js');
       const runtime = await getMusicRuntime();
       const entries = await runtime.search(title, 1);
       const normalizedTitle = title.toLocaleLowerCase(); const normalizedArtist = artist?.toLocaleLowerCase();
-      const match = entries.find((item) => (item.title || item.name || '').toLocaleLowerCase() === normalizedTitle && (!normalizedArtist || String(item.artist || item.singer || '').toLocaleLowerCase().includes(normalizedArtist))) || entries.find((item) => (item.title || item.name || '').toLocaleLowerCase() === normalizedTitle) || entries[0];
+      const match = entries.find((item) => (item.title || item.name || '').toLocaleLowerCase() === normalizedTitle && String(item.artist || item.singer || '').toLocaleLowerCase().includes(normalizedArtist));
       if (!match?.source) return json({ url: '', provider: 'gdstudio' });
       const fallback = await runtime.invoke({ source: match.source, action: 'musicUrl', info: { musicInfo: match.musicInfo || match, type: '128k' } });
       const fallbackUrl = typeof fallback === 'string' ? fallback : fallback?.url || '';
