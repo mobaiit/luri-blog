@@ -93,3 +93,6 @@
 
 /* The list switcher already names this area; a second “搜索” heading is noise. */
 @media(max-width:760px){.music-list-head>span{display:none}.music-list-head{justify-content:flex-end}.music-global-disclaimer{z-index:102;right:max(var(--space-sm),calc((100vw - 980px)/2));bottom:1px;left:max(var(--space-sm),calc((100vw - 980px)/2));max-width:none;overflow:hidden;font-size:.52rem;line-height:1.2;text-align:center;white-space:nowrap;text-overflow:ellipsis;pointer-events:none}.music-global-disclaimer a{pointer-events:auto}}
+
+/* Desktop uses the same unobtrusive player-level notice. */
+@media(min-width:761px){.music-global-disclaimer{z-index:102;right:max(var(--space-md),calc((100vw - 980px)/2));bottom:1px;left:max(var(--space-md),calc((100vw - 980px)/2));max-width:none;overflow:hidden;font-size:.52rem;line-height:1.2;text-align:center;white-space:nowrap;text-overflow:ellipsis;pointer-events:none}.music-global-disclaimer a{pointer-events:auto}}
