@@ -152,13 +152,12 @@ export default function Blog() {
                     <div className="timeline__year-label tl-observe">{year}</div>
 
                     {yearPosts.map((post, idx) => (
-                      <Link
+                      <article
                         key={post.slug}
-                        to={`/blog/${post.slug}`}
                         className="timeline__item tl-observe"
                         style={{ transitionDelay: `${idx * 0.06}s` }}
                       >
-                        <div className="timeline__item-title">{post.title}</div>
+                        <Link to={`/blog/${post.slug}`} className="timeline__item-title">{post.title}</Link>
 
                         <div className="timeline__item-meta">
                           <span className="timeline__item-date">{formatDate(post.date)}</span>
@@ -179,9 +178,9 @@ export default function Blog() {
                         </div>
 
                         {post.excerpt && (
-                          <p className="timeline__item-excerpt">{post.excerpt}</p>
+                          <Link to={`/blog/${post.slug}`} className="timeline__item-excerpt">{post.excerpt}</Link>
                         )}
-                      </Link>
+                      </article>
                     ))}
                   </div>
                 ))}
