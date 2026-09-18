@@ -12,8 +12,16 @@ export async function onRequestGet({ request }) {
     const meta = metaValue && metaValue.length <= 8192 ? JSON.parse(metaValue) : {};
     const { isGDStudio, lyricsGDStudio } = await import('../../_music/gdstudio.js');
     if (id && isGDStudio(source)) {
+      const cache = caches.default;
+      const lyricId = meta?.lyricId || id;
+      const cacheKey = new Request(`https://luri-music-cache.internal/gdstudio/lyrics?source=${encodeURIComponent(meta?.source || source)}&id=${encodeURIComponent(lyricId)}`);
+      const cached = await cache.match(cacheKey);
+      if (cached) return cached;
       const result = await lyricsGDStudio(source, id, meta);
-      return json({ lyrics: result?.lyric || '', translation: result?.tlyric || '', provider: 'gdstudio' });
+      const response = json({ lyrics: result?.lyric || '', translation: result?.tlyric || '', provider: 'gdstudio' });
+      response.headers.set('cache-control', 'public, max-age=86400, s-maxage=86400');
+      await cache.put(cacheKey, response.clone());
+      return response;
     }
   } catch { /* Fall through to the existing title/artist lyric lookup. */ }
   const target = new URL('https://lrclib.net/api/search');

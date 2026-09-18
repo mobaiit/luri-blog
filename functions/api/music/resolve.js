@@ -10,11 +10,15 @@ function browserSafeUrl(value) {
   return url.href;
 }
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request }) {
   const url = new URL(request.url); const id = url.searchParams.get('id'); const source = url.searchParams.get('source'); const meta = url.searchParams.get('meta'); const title = url.searchParams.get('title')?.trim(); const artist = url.searchParams.get('artist')?.trim();
   if (!id) return json({ error: 'Missing track id' }, 400);
   if (!source) return json({ error: 'Missing music source' }, 400);
   try {
+    const cache = caches.default;
+    const cacheKey = new Request(`https://luri-music-cache.internal/resolve?source=${encodeURIComponent(source)}&id=${encodeURIComponent(id)}`);
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
     let musicInfo = { songmid: id, hash: id };
     if (meta && meta.length <= 8192) {
       const parsed = JSON.parse(meta);
@@ -26,7 +30,12 @@ export async function onRequestGet({ request, env }) {
         const [musicResult, artworkResult] = await Promise.allSettled([resolveGDStudio(source, id, musicInfo), artworkGDStudio(source, musicInfo)]);
         const result = musicResult.status === 'fulfilled' ? musicResult.value : null;
         const artwork = artworkResult.status === 'fulfilled' ? artworkResult.value?.url || '' : '';
-        if (result?.url) return json({ url: browserSafeUrl(result.url), art: artwork ? browserSafeUrl(artwork) : '', br: result.br || null, size: result.size || null, provider: 'gdstudio' });
+        if (result?.url) {
+          const response = json({ url: browserSafeUrl(result.url), art: artwork ? browserSafeUrl(artwork) : '', br: result.br || null, size: result.size || null, provider: 'gdstudio' });
+          response.headers.set('cache-control', 'public, max-age=60, s-maxage=60');
+          await cache.put(cacheKey, response.clone());
+          return response;
+        }
       } catch { /* Try the approved local resolvers below for this track only. */ }
       if (!title) return json({ url: '', provider: 'gdstudio' });
       const { getMusicRuntime } = await import('../../_music/source-runtime.js');
@@ -37,13 +46,17 @@ export async function onRequestGet({ request, env }) {
       if (!match?.source) return json({ url: '', provider: 'gdstudio' });
       const fallback = await runtime.invoke({ source: match.source, action: 'musicUrl', info: { musicInfo: match.musicInfo || match, type: '128k' } });
       const fallbackUrl = typeof fallback === 'string' ? fallback : fallback?.url || '';
-      return json({ url: fallbackUrl ? browserSafeUrl(fallbackUrl) : '', provider: 'fallback', fallbackSource: match.source });
+      const response = json({ url: fallbackUrl ? browserSafeUrl(fallbackUrl) : '', provider: 'fallback', fallbackSource: match.source });
+      if (fallbackUrl) { response.headers.set('cache-control', 'public, max-age=60, s-maxage=60'); await cache.put(cacheKey, response.clone()); }
+      return response;
     }
     const { getMusicRuntime } = await import('../../_music/source-runtime.js');
     const runtime = await getMusicRuntime();
     const result = await runtime.invoke({ source, action: 'musicUrl', info: { musicInfo, type: '128k' } });
     const value = typeof result === 'string' ? result : result?.url || '';
-    return json({ url: value ? browserSafeUrl(value) : '' });
+    const response = json({ url: value ? browserSafeUrl(value) : '' });
+    if (value) { response.headers.set('cache-control', 'public, max-age=60, s-maxage=60'); await cache.put(cacheKey, response.clone()); }
+    return response;
   } catch {
     return json({ error: 'Music resolver is unavailable' }, 502);
   }

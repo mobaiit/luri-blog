@@ -41,8 +41,6 @@
 
 @media(min-width:761px){.music-lyrics{position:relative;margin-top:-3.6rem;padding-top:0}.lyrics-track{position:relative}.lyrics-track span[data-playback-state]:not([data-playback-state=""])::after{margin-left:.45rem;color:var(--color-text-muted);font-size:.64rem;content:"◌ " attr(data-playback-state);white-space:nowrap}.source-summary{display:none}}
 
-@media(min-width:761px){.lyrics-track{display:flex;flex-direction:column;align-items:center;gap:.3rem;padding-bottom:.8rem;text-align:center}.lyrics-track img{width:74px;height:74px}.lyrics-track>div{display:grid;justify-items:center}.lyrics-track h2{margin:.15rem 0}.lyrics-track span[data-playback-state]:not([data-playback-state=""])::after{display:block;margin:.28rem 0 0;font-size:.64rem;content:"◌ " attr(data-playback-state)}.lyrics-track .like-button{position:absolute;top:.25rem;right:0}.lyrics-body{padding-top:.8rem}}
-
 .source-summary{display:none}.music-player__song small[data-playback-state]:not([data-playback-state=""])::after{margin-left:.45rem;color:var(--color-text-muted);content:"◌ " attr(data-playback-state);white-space:nowrap}
 
 /* Playback feedback belongs to the player, not the queue. */
@@ -66,6 +64,7 @@
 /* Do not pull the lyric panel upward: metadata and lyrics flow naturally. */
 @media(min-width:761px){.music-lyrics{margin-top:0;padding-top:0}.lyrics-track{text-align:left}.lyrics-body{padding:.35rem 0 1.5rem;scroll-padding-block:0}}
 
-@media(min-width:761px){.lyrics-track{justify-items:start}.lyrics-track>div{justify-self:start;text-align:left}.lyrics-track h2,.lyrics-track p,.lyrics-track span{text-align:left}}
-
 @media(min-width:761px){.lyrics-track span[data-playback-state]:not([data-playback-state=""])::after{display:inline;margin-left:.45rem}}
+
+/* Keep the active-song metadata aligned with the lyric panel on every layout. */
+.lyrics-track,.lyrics-track>div,.lyrics-track h2,.lyrics-track p,.lyrics-track span{text-align:left}
