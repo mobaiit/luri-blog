@@ -65,3 +65,5 @@
 
 /* Do not pull the lyric panel upward: metadata and lyrics flow naturally. */
 @media(min-width:761px){.music-lyrics{margin-top:0;padding-top:0}.lyrics-track{text-align:left}.lyrics-body{padding:.35rem 0 1.5rem;scroll-padding-block:0}}
+
+@media(min-width:761px){.lyrics-track{justify-items:start}.lyrics-track>div{justify-self:start;text-align:left}.lyrics-track h2,.lyrics-track p,.lyrics-track span{text-align:left}}
