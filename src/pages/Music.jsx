@@ -48,6 +48,7 @@ export default function Music() {
     return () => { element.removeEventListener('loadstart', waiting); element.removeEventListener('waiting', waiting); element.removeEventListener('playing', playingNow); element.removeEventListener('error', failed); };
   }, []);
   useEffect(() => { if (listView === 'search') setCachedResults(results); }, [listView, results]);
+  useEffect(() => { const panel = document.querySelector('.lyrics-track'); if (panel) panel.dataset.playbackState = searchState; }, [searchState]);
   useEffect(() => { try { localStorage.setItem(STORE_SEARCH, JSON.stringify(cachedResults)); localStorage.setItem(STORE_QUERY, query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
   useEffect(() => {
     if (!current || current.url) return undefined;
