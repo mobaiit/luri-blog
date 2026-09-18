@@ -78,3 +78,11 @@
 /* Keep the line box fixed while emphasizing the active lyric. Scaling around
    its center preserves the common center point without reflowing neighbours. */
 .lyrics-body p.active{font-size:.88rem;transform:scale(1.2)}
+
+/* Align the active-song cover with the search field on the desktop layout. */
+@media(min-width:761px){.music-lyrics{margin-top:-4.25rem}}
+
+/* Mobile keeps the desktop visual language, but switches between its two
+   dense work areas instead of asking users to scroll between them. */
+.music-mobile-tabs{display:none}
+@media(max-width:760px){.music-page{padding-bottom:10rem}.music-header{position:sticky;z-index:100;top:var(--nav-height);padding:.7rem 0 1rem;background:var(--color-bg)}.music-mobile-tabs{position:fixed;z-index:102;right:0;bottom:68px;left:0;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--color-border);background:#fffffff5;backdrop-filter:blur(12px)}.music-mobile-tabs button{border:0;border-right:1px solid var(--color-border);padding:.45rem;background:transparent;color:var(--color-text-muted);font:inherit;font-size:.75rem;cursor:pointer}.music-mobile-tabs button:last-child{border-right:0}.music-mobile-tabs button.active{color:var(--color-text);font-weight:500}.music-page:has(.music-mobile-tabs button:first-child.active) .music-lyrics{display:none}.music-page:has(.music-mobile-tabs button:last-child.active) .music-results{display:none}.music-page:has(.music-mobile-tabs button:last-child.active) .music-workspace{display:block;margin-top:1.25rem}.music-page:has(.music-mobile-tabs button:last-child.active) .music-lyrics{display:flex}.music-page:has(.music-mobile-tabs button:last-child.active) .lyrics-body{max-height:calc(100dvh - 19rem);min-height:18rem}.music-player{bottom:0}}
