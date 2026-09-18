@@ -145,3 +145,7 @@
 
 /* Enlarge transport glyphs without changing the player controls' footprint. */
 .music-player .music-controls .music-icon{width:1.3rem;height:1.3rem}.music-player .music-controls .play-button .music-icon{width:1.38rem;height:1.38rem}
+
+/* Mobile keeps transport controls centred while volume sits independently on
+   the right of the lower control row. */
+@media(max-width:760px){.music-player .music-volume{position:absolute;right:var(--space-sm);bottom:.7rem;display:flex!important;gap:.2rem}.music-player .music-volume .music-icon-button{width:1.8rem;height:1.8rem}.music-player .music-volume input{width:clamp(56px,18vw,84px);margin:0;accent-color:var(--color-text)}}
