@@ -337,19 +337,24 @@
 
 @media (max-width: 720px) {
   .tag-filter {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .tag-filter::-webkit-scrollbar {
-    display: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+    padding-bottom: 0;
   }
 
   .tag-filter__btn {
-    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+  }
+}
+
+@media (min-width: 521px) and (max-width: 720px) {
+  .tag-filter {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
