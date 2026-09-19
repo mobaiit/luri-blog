@@ -4,6 +4,10 @@ import './GlobalMusicCollapse.css';
 
 const AUTO_COLLAPSE_DELAY = 6000;
 
+function CollapseIcon({ collapsed }) {
+  return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d={collapsed ? 'm7 15 5-5 5 5' : 'm7 9 5 5 5-5'} /></svg>;
+}
+
 export default function GlobalMusicCollapse() {
   const { pathname } = useLocation();
   const isGlobalPlayer = pathname !== '/music';
@@ -30,5 +34,5 @@ export default function GlobalMusicCollapse() {
   }, [collapsed, isGlobalPlayer]);
 
   if (!isGlobalPlayer) return null;
-  return <button className="global-music-collapse" type="button" onMouseEnter={() => collapsed && setCollapsed(false)} onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? '展开播放器' : '收起播放器'} title={collapsed ? '展开播放器' : '收起播放器'}>{collapsed ? '⌃' : '⌄'}</button>;
+  return <button className="global-music-collapse" type="button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? '展开播放器' : '收起播放器'} title={collapsed ? '展开播放器' : '收起播放器'}><CollapseIcon collapsed={collapsed} /></button>;
 }
