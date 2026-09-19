@@ -184,3 +184,6 @@
 
 /* The search control follows the same column width as the desktop library. */
 @media(min-width:761px){.music-header{width:calc(58% - 17px)!important}}
+
+/* Exact desktop columns at the 900px workspace width. */
+@media(min-width:961px){.music-workspace{grid-template-columns:480px 390px}.music-header{width:480px!important}.track-copy{grid-template-columns:minmax(0,1fr) 124px}}
