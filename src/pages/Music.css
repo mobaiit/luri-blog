@@ -166,3 +166,7 @@
    Mobile retains only the space genuinely needed by the fixed controls. */
 @media(min-width:761px){.music-page{padding-bottom:.5rem!important}.music-global-disclaimer{margin:.5rem auto 0!important}.music-page+.footer{margin-top:.75rem}}
 @media(max-width:760px){.music-page{padding-bottom:7.5rem!important}.music-global-disclaimer{margin:.35rem auto 0!important}}
+
+/* On phones, a drag that starts on the playlist always scrolls songs inside
+   the list. It must not hand off to the document scroll area. */
+@media(max-width:760px){.music-page.mobile-view-playlist .music-results{display:flex;flex-direction:column;min-height:0}.music-page.mobile-view-playlist .music-list{height:min(25rem,calc(100dvh - var(--nav-height) - 17rem));max-height:none!important;overflow-y:scroll!important;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}}
