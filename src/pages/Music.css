@@ -156,3 +156,8 @@
 
 /* Larger transport targets improve tapping without changing the progress row. */
 .music-player .music-controls .music-icon-button{width:2.65rem;height:2.65rem}.music-player .music-controls .play-button{width:2.8rem;height:2.8rem}
+
+/* Playback feedback is intentionally confined to the queue action and the
+   transport button, so search feedback cannot alter player state. */
+.music-search-status:empty{display:none}.music-search-status{margin:.6rem 0 0;color:var(--color-text-muted);font-size:.72rem;line-height:1.4}
+.track-action{display:inline-grid!important;place-items:center;min-width:1rem;min-height:1rem;font-size:0!important;opacity:1!important}.track-action::before,.track-action::after{display:none!important;content:none!important}.track-action .music-icon{width:1rem;height:1rem}.track-action--playing .music-icon{width:.95rem;height:.95rem}.track-action--error{min-width:auto;color:var(--color-text-muted);font-size:.68rem!important;white-space:nowrap}.music-spinner{display:inline-block;width:.82rem;height:.82rem;box-sizing:border-box;border:1.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:music-playback-spin .7s linear infinite}.music-controls .play-button .music-spinner{width:1.12rem;height:1.12rem;border-width:1.7px}.music-controls .play-button:disabled{opacity:1;cursor:wait}@keyframes music-playback-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.music-spinner{animation:none}}
