@@ -38,13 +38,13 @@ export default function Music() {
   const [mobileView, setMobileView] = useState('playlist');
   const [activeQueue, setActiveQueue] = useState('normal');
   const [resultPage, setResultPage] = useState(0); const [hasMoreResults, setHasMoreResults] = useState(false); const [loadingMore, setLoadingMore] = useState(false);
-  const [tracks, setTracks] = useState(() => readStore(STORE_QUEUE)); const [likedTracks, setLikedTracks] = useState(() => readStore(STORE_LIKES)); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
+  const [tracks, setTracks] = useState(() => readStore(STORE_QUEUE)); const [likedTracks, setLikedTracks] = useState(() => readStore(STORE_LIKES)); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
   const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0); const [liked, setLiked] = useState(() => new Set(readStore(STORE_LIKES).map((track) => track.id)));
   const [volume, setVolume] = useState(0.8); const [muted, setMuted] = useState(false);
   const [lyrics, setLyrics] = useState(''); const [lyricsState, setLyricsState] = useState('');
   const lyricsRef = useRef(null);
   const activeTracks = activeQueue === 'favorites' ? likedTracks : tracks;
-  const current = activeTracks.find((track) => track.id === currentId);
+  const current = playbackQueue.find((track) => track.id === currentId) || activeTracks.find((track) => track.id === currentId);
   const lyricLines = lyrics.split(/\r?\n/).filter(Boolean).map(lyricLine).filter((line) => line.text);
   const activeLyric = lyricLines.reduce((active, line, index) => line.time >= 0 && line.time <= progress ? index : active, -1);
 
@@ -74,7 +74,11 @@ export default function Music() {
     const controller = new AbortController(); const meta = current.meta ? `&meta=${encodeURIComponent(JSON.stringify(current.meta))}` : '';
     fetch(`/api/music/resolve?id=${encodeURIComponent(sourceTrackId(current))}&source=${encodeURIComponent(current.source || '')}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => {
       if (!payload.url) throw Error();
-      if (!controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, url: payload.url, art: payload.art || track.art } : track));
+      if (!controller.signal.aborted) {
+        const update = (track) => track.id === current.id ? { ...track, url: payload.url, art: payload.art || track.art } : track;
+        (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map(update));
+        setPlaybackQueue((items) => items.map(update));
+      }
     }).catch(() => { if (!controller.signal.aborted) setPlaybackState('error'); });
     return () => controller.abort();
   }, [activeQueue, current, playbackAttempt]);
@@ -82,7 +86,11 @@ export default function Music() {
     if (!current || (current.art && current.art !== EMPTY_ART) || !current.source) return undefined;
     const controller = new AbortController(); const meta = current.meta ? `&meta=${encodeURIComponent(JSON.stringify(current.meta))}` : '';
     fetch(`/api/music/art?source=${encodeURIComponent(current.source)}&id=${encodeURIComponent(sourceTrackId(current))}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => {
-      if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, art: payload.url } : track));
+      if (payload.url && !controller.signal.aborted) {
+        const update = (track) => track.id === current.id ? { ...track, art: payload.url } : track;
+        (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map(update));
+        setPlaybackQueue((items) => items.map(update));
+      }
     }).catch(() => {});
     return () => controller.abort();
   }, [activeQueue, current]);
@@ -136,7 +144,9 @@ export default function Music() {
     fetch(`/api/music/lyrics?${params}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (!controller.signal.aborted) { setLyrics(payload.lyrics || ''); setLyricsState(payload.lyrics ? '' : '暂无匹配歌词'); } }).catch(() => { if (!controller.signal.aborted) setLyricsState('暂无匹配歌词'); });
     return () => controller.abort();
   }, [current]);
-  const selectTrack = (id) => {
+  const selectTrack = (id, queue = null) => {
+    const sourceQueue = queue?.length ? queue : playbackQueue.some((track) => track.id === id) ? null : activeTracks;
+    if (sourceQueue?.length) setPlaybackQueue(sourceQueue);
     setPlaybackTrackId(id); setPlaybackState('loading');
     if (id === currentId) {
       if (current?.url) audio.current?.play().catch(() => { setPlaying(false); setPlaybackState('error'); });
@@ -145,11 +155,19 @@ export default function Music() {
     }
     setCurrentId(id);
   };
-  const next = () => { const index = activeTracks.findIndex((track) => track.id === currentId); if (activeTracks.length) selectTrack(activeTracks[(index + 1 + activeTracks.length) % activeTracks.length].id); };
-  const previous = () => { const index = activeTracks.findIndex((track) => track.id === currentId); if (activeTracks.length) selectTrack(activeTracks[(index - 1 + activeTracks.length) % activeTracks.length].id); };
+  const next = () => {
+    const queue = playbackQueue.length ? playbackQueue : activeTracks; if (!queue.length) return;
+    const index = queue.findIndex((track) => track.id === currentId);
+    selectTrack(queue[index < 0 ? 0 : (index + 1) % queue.length].id);
+  };
+  const previous = () => {
+    const queue = playbackQueue.length ? playbackQueue : activeTracks; if (!queue.length) return;
+    const index = queue.findIndex((track) => track.id === currentId);
+    selectTrack(queue[index <= 0 ? queue.length - 1 : index - 1].id);
+  };
   const toggle = () => {
     if (playbackState === 'resolving' || playbackState === 'loading') return;
-    if (!current && activeTracks[0]) return selectTrack(activeTracks[0].id);
+    if (!current && activeTracks[0]) return selectTrack(activeTracks[0].id, activeTracks);
     if (playing) { audio.current?.pause(); return; }
     setPlaybackTrackId(currentId); setPlaybackState('loading');
     audio.current?.play().catch(() => { setPlaying(false); setPlaybackState('error'); });
@@ -187,6 +205,9 @@ export default function Music() {
 
   const playResult = async (result) => {
     const trackId = trackKey({ ...result, id: sourceTrackId(result) });
+    const sourceQueue = results.length ? results : activeTracks;
+    const sessionQueue = sourceQueue.some((track) => track.id === trackId) ? sourceQueue : [result, ...sourceQueue];
+    setPlaybackQueue(sessionQueue);
     setPlaybackTrackId(trackId); setPlaybackState('resolving');
     try {
       const rawId = sourceTrackId(result); const queue = listView === 'likes' ? 'favorites' : 'normal'; setActiveQueue(queue);
@@ -194,7 +215,9 @@ export default function Music() {
       const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(rawId)}&source=${encodeURIComponent(result.source || '')}&title=${encodeURIComponent(result.title || '')}&artist=${encodeURIComponent(result.artist || '')}${meta}`); if (!response.ok) throw Error();
       const payload = await response.json(); if (!payload.url) throw Error();
       const track = { ...result, sourceId: rawId, id: trackKey({ ...result, id: rawId }), url: payload.url, art: payload.art || result.art || '' };
-      if (queue === 'favorites') setLikedTracks((items) => items.map((item) => item.id === track.id ? track : item)); else setTracks((items) => [track, ...items.filter((item) => item.id !== track.id)].slice(0, 50)); setCurrentId(track.id); setPlaybackTrackId(track.id); setPlaybackState('loading');
+      if (queue === 'favorites') setLikedTracks((items) => items.map((item) => item.id === track.id ? track : item)); else setTracks((items) => [track, ...items.filter((item) => item.id !== track.id)].slice(0, 50));
+      setPlaybackQueue((items) => items.some((item) => item.id === track.id) ? items.map((item) => item.id === track.id ? track : item) : [track, ...items]);
+      setCurrentId(track.id); setPlaybackTrackId(track.id); setPlaybackState('loading');
     } catch { setPlaybackState('error'); }
   };
   const seekLyric = (event) => {
