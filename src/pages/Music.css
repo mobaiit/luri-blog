@@ -211,3 +211,7 @@
 .music-player>.music-global-disclaimer{position:static!important;z-index:auto!important;grid-column:1 / -1!important;grid-row:2!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;color:var(--color-text-muted)!important;font-size:.56rem!important;line-height:1.25!important;text-align:center!important;text-overflow:ellipsis!important;white-space:nowrap!important;pointer-events:none!important}
 @media(min-width:761px){.music-player{min-height:104px!important}.music-player>.music-global-disclaimer{font-size:.56rem!important}}
 @media(max-width:760px){.music-page{padding-bottom:112px!important}.music-player{min-height:112px!important;padding-bottom:5px!important}.music-mobile-tabs{bottom:112px!important}.music-player>.music-global-disclaimer{font-size:.48rem!important}}
+
+/* Put the notice directly below the transport controls, with readable contrast. */
+@media(min-width:761px){.music-player>.music-global-disclaimer{grid-column:2!important;font-size:.7rem!important;color:var(--color-text-muted)!important}}
+@media(max-width:760px){.music-player>.music-global-disclaimer{grid-column:1!important;font-size:.64rem!important;color:var(--color-text-muted)!important}}
