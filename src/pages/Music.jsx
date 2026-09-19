@@ -81,15 +81,24 @@ export default function Music() {
   useEffect(() => {
     const body = lyricsRef.current; if (!body) return undefined;
     let startedOnLyric = false;
-    const isLyricText = (target, point) => {
-      const line = target.closest?.('p'); if (!line || !body.contains(line)) return false;
-      const range = document.createRange(); range.selectNodeContents(line); const bounds = range.getBoundingClientRect();
-      return point.clientX >= bounds.left && point.clientX <= bounds.right && point.clientY >= bounds.top && point.clientY <= bounds.bottom;
+    const isLyricLane = (target, point) => {
+      const lines = [...body.querySelectorAll('p')];
+      let line = target.closest?.('p');
+      if (!line || !body.contains(line)) line = lines.find((candidate, index) => {
+        const bounds = candidate.getBoundingClientRect();
+        const previous = lines[index - 1]?.getBoundingClientRect(); const next = lines[index + 1]?.getBoundingClientRect();
+        const top = previous ? (previous.bottom + bounds.top) / 2 : bounds.top;
+        const bottom = next ? (bounds.bottom + next.top) / 2 : bounds.bottom;
+        return point.clientY >= top && point.clientY <= bottom;
+      });
+      if (!line) return false;
+      const range = document.createRange(); range.selectNodeContents(line); const text = range.getBoundingClientRect();
+      return point.clientX >= text.left && point.clientX <= text.right;
     };
-    const onTouchStart = (event) => { startedOnLyric = isLyricText(event.target, event.touches[0]); };
+    const onTouchStart = (event) => { startedOnLyric = isLyricLane(event.target, event.touches[0]); };
     const onTouchMove = (event) => { if (!startedOnLyric) event.preventDefault(); };
     const onTouchEnd = () => { startedOnLyric = false; };
-    const onWheel = (event) => { if (!isLyricText(event.target, event)) event.preventDefault(); };
+    const onWheel = (event) => { if (!isLyricLane(event.target, event)) event.preventDefault(); };
     body.addEventListener('touchstart', onTouchStart, { passive: true });
     body.addEventListener('touchmove', onTouchMove, { passive: false });
     body.addEventListener('touchend', onTouchEnd, { passive: true });
