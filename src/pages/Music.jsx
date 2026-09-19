@@ -7,6 +7,7 @@ const time = (value = 0) => Number.isFinite(value) ? `${Math.floor(value / 60)}:
 const lyricLine = (line) => { const match = /^\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\](.*)$/.exec(line); return match ? { time: Number(match[1]) * 60 + Number(match[2]), text: match[3].trim() } : { time: -1, text: line }; };
 const STORE_QUEUE = 'luri.music.queue.v1'; const STORE_LIKES = 'luri.music.likes.v1'; const STORE_SEARCH = 'luri.music.search.v1'; const STORE_QUERY = 'luri.music.query.v1';
 const readStore = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
+const trackKey = (track) => { const id = String(track?.id || ''); return id.startsWith('track:') ? id : `track:${track?.source || 'default'}:${id}`; };
 // The source status is shown only while an operation is in progress.
 TEXT.source = '';
 TEXT.unavailable = '加载失败，请重新播放';
@@ -27,7 +28,8 @@ function MusicIcon({ name }) {
 
 export default function Music() {
   const audio = useRef(null);
-  const [query, setQuery] = useState(() => localStorage.getItem(STORE_QUERY) || ''); const [results, setResults] = useState(() => readStore(STORE_SEARCH)); const [cachedResults, setCachedResults] = useState(() => readStore(STORE_SEARCH)); const [searchState, setSearchState] = useState('');
+  const restoreResults = () => readStore(STORE_SEARCH).map((track) => ({ ...track, id: trackKey(track) }));
+  const [query, setQuery] = useState(() => localStorage.getItem(STORE_QUERY) || ''); const [results, setResults] = useState(restoreResults); const [cachedResults, setCachedResults] = useState(restoreResults); const [searchState, setSearchState] = useState('');
   const [listView, setListView] = useState('search');
   const [mobileView, setMobileView] = useState('playlist');
   const [activeQueue, setActiveQueue] = useState('normal');
@@ -74,8 +76,10 @@ export default function Music() {
     lyricsRef.current = body;
     const nodes = body.querySelectorAll('p'); nodes.forEach((node, index) => node.classList.toggle('active', index === activeLyric));
     const active = nodes[activeLyric]; if (!active) return;
-    // Begin at the top; follow only after the active line reaches mid-panel.
-    if (active.offsetTop > body.scrollTop + body.clientHeight / 2) body.scrollTo({ top: Math.max(0, active.offsetTop - body.clientHeight / 2 + active.offsetHeight / 2), behavior: 'smooth' });
+    // A manual browse is temporary: every new lyric line returns to its play anchor.
+    const desktop = window.matchMedia('(min-width: 761px)').matches;
+    const anchor = desktop ? body.clientHeight / 2 + active.offsetHeight : body.clientHeight / 2;
+    body.scrollTo({ top: Math.max(0, active.offsetTop - anchor + active.offsetHeight / 2), behavior: 'smooth' });
   }, [activeLyric]);
   useEffect(() => { if (lyricsRef.current) lyricsRef.current.scrollTop = 0; }, [current?.id, lyrics]);
   useEffect(() => {
@@ -125,8 +129,8 @@ export default function Music() {
     if (append) setLoadingMore(true); else setSearchState(TEXT.searching);
     try {
       const response = await fetch(`/api/music/search?q=${encodeURIComponent(keyword)}&page=${page}`); if (!response.ok) throw Error();
-      const payload = await response.json(); const incoming = payload.tracks || [];
-      if (!append) setTracks(incoming.slice(0, 50).map((track) => ({ ...track, id: `track:${track.source || 'default'}:${track.id}`, url: undefined })));
+      const payload = await response.json(); const incoming = (payload.tracks || []).map((track) => ({ ...track, id: trackKey(track) }));
+      if (!append) setTracks(incoming.slice(0, 50).map((track) => ({ ...track, url: undefined })));
       setResults((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.source === track.source && item.id === track.id))] : incoming);
       setResultPage(page); setHasMoreResults(Boolean(payload.hasMore && incoming.length)); setSearchState('');
     } catch { setHasMoreResults(false); setSearchState('\u641c\u7d22\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528'); }

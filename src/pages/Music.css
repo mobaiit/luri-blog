@@ -153,3 +153,6 @@
 /* The desktop lyric viewport should spend its height on lyrics, not padding. */
 @media(min-width:761px){.music-lyrics .lyrics-body{padding:0;scroll-padding-block:0}}
 @media(max-width:760px){.music-player .music-volume{display:none!important}}
+
+/* Larger transport targets improve tapping without changing the progress row. */
+.music-player .music-controls .music-icon-button{width:2.65rem;height:2.65rem}.music-player .music-controls .play-button{width:2.8rem;height:2.8rem}
