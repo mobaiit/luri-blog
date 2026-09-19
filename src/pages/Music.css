@@ -233,6 +233,7 @@
 .music-controls>div:first-child{display:flex!important;align-items:center!important;justify-content:center!important}
 .music-player .music-controls .play-button{position:relative!important;display:inline-grid!important;place-items:center!important;padding:0!important;line-height:0!important}
 .music-player .music-controls .play-button .music-icon,.music-player .music-controls .play-button .music-spinner{position:absolute!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important}
+.music-player .music-controls .play-button .music-icon{color:#000!important}
 
 /* Keep the audio element and its state alive across routes. Outside /music,
    only a compact, controllable player remains in the application shell. */
