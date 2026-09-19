@@ -176,3 +176,6 @@
 
 /* Desktop needs enough shared width for the now-separated song and artist columns. */
 @media(min-width:761px){.music-shell{max-width:900px}}
+
+/* Desktop library/lyrics balance: give titles priority without squeezing lyrics. */
+@media(min-width:761px){.music-workspace{grid-template-columns:minmax(0,1.38fr) minmax(0,1fr);gap:30px}}
