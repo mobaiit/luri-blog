@@ -190,3 +190,6 @@
 
 /* Search history floats over the list, so opening it never changes layout. */
 .music-search{position:relative}.music-search-history{position:absolute;z-index:110;top:calc(100% + 6px);right:0;left:0;overflow:hidden;border:1px solid var(--color-border);background:var(--color-bg);box-shadow:0 8px 18px #0000000d}.music-search-history__head{display:flex;align-items:center;justify-content:space-between;padding:.4rem .6rem;border-bottom:1px solid var(--color-border);color:var(--color-text-muted);font-size:.64rem}.music-search-history__head button{width:auto;height:auto;padding:0!important;color:var(--color-text-muted);font-size:.64rem!important}.music-search-history__item{display:block;width:100%;padding:.48rem .6rem!important;background:transparent;color:var(--color-text)!important;font:inherit!important;font-size:.78rem!important;text-align:left}.music-search-history__item:hover{background:#00000008}@media(max-width:760px){.music-search-history{top:calc(100% + 5px)}.music-search-history__item{padding:.55rem .6rem!important}}
+
+/* Do not reserve an empty viewport below the notice before the global footer. */
+.music-page{min-height:0!important}.music-page+.footer{margin-top:.5rem}@media(min-width:761px){.music-shell{height:calc(100dvh - var(--nav-height) - 5rem)!important}}@media(max-width:760px){.music-page{padding-bottom:3rem!important}}
