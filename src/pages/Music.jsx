@@ -79,6 +79,25 @@ export default function Music() {
   }, [activeLyric]);
   useEffect(() => { if (lyricsRef.current) lyricsRef.current.scrollTop = 0; }, [current?.id, lyrics]);
   useEffect(() => {
+    const body = lyricsRef.current; if (!body) return undefined;
+    let startedOnLyric = false;
+    const isLyricText = (target, point) => {
+      const line = target.closest?.('p'); if (!line || !body.contains(line)) return false;
+      const range = document.createRange(); range.selectNodeContents(line); const bounds = range.getBoundingClientRect();
+      return point.clientX >= bounds.left && point.clientX <= bounds.right && point.clientY >= bounds.top && point.clientY <= bounds.bottom;
+    };
+    const onTouchStart = (event) => { startedOnLyric = isLyricText(event.target, event.touches[0]); };
+    const onTouchMove = (event) => { if (!startedOnLyric) event.preventDefault(); };
+    const onTouchEnd = () => { startedOnLyric = false; };
+    const onWheel = (event) => { if (!isLyricText(event.target, event)) event.preventDefault(); };
+    body.addEventListener('touchstart', onTouchStart, { passive: true });
+    body.addEventListener('touchmove', onTouchMove, { passive: false });
+    body.addEventListener('touchend', onTouchEnd, { passive: true });
+    body.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    body.addEventListener('wheel', onWheel, { passive: false });
+    return () => { body.removeEventListener('touchstart', onTouchStart); body.removeEventListener('touchmove', onTouchMove); body.removeEventListener('touchend', onTouchEnd); body.removeEventListener('touchcancel', onTouchEnd); body.removeEventListener('wheel', onWheel); };
+  }, [lyrics]);
+  useEffect(() => {
     if (!current) { setLyrics(''); setLyricsState(''); return undefined; }
     const controller = new AbortController(); setLyrics(''); setLyricsState('正在加载歌词…');
     const params = new URLSearchParams({ title: current.title, artist: current.artist || '', album: current.album || '', source: current.source || '', id: current.id.replace(/^track:[^:]+:/, ''), meta: current.meta ? JSON.stringify(current.meta) : '' });
@@ -127,6 +146,9 @@ export default function Music() {
   };
   const seekLyric = (event) => {
     const line = event.target.closest('p');
+    if (!line) return;
+    const range = document.createRange(); range.selectNodeContents(line); const bounds = range.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return;
     const index = line ? [...event.currentTarget.querySelectorAll('p')].indexOf(line) : -1;
     const lyric = lyricLines[index];
     if (lyric?.time >= 0 && audio.current) { audio.current.currentTime = lyric.time; setProgress(lyric.time); }
