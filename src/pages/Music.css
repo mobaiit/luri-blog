@@ -179,3 +179,5 @@
 
 /* Desktop library/lyrics balance: give titles priority without squeezing lyrics. */
 @media(min-width:761px){.music-workspace{grid-template-columns:minmax(0,1.38fr) minmax(0,1fr);gap:30px}}
+
+.music-global-disclaimer{text-align:center!important}.music-search .music-icon-button:disabled{opacity:1;cursor:wait}
