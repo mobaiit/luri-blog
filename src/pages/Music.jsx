@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import './Music.css';
 
 const EMPTY_ART = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect width="400" height="400" fill="%23ece9e1"/%3E%3Ccircle cx="200" cy="200" r="106" fill="%23c8c2b7"/%3E%3Ccircle cx="200" cy="200" r="22" fill="%23111111"/%3E%3C/svg%3E';
@@ -28,6 +29,8 @@ function MusicIcon({ name }) {
 }
 
 export default function Music() {
+  const location = useLocation();
+  const isMusicPage = location.pathname === '/music';
   const audio = useRef(null);
   const restoreResults = () => readStore(STORE_SEARCH).map((track) => ({ ...track, sourceId: sourceTrackId(track), id: trackKey(track) }));
   const [query, setQuery] = useState(() => localStorage.getItem(STORE_QUERY) || ''); const [results, setResults] = useState(restoreResults); const [cachedResults, setCachedResults] = useState(restoreResults); const [recentSearches, setRecentSearches] = useState(() => readStore(STORE_RECENT_SEARCHES).filter((item) => typeof item === 'string').slice(0, 5)); const [searchFocused, setSearchFocused] = useState(false); const [searchState, setSearchState] = useState('');
@@ -44,6 +47,11 @@ export default function Music() {
   const current = activeTracks.find((track) => track.id === currentId);
   const lyricLines = lyrics.split(/\r?\n/).filter(Boolean).map(lyricLine).filter((line) => line.text);
   const activeLyric = lyricLines.reduce((active, line, index) => line.time >= 0 && line.time <= progress ? index : active, -1);
+
+  useEffect(() => {
+    document.body.classList.toggle('has-global-music-player', !isMusicPage);
+    return () => document.body.classList.remove('has-global-music-player');
+  }, [isMusicPage]);
 
   useEffect(() => {
     if (!currentId) return;

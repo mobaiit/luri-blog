@@ -233,3 +233,15 @@
 .music-controls>div:first-child{display:flex!important;align-items:center!important;justify-content:center!important}
 .music-player .music-controls .play-button{position:relative!important;display:inline-grid!important;place-items:center!important;padding:0!important;line-height:0!important}
 .music-player .music-controls .play-button .music-icon,.music-player .music-controls .play-button .music-spinner{position:absolute!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important}
+
+/* Keep the audio element and its state alive across routes. Outside /music,
+   only a compact, controllable player remains in the application shell. */
+body.has-global-music-player .music-page{display:contents!important}
+body.has-global-music-player .music-page>.music-mobile-tabs,body.has-global-music-player .music-page>.music-shell{display:none!important}
+body.has-global-music-player .music-page+.footer{display:block!important}
+body.has-global-music-player .music-player{grid-template-rows:auto!important;min-height:68px!important;padding-top:5px!important;padding-bottom:5px!important}
+body.has-global-music-player .music-player>.music-global-disclaimer{display:none!important}
+body.has-global-music-player .music-player__song{align-self:center}
+body.has-global-music-player .music-controls .timeline{margin-bottom:0!important}
+body.has-global-music-player #root>main:not(.music-page){padding-bottom:5rem}
+@media(max-width:760px){body.has-global-music-player .music-player{min-height:68px!important}body.has-global-music-player .music-player__song{display:flex!important}body.has-global-music-player .music-player__song img{width:32px!important;height:32px!important}body.has-global-music-player .music-player__song small{display:block!important}body.has-global-music-player .music-player{grid-template-columns:minmax(0,1fr) minmax(154px,1.15fr)!important}body.has-global-music-player .music-controls{width:auto!important;min-width:0!important}body.has-global-music-player .music-controls .timeline{grid-template-columns:24px minmax(0,1fr) 24px!important}body.has-global-music-player .music-mobile-tabs{display:none!important}}

@@ -18,7 +18,7 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<PostDetail />} />
-        <Route path="/music" element={<Music />} />
+        <Route path="/music" element={null} />
         {/* 404 */}
         <Route
           path="*"
@@ -32,6 +32,7 @@ export default function App() {
           }
         />
       </Routes>
+      <Music />
       <Footer />
     </>
   );
