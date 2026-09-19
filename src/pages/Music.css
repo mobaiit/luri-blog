@@ -228,3 +228,8 @@
 .music-player .music-controls .play-button .music-spinner{width:1.12rem!important;height:1.12rem!important}
 @media(min-width:761px){.music-player{min-height:104px!important}.music-player .music-controls .play-button{margin:0 .45rem!important}}
 @media(max-width:760px){.music-page{padding-bottom:112px!important}.music-player{min-height:112px!important}.music-mobile-tabs{bottom:112px!important}}
+
+/* Centre the enlarged glyph independently of inline button baselines. */
+.music-controls>div:first-child{display:flex!important;align-items:center!important;justify-content:center!important}
+.music-player .music-controls .play-button{position:relative!important;display:inline-grid!important;place-items:center!important;padding:0!important;line-height:0!important}
+.music-player .music-controls .play-button .music-icon,.music-player .music-controls .play-button .music-spinner{position:absolute!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important}
