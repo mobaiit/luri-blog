@@ -239,7 +239,7 @@
 /* Desktop keeps the notice at the bottom of the music workspace, not inside transport controls. */
 @media(min-width:761px){
   body:not(.has-global-music-player) .music-player{grid-template-rows:1fr!important;min-height:86px!important}
-  body:not(.has-global-music-player) .music-player>.music-global-disclaimer{position:fixed!important;z-index:100!important;right:max(var(--space-md),calc((100vw - 900px)/2))!important;bottom:calc(86px + .55rem)!important;left:max(var(--space-md),calc((100vw - 900px)/2))!important;width:auto!important;margin:0!important;padding:0!important;overflow:visible!important;font-size:.7rem!important;line-height:1.3!important;text-align:center!important;text-overflow:clip!important;white-space:normal!important}
+  body:not(.has-global-music-player) .music-player>.music-global-disclaimer{position:fixed!important;z-index:100!important;bottom:calc(86px + .55rem)!important;left:50%!important;width:min(900px,calc(100vw - 2 * var(--space-md)))!important;max-width:none!important;margin:0!important;padding:0!important;overflow:visible!important;color:var(--color-text-muted)!important;font-size:.7rem!important;line-height:1.3!important;text-align:center!important;text-overflow:clip!important;white-space:nowrap!important;writing-mode:horizontal-tb!important;transform:translateX(-50%)!important}
 }
 
 /* Keep the audio element and its state alive across routes. Outside /music,
