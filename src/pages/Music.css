@@ -222,3 +222,9 @@
 .music-player .music-controls .play-button .music-spinner{width:2.24rem!important;height:2.24rem!important}
 @media(min-width:761px){.music-player{min-height:128px!important}}
 @media(max-width:760px){.music-page{padding-bottom:140px!important}.music-player{min-height:140px!important}.music-mobile-tabs{bottom:140px!important}}
+
+/* Keep the original control bar height: only the play/pause glyph is enlarged. */
+.music-player .music-controls .play-button{width:2.8rem!important;height:2.8rem!important;margin:0 .15rem!important}
+.music-player .music-controls .play-button .music-spinner{width:1.12rem!important;height:1.12rem!important}
+@media(min-width:761px){.music-player{min-height:104px!important}.music-player .music-controls .play-button{margin:0 .45rem!important}}
+@media(max-width:760px){.music-page{padding-bottom:112px!important}.music-player{min-height:112px!important}.music-mobile-tabs{bottom:112px!important}}
