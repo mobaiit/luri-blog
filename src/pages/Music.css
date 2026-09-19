@@ -193,3 +193,6 @@
 
 /* Do not reserve an empty viewport below the notice before the global footer. */
 .music-page{min-height:0!important}.music-page+.footer{margin-top:.5rem}@media(min-width:761px){.music-shell{height:calc(100dvh - var(--nav-height) - 5rem)!important}}@media(max-width:760px){.music-page{padding-bottom:3rem!important}}
+
+/* Music is a self-contained viewport: its inner panels scroll, not the page. */
+.music-page{box-sizing:border-box;height:100dvh!important;overflow:hidden!important}.music-page+.footer{display:none}@media(min-width:761px){.music-shell{height:calc(100dvh - var(--nav-height) - 9rem)!important}.music-global-disclaimer{position:absolute!important;right:max(var(--space-md),calc((100vw - 900px)/2));bottom:86px;left:max(var(--space-md),calc((100vw - 900px)/2));margin:0!important}}@media(max-width:760px){.music-page{padding-bottom:0!important}.music-shell{height:calc(100dvh - var(--nav-height) - 9rem);min-height:0!important;overflow:hidden}.music-global-disclaimer{position:absolute!important;right:var(--space-sm);bottom:120px;left:var(--space-sm);margin:0!important}}
