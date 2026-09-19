@@ -8,6 +8,7 @@ const lyricLine = (line) => { const match = /^\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\](
 const STORE_QUEUE = 'luri.music.queue.v1'; const STORE_LIKES = 'luri.music.likes.v1'; const STORE_SEARCH = 'luri.music.search.v1'; const STORE_QUERY = 'luri.music.query.v1';
 const readStore = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
 const trackKey = (track) => { const id = String(track?.id || ''); return id.startsWith('track:') ? id : `track:${track?.source || 'default'}:${id}`; };
+const sourceTrackId = (track) => track?.sourceId ?? String(track?.id || '').replace(/^track:[^:]+:/, '');
 // The source status is shown only while an operation is in progress.
 TEXT.source = '';
 TEXT.unavailable = '加载失败，请重新播放';
@@ -28,7 +29,7 @@ function MusicIcon({ name }) {
 
 export default function Music() {
   const audio = useRef(null);
-  const restoreResults = () => readStore(STORE_SEARCH).map((track) => ({ ...track, id: trackKey(track) }));
+  const restoreResults = () => readStore(STORE_SEARCH).map((track) => ({ ...track, sourceId: sourceTrackId(track), id: trackKey(track) }));
   const [query, setQuery] = useState(() => localStorage.getItem(STORE_QUERY) || ''); const [results, setResults] = useState(restoreResults); const [cachedResults, setCachedResults] = useState(restoreResults); const [searchState, setSearchState] = useState('');
   const [listView, setListView] = useState('search');
   const [mobileView, setMobileView] = useState('playlist');
@@ -56,13 +57,13 @@ export default function Music() {
   useEffect(() => {
     if (!current || current.url) return undefined;
     const controller = new AbortController(); const meta = current.meta ? `&meta=${encodeURIComponent(JSON.stringify(current.meta))}` : '';
-    fetch(`/api/music/resolve?id=${encodeURIComponent(current.id.replace(/^track:[^:]+:/, ''))}&source=${encodeURIComponent(current.source || '')}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, url: payload.url, art: payload.art || track.art } : track)); }).catch(() => {});
+    fetch(`/api/music/resolve?id=${encodeURIComponent(sourceTrackId(current))}&source=${encodeURIComponent(current.source || '')}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, url: payload.url, art: payload.art || track.art } : track)); }).catch(() => {});
     return () => controller.abort();
   }, [activeQueue, current]);
   useEffect(() => {
     if (!current || (current.art && current.art !== EMPTY_ART) || !current.source) return undefined;
     const controller = new AbortController(); const meta = current.meta ? `&meta=${encodeURIComponent(JSON.stringify(current.meta))}` : '';
-    fetch(`/api/music/art?source=${encodeURIComponent(current.source)}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => {
+    fetch(`/api/music/art?source=${encodeURIComponent(current.source)}&id=${encodeURIComponent(sourceTrackId(current))}&title=${encodeURIComponent(current.title || '')}&artist=${encodeURIComponent(current.artist || '')}${meta}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => {
       if (payload.url && !controller.signal.aborted) (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map((track) => track.id === current.id ? { ...track, art: payload.url } : track));
     }).catch(() => {});
     return () => controller.abort();
@@ -113,7 +114,7 @@ export default function Music() {
   useEffect(() => {
     if (!current) { setLyrics(''); setLyricsState(''); return undefined; }
     const controller = new AbortController(); setLyrics(''); setLyricsState('正在加载歌词…');
-    const params = new URLSearchParams({ title: current.title, artist: current.artist || '', album: current.album || '', source: current.source || '', id: current.id.replace(/^track:[^:]+:/, ''), meta: current.meta ? JSON.stringify(current.meta) : '' });
+    const params = new URLSearchParams({ title: current.title, artist: current.artist || '', album: current.album || '', source: current.source || '', id: sourceTrackId(current), meta: current.meta ? JSON.stringify(current.meta) : '' });
     fetch(`/api/music/lyrics?${params}`, { signal: controller.signal }).then((response) => response.ok ? response.json() : {}).then((payload) => { if (!controller.signal.aborted) { setLyrics(payload.lyrics || ''); setLyricsState(payload.lyrics ? '' : '暂无匹配歌词'); } }).catch(() => { if (!controller.signal.aborted) setLyricsState('暂无匹配歌词'); });
     return () => controller.abort();
   }, [current]);
@@ -129,7 +130,7 @@ export default function Music() {
     if (append) setLoadingMore(true); else setSearchState(TEXT.searching);
     try {
       const response = await fetch(`/api/music/search?q=${encodeURIComponent(keyword)}&page=${page}`); if (!response.ok) throw Error();
-      const payload = await response.json(); const incoming = (payload.tracks || []).map((track) => ({ ...track, id: trackKey(track) }));
+      const payload = await response.json(); const incoming = (payload.tracks || []).map((track) => ({ ...track, sourceId: track.sourceId ?? track.id, id: trackKey(track) }));
       if (!append) setTracks(incoming.slice(0, 50).map((track) => ({ ...track, url: undefined })));
       setResults((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.source === track.source && item.id === track.id))] : incoming);
       setResultPage(page); setHasMoreResults(Boolean(payload.hasMore && incoming.length)); setSearchState('');
@@ -149,11 +150,11 @@ export default function Music() {
   const playResult = async (result) => {
     setSearchState(TEXT.load);
     try {
-      const rawId = String(result.id).replace(/^track:[^:]+:/, ''); const queue = listView === 'likes' ? 'favorites' : 'normal'; setActiveQueue(queue);
+      const rawId = sourceTrackId(result); const queue = listView === 'likes' ? 'favorites' : 'normal'; setActiveQueue(queue);
       const meta = result.meta ? `&meta=${encodeURIComponent(JSON.stringify(result.meta))}` : '';
       const response = await fetch(`/api/music/resolve?id=${encodeURIComponent(rawId)}&source=${encodeURIComponent(result.source || '')}&title=${encodeURIComponent(result.title || '')}&artist=${encodeURIComponent(result.artist || '')}${meta}`); if (!response.ok) throw Error();
       const payload = await response.json(); if (!payload.url) throw Error();
-      const track = { ...result, id: `track:${result.source || 'default'}:${rawId}`, url: payload.url, art: payload.art || result.art || '' };
+      const track = { ...result, sourceId: rawId, id: trackKey({ ...result, id: rawId }), url: payload.url, art: payload.art || result.art || '' };
       if (queue === 'favorites') setLikedTracks((items) => items.map((item) => item.id === track.id ? track : item)); else setTracks((items) => [track, ...items.filter((item) => item.id !== track.id)].slice(0, 50)); setCurrentId(track.id); setSearchState('正在加载音频…');
     } catch { setSearchState(TEXT.unavailable); }
   };
