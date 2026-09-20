@@ -17,18 +17,22 @@ export default function App() {
   useEffect(() => {
     let active = true;
     fetch('/api/luri-music/site-config').then((response) => response.ok ? response.json() : Promise.reject()).then((data) => {
-      if (active) setMusicConfig({ enabled: data.musicPageEnabled !== false, accessRequired: data.musicAccessRequired !== false });
-    }).catch(() => { if (active) setMusicConfig({ enabled: true, accessRequired: true }); });
+      if (active) setMusicConfig({ enabled: data.musicPageEnabled !== false, accessRequired: data.musicAccessRequired !== false, musicOnly: data.musicOnlyMode === true });
+    }).catch(() => { if (active) setMusicConfig({ enabled: true, accessRequired: true, musicOnly: false }); });
     return () => { active = false; };
   }, []);
   useEffect(() => {
     if (location.pathname === '/admin' || location.search === '?admin=1') document.title = 'LURI ADMIN';
-    else if (location.pathname === '/luri-music' || location.search === '?luri-music=1') document.title = 'LURI MUSIC';
+    else if (location.pathname === '/music' || location.pathname === '/luri-music' || location.search === '?luri-music=1') document.title = 'LURI MUSIC';
     else document.title = 'LURI - 落墨留白';
   }, [location.pathname, location.search]);
   if (location.pathname === '/admin' || location.search === '?admin=1') return <Routes><Route path="*" element={<Admin />} /></Routes>;
   if (musicConfig === null) return <div className="ui-loading-screen"><span className="ui-spinner" /><p>正在加载网站配置…</p></div>;
-  if (location.pathname === '/luri-music' || location.search === '?luri-music=1') return musicConfig.enabled ? <Routes><Route path="*" element={<LuriMusic accessRequired={musicConfig.accessRequired} />} /></Routes> : <Navigate to="/" replace />;
+  const isLegacyMusicPage = location.pathname === '/luri-music' || location.search === '?luri-music=1';
+  const isMusicPage = location.pathname === '/music';
+  if (isLegacyMusicPage) return <Navigate to="/music" replace />;
+  if (musicConfig.musicOnly && !isMusicPage) return <Navigate to="/music" replace />;
+  if (isMusicPage) return musicConfig.enabled ? <><ScrollToTop /><Navbar musicPageEnabled musicActive musicOnly={musicConfig.musicOnly} /><Routes><Route path="*" element={<LuriMusic accessRequired={musicConfig.accessRequired} />} /></Routes></> : <Navigate to="/" replace />;
   return (
     <>
       <ScrollToTop />
@@ -38,7 +42,6 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<PostDetail />} />
-        <Route path="/music" element={<Navigate to={musicConfig.enabled ? '/luri-music' : '/'} replace />} />
         {/* 404 */}
         <Route
           path="*"

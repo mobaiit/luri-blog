@@ -8,7 +8,7 @@ const BASE_NAV_ITEMS = [
   { label: '关于', to: '/about' },
 ];
 
-export default function Navbar({ musicPageEnabled = true }) {
+export default function Navbar({ musicPageEnabled = true, musicActive = false, musicOnly = false }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -22,7 +22,8 @@ export default function Navbar({ musicPageEnabled = true }) {
   // 路由切换时关闭移动菜单
   const closeMenu = () => setMenuOpen(false);
 
-  const navItems = [BASE_NAV_ITEMS[0], BASE_NAV_ITEMS[1], ...(musicPageEnabled ? [{ label: 'LURI MUSIC', to: '/luri-music' }] : []), BASE_NAV_ITEMS[2]];
+  const musicItem = { label: 'LURI MUSIC', to: '/music' };
+  const navItems = musicOnly ? [musicItem] : [BASE_NAV_ITEMS[0], BASE_NAV_ITEMS[1], ...(musicPageEnabled ? [musicItem] : []), BASE_NAV_ITEMS[2]];
 
   return (
     <header className={`navbar${scrolled ? ' scrolled' : ''}`}>
@@ -50,7 +51,7 @@ export default function Navbar({ musicPageEnabled = true }) {
             <li key={to}>
               <NavLink
                 to={to}
-                className={({ isActive }) => (isActive ? 'active' : '')}
+                className={({ isActive }) => ((musicActive ? to === '/music' : isActive) ? 'active' : '')}
                 onClick={closeMenu}
                 end={to === '/'}
               >

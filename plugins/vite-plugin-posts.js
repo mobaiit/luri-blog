@@ -245,6 +245,12 @@ export default function postsPlugin(userOptions = {}) {
           title: '关于 · LURI 落墨留白',
           description: 'LURI，后端开发者，写代码也写博客。Java、微服务、系统架构、AI Agent。',
         },
+        {
+          route: '/music',
+          outPath: path.join(outDir, 'music', 'index.html'),
+          title: 'LURI MUSIC',
+          description: 'LURI MUSIC 音乐搜索与播放页面。',
+        },
       ];
 
       // 收集所有 URL 用于 sitemap

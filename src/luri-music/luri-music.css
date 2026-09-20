@@ -1,31 +1,32 @@
 .luri-music-clone {
   position: relative;
+  min-height: 100vh;
+  padding-top: var(--nav-height);
 }
 .luri-music-clone .music-page {
   min-height: 100vh;
+  padding-top: 2.5rem !important;
 }
 .lm-site-bar {
-  position: fixed;
-  z-index: 300;
-  top: 0;
-  right: 0;
-  left: 0;
-  display: grid;
-  grid-template-columns: minmax(110px, 1fr) auto minmax(150px, 1fr);
+  position: relative;
+  z-index: 20;
+  display: flex;
   align-items: center;
-  min-height: 64px;
-  padding: 9px 20px;
+  justify-content: flex-end;
+  gap: 10px;
+  width: min(980px, calc(100% - 4rem));
+  min-height: 48px;
+  margin: 0 auto;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--color-border);
   box-sizing: border-box;
-  pointer-events: none;
   font-family: Inter, ui-sans-serif, "Microsoft YaHei", sans-serif;
 }
-.lm-site-bar > * {
-  pointer-events: auto;
-}
 .lm-site-bar > strong {
-  justify-self: start;
-  font-size: 14px;
-  letter-spacing: 0.12em;
+  display: none;
+}
+.lm-site-bar.public-access .lm-account-wrap {
+  display: none;
 }
 .lm-announcement-button {
   justify-self: center;
@@ -295,13 +296,9 @@
 }
 @media (max-width: 760px) {
   .lm-site-bar {
-    grid-template-columns: minmax(78px, 1fr) auto minmax(90px, 1fr);
-    min-height: 56px;
-    padding: 7px 8px;
-  }
-  .lm-site-bar > strong {
-    font-size: 10px;
-    letter-spacing: 0.08em;
+    width: calc(100% - 2rem);
+    min-height: 44px;
+    padding: 5px 0;
   }
   .lm-announcement-button {
     padding: 7px 9px;
@@ -333,7 +330,7 @@
     border-radius: 14px;
   }
   .luri-music-clone .music-page {
-    padding-top: var(--nav-height) !important;
+    padding-top: 1.5rem !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -12,6 +12,7 @@ export default function Turnstile({ siteKey, onVerify, onExpire, resetSignal }) 
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: siteKey,
         theme: 'auto',
+        size: 'flexible',
         callback: (token) => onVerify(token),
         'error-callback': () => onVerify(''),
         'expired-callback': () => { onVerify(''); onExpire?.(); },

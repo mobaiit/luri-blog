@@ -43,7 +43,7 @@
 .lm-code-pager button { padding: 7px 10px; border: 1px solid #e5e5e5; border-radius: 7px; background: #fff; font: inherit; font-size: 11px; cursor: pointer; }
 .lm-code-pager button:disabled { cursor: not-allowed; opacity: .4; }
 .lm-code-pager span { color: #777; font-size: 10px; }
-.admin-page .generator-layout > .generation-summary { position: static; z-index: auto; top: auto; align-self: start; display: grid; grid-template-columns: auto 1fr; align-items: end; width: 100%; height: auto; min-height: 0; max-height: none; box-sizing: border-box; flex-direction: initial; gap: 0; padding: 16px 18px; border: 1px solid var(--admin-line); border-radius: 14px; background: #fff; box-shadow: 0 2px 10px #00000008; }
+.admin-page .generator-layout > .generation-summary { position: static; z-index: auto; inset: auto; align-self: start; display: grid; grid-template-columns: auto 1fr; align-items: end; width: 100%; height: fit-content; min-height: 0; max-height: none; box-sizing: border-box; flex-direction: initial; gap: 0; margin: 0; padding: 16px 18px; border: 1px solid var(--admin-line); border-radius: 14px; background: #fff; box-shadow: 0 2px 10px #00000008; }
 .generation-summary > span { grid-column: 1 / -1; margin-bottom: 7px; }
 .generation-summary > strong { margin: 0 8px 0 0; font-size: 42px; line-height: .9; }
 .generation-summary > small { align-self: end; margin: 0 0 3px; }

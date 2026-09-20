@@ -5,6 +5,7 @@ compatibility_date = "2026-09-18"
 [assets]
 directory = "./dist"
 not_found_handling = "single-page-application"
+html_handling = "drop-trailing-slash"
 
 [[d1_databases]]
 binding = "LURI_MUSIC_DB"

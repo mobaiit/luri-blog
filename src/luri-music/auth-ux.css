@@ -148,6 +148,30 @@
   cursor: pointer;
 }
 @media (max-width: 600px) {
+  .lm-auth-modal > div {
+    width: min(380px, calc(100% - 12px));
+    max-height: calc(100dvh - 48px);
+    padding: 20px 14px;
+  }
+  .lm-auth-modal h2 {
+    margin-bottom: 16px;
+    font-size: 21px;
+  }
+  .lm-auth-modal form {
+    gap: 10px;
+  }
+  .lm-auth-modal .lm-form-fields {
+    gap: 9px;
+  }
+  .lm-auth-modal label {
+    gap: 5px;
+  }
+  .lm-auth-modal input {
+    padding-block: 10px;
+  }
+  .lm-auth-modal .primary {
+    padding-block: 10px;
+  }
   .lm-announcement article {
     padding: 27px 21px;
     border-radius: 15px;
