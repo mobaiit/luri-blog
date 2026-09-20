@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './luri-music.css';
+import './admin-netease.css';
 import Turnstile from './Turnstile';
 const api = async (path, options = {}) => { const res = await fetch(`/api/luri-music/${path}`, { credentials: 'same-origin', headers: { 'content-type': 'application/json' }, ...options }); const raw = await res.text(); let data; try { data = JSON.parse(raw); } catch { throw Error('服务暂时不可用，请刷新页面后重试'); } if (!res.ok) throw Error(data.error || '请求失败'); return data; };
 const state = (c) => c.disabled_at ? '已禁用' : c.redeemed_at ? '已兑换' : Date.parse(c.expires_at) <= Date.now() ? '已过期' : '有效';
