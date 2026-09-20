@@ -9,7 +9,9 @@ export const hash = async (value) => {
 };
 export const passwordHash = async (password, salt = token()) => {
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: encoder.encode(salt), iterations: 210000, hash: 'SHA-256' }, key, 256);
+  // Cloudflare Workers' free CPU budget is tight; 50k keeps first-login
+  // hashing within budget while retaining a salted, slow password derivation.
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: encoder.encode(salt), iterations: 50000, hash: 'SHA-256' }, key, 256);
   return `${salt}:${[...new Uint8Array(bits)].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 };
 export const verifyPassword = async (password, stored) => {
