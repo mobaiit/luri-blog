@@ -98,7 +98,7 @@ function EmailConfig({ notify }) {
 
 function PasswordField({ label, ...props }) {
   const [visible, setVisible] = useState(false);
-  return <label>{label}<span className="password-input"><input {...props} type={visible ? 'text' : 'password'} /><button type="button" onClick={() => setVisible((value) => !value)} aria-label={visible ? '隐藏内容' : '显示内容'} title={visible ? '隐藏' : '显示'}><EyeIcon crossed={visible} /></button></span></label>;
+  return <label>{label}<span className="password-input"><input {...props} type={visible ? 'text' : 'password'} /><button type="button" onClick={() => setVisible((value) => !value)} aria-label={visible ? '隐藏内容' : '显示内容'} title={visible ? '隐藏' : '显示'}><EyeIcon crossed={!visible} /></button></span></label>;
 }
 
 function EyeIcon({ crossed = false }) { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.7" />{crossed && <path d="m4 4 16 16" />}</svg>; }

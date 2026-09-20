@@ -43,10 +43,13 @@
 .lm-code-pager button { padding: 7px 10px; border: 1px solid #e5e5e5; border-radius: 7px; background: #fff; font: inherit; font-size: 11px; cursor: pointer; }
 .lm-code-pager button:disabled { cursor: not-allowed; opacity: .4; }
 .lm-code-pager span { color: #777; font-size: 10px; }
-.generation-summary { align-self: start; height: auto; padding: 20px; }
-.generation-summary > strong { margin-top: 12px; font-size: 48px; }
-.generation-summary > small { margin: 5px 0 16px; }
-.generation-summary dl { padding-top: 14px; }
+.generation-summary { align-self: start; display: grid; grid-template-columns: auto 1fr; align-items: end; width: 100%; height: fit-content; min-height: 0; box-sizing: border-box; padding: 16px 18px; }
+.generation-summary > span { grid-column: 1 / -1; margin-bottom: 7px; }
+.generation-summary > strong { margin: 0 8px 0 0; font-size: 42px; line-height: .9; }
+.generation-summary > small { align-self: end; margin: 0 0 3px; }
+.generation-summary dl { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: auto auto; grid-auto-flow: column; gap: 4px 10px; margin: 12px 0 0; padding-top: 11px; }
+.generation-summary dt { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.generation-summary dd { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .user-cleanup { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; padding: 16px; border: 1px solid var(--admin-line); border-radius: 14px; background: #fff; }
 .user-cleanup > div { display: grid; margin-right: auto; }
 .user-cleanup small { margin-top: 3px; color: #888; font-size: 11px; }
