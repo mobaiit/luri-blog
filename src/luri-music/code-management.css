@@ -24,14 +24,19 @@
 .admin-modal footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 18px; }
 .admin-modal footer button { border: 1px solid var(--admin-line); }
 .admin-modal footer .copy-all { background: #111; color: #fff; }
-.lm-code-history { display: grid; gap: 7px; max-height: 150px; overflow: auto; padding: 13px; border-block: 1px solid #eee; }
-.lm-code-history > b { color: #777; font-size: 11px; }
-.lm-code-history > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.lm-code-history span { display: grid; min-width: 0; }
-.lm-code-history code { overflow: hidden; color: #222; font-size: 11px; text-overflow: ellipsis; }
-.lm-code-history small { color: #999; font-size: 9px; }
-.lm-code-history i { padding: 3px 7px; border-radius: 999px; background: #111; color: #fff; font-size: 9px; font-style: normal; white-space: nowrap; }
-.lm-code-history i.disabled { background: #eee; color: #777; }
+.lm-code-loading,.lm-code-empty { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 170px; color: #888; font-size: 12px; }
+.lm-code-dialog-list { display: grid; overflow: hidden; border: 1px solid #e8e8e8; border-radius: 10px; }
+.lm-code-dialog-list > div { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 12px; border-bottom: 1px solid #eee; font-size: 11px; }
+.lm-code-dialog-list > div:last-child { border-bottom: 0; }
+.lm-code-dialog-list span:first-child { display: grid; min-width: 0; }
+.lm-code-dialog-list code { overflow: hidden; font-weight: 700; text-overflow: ellipsis; }
+.lm-code-dialog-list small { margin-top: 3px; color: #999; }
+.lm-code-dialog-list b { padding: 3px 7px; border-radius: 999px; background: #111; color: #fff; font-size: 9px; white-space: nowrap; }
+.lm-code-dialog-list b.disabled { background: #eee; color: #777; }
+.lm-code-pager { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+.lm-code-pager button { padding: 7px 10px; border: 1px solid #e5e5e5; border-radius: 7px; background: #fff; font: inherit; font-size: 11px; cursor: pointer; }
+.lm-code-pager button:disabled { cursor: not-allowed; opacity: .4; }
+.lm-code-pager span { color: #777; font-size: 10px; }
 .generation-summary { align-self: start; height: auto; padding: 20px; }
 .generation-summary > strong { margin-top: 12px; font-size: 48px; }
 .generation-summary > small { margin: 5px 0 16px; }

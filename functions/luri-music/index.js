@@ -46,9 +46,8 @@ const recomputeEntitlement = async (env, userId) => {
   else await env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_entitlements WHERE user_id=?').bind(userId).run();
   return expiresAt;
 };
-const userPayload = async (env, user) => {
-  const result = user ? await env.LURI_MUSIC_DB.prepare('SELECT code_display,duration_type,duration_value,redeemed_at,disabled_at FROM luri_music_codes WHERE redeemed_by=? ORDER BY redeemed_at DESC').bind(user.id).all() : { results: [] };
-  return user && { ...publicUser(user), redemptionCodes: result.results.map((code) => ({ code: code.code_display || '历史兑换码', durationLabel: durationLabel(code), redeemedAt: code.redeemed_at, status: code.disabled_at ? '已禁用' : '已使用' })) };
+const userPayload = async (user) => {
+  return user && publicUser(user);
 };
 const verifyHuman = async (data, env) => {
   const result = await verifyTurnstileToken(data.turnstileToken, env);
@@ -86,7 +85,7 @@ export async function hasMusicAccess(request, env) { return Boolean(publicUser(a
 export async function handleLuriMusic(request, env) {
   if (!env.LURI_MUSIC_DB) return json({ error: '音乐服务尚未配置' }, 503);
   const action = new URL(request.url).pathname.replace('/api/luri-music/', '');
-  if (action === 'auth/me') { const user = await currentUser(request, env); return json({ user: await userPayload(env, user), turnstile: { enabled: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY), siteKey: env.TURNSTILE_SITE_KEY || '' } }); }
+  if (action === 'auth/me') { const user = await currentUser(request, env); return json({ user: await userPayload(user), turnstile: { enabled: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY), siteKey: env.TURNSTILE_SITE_KEY || '' } }); }
 
   if (action === 'auth/email-code' && request.method === 'POST') {
     const data = await body(request); const mail = normalizeEmail(data.email);
@@ -129,7 +128,7 @@ export async function handleLuriMusic(request, env) {
     const entitlement = await env.LURI_MUSIC_DB.prepare('SELECT expires_at FROM luri_music_entitlements WHERE user_id=?').bind(user.id).first();
     await env.LURI_MUSIC_DB.prepare('UPDATE luri_music_users SET last_login_at=?,updated_at=? WHERE id=?').bind(now(), now(), user.id).run();
     const value = await createSession(user.id, env);
-    return json({ user: await userPayload(env, { ...user, expires_at: entitlement?.expires_at }) }, 200, { 'set-cookie': sessionCookie(USER_COOKIE, value, 2592000) });
+    return json({ user: await userPayload({ ...user, expires_at: entitlement?.expires_at }) }, 200, { 'set-cookie': sessionCookie(USER_COOKIE, value, 2592000) });
   }
 
   if (action === 'auth/reset-password' && request.method === 'POST') {
@@ -146,6 +145,14 @@ export async function handleLuriMusic(request, env) {
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_email_codes WHERE id=?').bind(emailCode.id),
     ]);
     return json({ ok: true });
+  }
+
+  if (action === 'auth/codes' && request.method === 'GET') {
+    const user = await currentUser(request, env); if (!user) return json({ error: '请先登录' }, 401);
+    const page = Math.max(1, Number(new URL(request.url).searchParams.get('page')) || 1); const size = 10;
+    const total = await env.LURI_MUSIC_DB.prepare('SELECT count(*) n FROM luri_music_codes WHERE redeemed_by=?').bind(user.id).first();
+    const rows = await env.LURI_MUSIC_DB.prepare('SELECT id,code_display,duration_type,duration_value,redeemed_at,disabled_at FROM luri_music_codes WHERE redeemed_by=? ORDER BY redeemed_at DESC LIMIT ? OFFSET ?').bind(user.id, size, (page - 1) * size).all();
+    return json({ items: rows.results.map((code) => ({ id: code.id, code: code.code_display || '历史兑换码', durationLabel: durationLabel(code), redeemedAt: code.redeemed_at, status: code.disabled_at ? '已禁用' : '已使用' })), total: total.n, page, size });
   }
 
   if (action === 'auth/logout') return json({ ok: true }, 200, { 'set-cookie': sessionCookie(USER_COOKIE, '', 0) });
@@ -220,7 +227,7 @@ export async function handleLuriMusic(request, env) {
     const from = ` FROM luri_music_codes c LEFT JOIN luri_music_users u ON u.id=c.redeemed_by LEFT JOIN luri_music_entitlements ent ON ent.user_id=c.redeemed_by WHERE ${where.join(' AND ')}`;
     const total = await env.LURI_MUSIC_DB.prepare(`SELECT count(*) n${from}`).bind(...args).first();
     const rows = await env.LURI_MUSIC_DB.prepare(`SELECT c.*,u.email,ent.expires_at member_expires_at${from} ORDER BY c.created_at DESC LIMIT ? OFFSET ?`).bind(...args, size, (page - 1) * size).all();
-    return json({ items: rows.results.map((code) => ({ ...code, status: codeStatus(code), durationLabel: durationLabel(code), membershipStatus: code.member_expires_at && Date.parse(code.member_expires_at) > Date.now() ? '有效' : '已过期' })), total: total.n, page, size });
+    return json({ items: rows.results.map((code) => ({ ...code, status: codeStatus(code), durationLabel: durationLabel(code), accessStatus: code.member_expires_at && Date.parse(code.member_expires_at) > Date.now() ? '有效' : '已过期' })), total: total.n, page, size });
   }
   if (action === 'admin/code-status' && request.method === 'POST') {
     const data = await body(request); const code = await env.LURI_MUSIC_DB.prepare('SELECT id,redeemed_by FROM luri_music_codes WHERE id=?').bind(data.id).first();
