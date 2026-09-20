@@ -1,9 +1,15 @@
+.password-input,
+.lm-password-input { position: relative; display: block; }
 .password-input input,
-.lm-password-input input { padding-right: 48px !important; }
+.lm-password-input input { padding-right: 44px !important; }
 .password-input button,
-.lm-password-input button { display: grid; place-items: center; width: 34px; height: 34px; padding: 7px !important; }
+.lm-password-input button { position: absolute !important; top: 50%; right: 5px; display: grid; place-items: center; width: 30px; height: 30px; padding: 6px !important; border: 0 !important; border-radius: 50% !important; background: transparent !important; color: #777 !important; box-shadow: none !important; transform: translateY(-50%) !important; }
+.password-input button:hover,
+.lm-password-input button:hover { background: transparent !important; color: #111 !important; }
+.password-input button:active,
+.lm-password-input button:active { transform: translateY(-50%) scale(.94) !important; }
 .password-input svg,
-.lm-password-input svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.lm-password-input svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .record-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 0 0 12px; }
 .record-toolbar span { margin-right: auto; color: #777; font-size: 12px; }
 .record-toolbar button { padding: 8px 11px; border: 1px solid var(--admin-line); background: #fff; font-size: 12px; }
