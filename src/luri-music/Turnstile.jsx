@@ -17,22 +17,24 @@ export default function Turnstile({ siteKey, onVerify, onExpire, resetSignal }) 
         'expired-callback': () => { onVerify(''); onExpire?.(); },
       });
     };
-    const existingScript = document.querySelector('script[data-turnstile="true"]');
-    if (window.turnstile) renderWidget();
-    else if (existingScript) {
-      const handleLoad = () => renderWidget();
-      if (existingScript.dataset.loaded === 'true') renderWidget();
-      else existingScript.addEventListener('load', handleLoad);
-      return () => existingScript.removeEventListener('load', handleLoad);
+    let script = document.querySelector('script[data-turnstile="true"]');
+    const handleLoad = () => { if (script) script.dataset.loaded = 'true'; renderWidget(); };
+    if (window.turnstile) {
+      renderWidget();
+    } else if (script) {
+      if (script.dataset.loaded === 'true') renderWidget();
+      else script.addEventListener('load', handleLoad);
     } else {
-      const script = document.createElement('script');
+      script = document.createElement('script');
       script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
       script.async = true; script.defer = true; script.dataset.turnstile = 'true';
-      const handleLoad = () => { script.dataset.loaded = 'true'; renderWidget(); };
       script.addEventListener('load', handleLoad); document.head.appendChild(script);
-      return () => script.removeEventListener('load', handleLoad);
     }
-    return () => { if (widgetIdRef.current && window.turnstile) { window.turnstile.remove(widgetIdRef.current); widgetIdRef.current = null; } };
+    return () => {
+      script?.removeEventListener('load', handleLoad);
+      if (widgetIdRef.current && window.turnstile) window.turnstile.remove(widgetIdRef.current);
+      widgetIdRef.current = null;
+    };
   }, [siteKey, onExpire, onVerify]);
   useEffect(() => {
     if (resetSignal === undefined) return;
