@@ -1,11 +1,22 @@
 .luri-music-clone {
   position: relative;
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   padding-top: var(--nav-height);
+  overflow: hidden;
 }
 .luri-music-clone .music-page {
-  min-height: 100vh;
-  padding-top: 2.5rem !important;
+  width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  padding-top: 0.75rem !important;
+  overflow: hidden !important;
+  flex: 1 1 auto;
 }
 .lm-site-bar {
   position: relative;
@@ -20,10 +31,17 @@
   padding: 9px 0;
   border-bottom: 1px solid var(--color-border);
   box-sizing: border-box;
+  flex: 0 0 auto;
   font-family: Inter, ui-sans-serif, "Microsoft YaHei", sans-serif;
 }
 .lm-site-bar > strong {
-  display: none;
+  display: block;
+  margin-right: auto;
+  color: var(--color-text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
 }
 .lm-site-bar.public-access .lm-account-wrap {
   display: none;
@@ -304,6 +322,10 @@
     padding: 7px 9px;
     font-size: 10px;
   }
+  .lm-site-bar > strong {
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+  }
   .lm-account-trigger {
     min-width: 0;
     max-width: 155px;
@@ -330,7 +352,47 @@
     border-radius: 14px;
   }
   .luri-music-clone .music-page {
-    padding-top: 1.5rem !important;
+    padding-top: 0.35rem !important;
+  }
+}
+
+/* LURI MUSIC owns one viewport; only its playlist and lyric panes scroll. */
+.luri-music-clone .music-shell,
+.luri-music-clone .music-content,
+.luri-music-clone .music-workspace,
+.luri-music-clone .music-results,
+.luri-music-clone .music-lyrics {
+  min-height: 0;
+}
+.luri-music-clone .music-shell {
+  flex: 1 1 auto;
+}
+.luri-music-clone .music-content {
+  box-sizing: border-box;
+  padding-bottom: 0;
+}
+.luri-music-clone .music-header,
+.luri-music-clone .music-sidebar {
+  flex: 0 0 auto;
+}
+.luri-music-clone .music-search {
+  padding-block: 3px;
+}
+.luri-music-clone .music-header {
+  gap: 0.75rem;
+}
+.luri-music-clone .music-workspace {
+  margin-top: 0.75rem;
+}
+.luri-music-clone .music-list,
+.luri-music-clone .lyrics-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (max-width: 760px) {
+  .luri-music-clone .music-workspace {
+    margin-top: 0 !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {

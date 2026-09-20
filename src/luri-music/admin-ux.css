@@ -9,36 +9,40 @@
   justify-content: flex-start;
 }
 .admin-page {
-  display: block;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
 }
 .admin-page > aside {
   position: sticky;
-  z-index: 200;
   top: 0;
   display: flex;
-  align-items: center;
-  flex-flow: row wrap;
+  align-items: stretch;
+  flex-direction: column;
   gap: 6px;
-  width: 100%;
-  height: auto;
+  width: auto;
+  height: 100vh;
   box-sizing: border-box;
-  padding: 10px clamp(14px, 3vw, 42px);
-  border-right: 0;
-  border-bottom: 1px solid var(--admin-line);
+  padding: 28px 18px;
+  border-right: 1px solid var(--admin-line);
+  border-bottom: 0;
   background: #fff;
 }
 .admin-page > aside > a {
-  flex: 0 0 auto;
-  margin: 0 18px 0 0;
+  margin: 0 8px 34px;
   white-space: nowrap;
 }
-.admin-page > aside > button {
-  flex: 1 1 104px;
-  justify-content: center;
-  min-height: 38px;
+.admin-page > aside > button:last-child {
   margin: 0 !important;
-  padding: 9px 10px;
-  text-align: center;
+  border: 0;
+}
+.admin-page > aside > button {
+  flex: none;
+  justify-content: flex-start;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 11px 13px;
+  border: 0;
+  text-align: left;
   white-space: nowrap;
 }
 .admin-content > section {
@@ -49,10 +53,16 @@
 }
 .admin-current-account {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   min-width: 0;
   letter-spacing: 0;
+}
+.admin-current-account > span {
+  display: grid;
+  min-width: 0;
+  margin-right: 4px;
+  text-align: right;
 }
 .admin-current-account i {
   color: #999;
@@ -67,6 +77,19 @@
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.admin-current-account button {
+  padding: 7px 10px;
+  border: 1px solid var(--admin-line);
+  font-size: 11px;
+}
+.admin-current-account button.active {
+  border-color: #111;
+  background: #111;
+  color: #fff;
+}
+.admin-current-account .admin-logout {
+  color: #666;
 }
 .admin-inline-loading,
 .admin-empty {
@@ -223,6 +246,9 @@
   }
 }
 @media (max-width: 760px) {
+  .admin-page {
+    display: block;
+  }
   .admin-login {
     padding: 10px;
   }
@@ -242,16 +268,28 @@
   .admin-content > header > span:first-child {
     display: none;
   }
+  .admin-current-account {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .admin-current-account > span {
+    margin-right: auto;
+    text-align: left;
+  }
   .admin-page > aside {
     position: sticky;
     top: 0;
     z-index: 200;
     display: flex;
     align-items: center;
+    flex-direction: row;
     gap: 6px;
+    width: 100%;
     height: auto;
     overflow-x: auto;
     padding: 8px 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--admin-line);
     overscroll-behavior-x: contain;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;

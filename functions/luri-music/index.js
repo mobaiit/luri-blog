@@ -92,7 +92,12 @@ const musicOnlyMode = async (env) => {
   const setting = await env.LURI_MUSIC_DB.prepare("SELECT value FROM luri_music_settings WHERE key='music_only_mode'").first();
   return setting?.value === 'true';
 };
+const aboutPageEnabled = async (env) => {
+  const setting = await env.LURI_MUSIC_DB.prepare("SELECT value FROM luri_music_settings WHERE key='about_page_enabled'").first();
+  return setting?.value !== 'false';
+};
 export const isMusicPageEnabled = musicPageEnabled;
+export const isAboutPageEnabled = aboutPageEnabled;
 
 export async function hasMusicAccess(request, env) {
   if (!await musicPageEnabled(env)) return false;
@@ -103,7 +108,7 @@ export async function hasMusicAccess(request, env) {
 export async function handleLuriMusic(request, env) {
   if (!env.LURI_MUSIC_DB) return json({ error: '音乐服务尚未配置' }, 503);
   const action = new URL(request.url).pathname.replace('/api/luri-music/', '');
-  if (action === 'site-config' && request.method === 'GET') return json({ musicPageEnabled: await musicPageEnabled(env), musicAccessRequired: await musicAccessRequired(env), musicOnlyMode: await musicOnlyMode(env) });
+  if (action === 'site-config' && request.method === 'GET') return json({ musicPageEnabled: await musicPageEnabled(env), musicAccessRequired: await musicAccessRequired(env), musicOnlyMode: await musicOnlyMode(env), aboutPageEnabled: await aboutPageEnabled(env) });
   if (action === 'auth/me') { const user = await currentUser(request, env); return json({ user: await userPayload(user), turnstile: { enabled: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY), siteKey: env.TURNSTILE_SITE_KEY || '' } }); }
 
   if (action === 'auth/email-code' && request.method === 'POST') {
@@ -215,15 +220,16 @@ export async function handleLuriMusic(request, env) {
   const admin = await currentAdmin(request, env);
   if (!admin) return json({ error: '管理员登录已失效' }, 401);
   if (action === 'admin/me' && request.method === 'GET') return json({ admin: { id: admin.id, username: admin.username } });
-  if (action === 'admin/site-config' && request.method === 'GET') return json({ musicPageEnabled: await musicPageEnabled(env), musicAccessRequired: await musicAccessRequired(env), musicOnlyMode: await musicOnlyMode(env) });
+  if (action === 'admin/site-config' && request.method === 'GET') return json({ musicPageEnabled: await musicPageEnabled(env), musicAccessRequired: await musicAccessRequired(env), musicOnlyMode: await musicOnlyMode(env), aboutPageEnabled: await aboutPageEnabled(env) });
   if (action === 'admin/site-config' && request.method === 'POST') {
-    const data = await body(request); const enabled = data.musicPageEnabled !== false; const required = data.musicAccessRequired === true; const only = data.musicOnlyMode === true && enabled; const timestamp = now();
+    const data = await body(request); const enabled = data.musicPageEnabled !== false; const required = data.musicAccessRequired === true; const only = data.musicOnlyMode === true && enabled; const about = data.aboutPageEnabled !== false; const timestamp = now();
     await env.LURI_MUSIC_DB.batch([
       env.LURI_MUSIC_DB.prepare("INSERT INTO luri_music_settings(key,value,updated_at) VALUES('music_page_enabled',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(enabled ? 'true' : 'false', timestamp),
       env.LURI_MUSIC_DB.prepare("INSERT INTO luri_music_settings(key,value,updated_at) VALUES('music_access_required',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(required ? 'true' : 'false', timestamp),
       env.LURI_MUSIC_DB.prepare("INSERT INTO luri_music_settings(key,value,updated_at) VALUES('music_only_mode',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(only ? 'true' : 'false', timestamp),
+      env.LURI_MUSIC_DB.prepare("INSERT INTO luri_music_settings(key,value,updated_at) VALUES('about_page_enabled',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at").bind(about ? 'true' : 'false', timestamp),
     ]);
-    return json({ musicPageEnabled: enabled, musicAccessRequired: required, musicOnlyMode: only });
+    return json({ musicPageEnabled: enabled, musicAccessRequired: required, musicOnlyMode: only, aboutPageEnabled: about });
   }
   if (action === 'admin/email-config' && request.method === 'GET') {
     const config = await resendConfig(env);

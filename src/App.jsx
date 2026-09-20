@@ -17,8 +17,8 @@ export default function App() {
   useEffect(() => {
     let active = true;
     fetch('/api/luri-music/site-config').then((response) => response.ok ? response.json() : Promise.reject()).then((data) => {
-      if (active) setMusicConfig({ enabled: data.musicPageEnabled !== false, accessRequired: data.musicAccessRequired !== false, musicOnly: data.musicOnlyMode === true });
-    }).catch(() => { if (active) setMusicConfig({ enabled: true, accessRequired: true, musicOnly: false }); });
+      if (active) setMusicConfig({ enabled: data.musicPageEnabled !== false, accessRequired: data.musicAccessRequired !== false, musicOnly: data.musicOnlyMode === true, aboutEnabled: data.aboutPageEnabled !== false });
+    }).catch(() => { if (active) setMusicConfig({ enabled: true, accessRequired: true, musicOnly: false, aboutEnabled: true }); });
     return () => { active = false; };
   }, []);
   useEffect(() => {
@@ -32,11 +32,12 @@ export default function App() {
   const isMusicPage = location.pathname === '/music';
   if (isLegacyMusicPage) return <Navigate to="/music" replace />;
   if (musicConfig.musicOnly && !isMusicPage) return <Navigate to="/music" replace />;
-  if (isMusicPage) return musicConfig.enabled ? <><ScrollToTop /><Navbar musicPageEnabled musicActive musicOnly={musicConfig.musicOnly} /><Routes><Route path="*" element={<LuriMusic accessRequired={musicConfig.accessRequired} />} /></Routes></> : <Navigate to="/" replace />;
+  if (isMusicPage) return musicConfig.enabled ? <><ScrollToTop /><Navbar musicPageEnabled musicActive musicOnly={musicConfig.musicOnly} aboutPageEnabled={musicConfig.aboutEnabled} /><Routes><Route path="*" element={<LuriMusic accessRequired={musicConfig.accessRequired} />} /></Routes></> : <Navigate to="/" replace />;
+  if (!musicConfig.aboutEnabled && location.pathname === '/about') return <Navigate to="/" replace />;
   return (
     <>
       <ScrollToTop />
-      <Navbar musicPageEnabled={musicConfig.enabled} />
+      <Navbar musicPageEnabled={musicConfig.enabled} aboutPageEnabled={musicConfig.aboutEnabled} />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
