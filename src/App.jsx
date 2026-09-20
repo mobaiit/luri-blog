@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -10,9 +11,15 @@ import PostDetail from './pages/PostDetail';
 import Music from './pages/Music';
 import LuriMusic from './luri-music/LuriMusic';
 import Admin from './luri-music/Admin';
+import './luri-music/page-titles.css';
 
 export default function App() {
   const location = useLocation();
+  useEffect(() => {
+    if (location.pathname === '/admin' || location.search === '?admin=1') document.title = 'LURI ADMIN';
+    else if (location.pathname === '/luri-music' || location.search === '?luri-music=1') document.title = 'LURI MUSIC';
+    else document.title = 'LURI - 落墨留白';
+  }, [location.pathname, location.search]);
   if (location.pathname === '/luri-music' || location.pathname === '/admin' || location.search === '?luri-music=1' || location.search === '?admin=1') return <Routes><Route path="*" element={location.search === '?admin=1' || location.pathname === '/admin' ? <Admin /> : <LuriMusic />} /></Routes>;
   return (
     <>
