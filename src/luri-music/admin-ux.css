@@ -5,8 +5,41 @@
   justify-content: center;
   gap: 8px;
 }
-.admin-page aside button {
+.admin-page > aside > button {
   justify-content: flex-start;
+}
+.admin-page {
+  display: block;
+}
+.admin-page > aside {
+  position: sticky;
+  z-index: 200;
+  top: 0;
+  display: flex;
+  align-items: center;
+  flex-flow: row wrap;
+  gap: 6px;
+  width: 100%;
+  height: auto;
+  box-sizing: border-box;
+  padding: 10px clamp(14px, 3vw, 42px);
+  border-right: 0;
+  border-bottom: 1px solid var(--admin-line);
+  background: #fff;
+}
+.admin-page > aside > a {
+  flex: 0 0 auto;
+  margin: 0 18px 0 0;
+  white-space: nowrap;
+}
+.admin-page > aside > button {
+  flex: 1 1 104px;
+  justify-content: center;
+  min-height: 38px;
+  margin: 0 !important;
+  padding: 9px 10px;
+  text-align: center;
+  white-space: nowrap;
 }
 .admin-content > section {
   animation: admin-view-in 0.16s ease-out;
@@ -209,7 +242,7 @@
   .admin-content > header > span:first-child {
     display: none;
   }
-  .admin-page aside {
+  .admin-page > aside {
     position: sticky;
     top: 0;
     z-index: 200;
@@ -223,15 +256,15 @@
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
   }
-  .admin-page aside::-webkit-scrollbar {
+  .admin-page > aside::-webkit-scrollbar {
     display: none;
   }
-  .admin-page aside a {
+  .admin-page > aside > a {
     flex: none;
     margin: 0 10px 0 2px;
     font-size: 14px;
   }
-  .admin-page aside button {
+  .admin-page > aside > button {
     flex: none;
     justify-content: center;
     min-height: 36px;

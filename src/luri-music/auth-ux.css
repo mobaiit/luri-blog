@@ -149,9 +149,9 @@
 }
 @media (max-width: 600px) {
   .lm-auth-modal > div {
-    width: min(380px, calc(100% - 12px));
-    max-height: calc(100dvh - 48px);
-    padding: 20px 14px;
+    width: min(340px, calc(100% - 24px));
+    max-height: calc(100dvh - 56px);
+    padding: 18px 14px;
   }
   .lm-auth-modal h2 {
     margin-bottom: 16px;
@@ -168,6 +168,7 @@
   }
   .lm-auth-modal input {
     padding-block: 10px;
+    font-size: 16px;
   }
   .lm-auth-modal .primary {
     padding-block: 10px;
