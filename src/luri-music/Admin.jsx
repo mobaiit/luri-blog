@@ -21,8 +21,9 @@ export default function Admin() {
 
 function AdminLogin({ turnstile, done, notify }) {
   const [username, setUsername] = useState(''); const [password, setPassword] = useState(''); const [token, setToken] = useState(''); const [reset, setReset] = useState(0); const [loading, setLoading] = useState(false);
+  useEffect(() => () => document.activeElement?.blur?.(), []);
   const resetTurnstile = useCallback(() => { setToken(''); setReset((value) => value + 1); }, []);
-  const submit = async (event) => { event.preventDefault(); if (turnstile.enabled && !token) return notify('请先完成人机验证', '请完成下方的 Turnstile 验证后再尝试', 'error'); setLoading(true); try { const data = await api('admin/login', { method: 'POST', body: JSON.stringify({ username, password, turnstileToken: token }) }); notify('登录成功', '', 'success'); done(data.admin); } catch (error) { notify('登录失败', error.message, 'error'); resetTurnstile(); } finally { setLoading(false); } };
+  const submit = async (event) => { event.preventDefault(); if (turnstile.enabled && !token) return notify('请先完成人机验证', '请完成下方的 Turnstile 验证后再尝试', 'error'); setLoading(true); try { const data = await api('admin/login', { method: 'POST', body: JSON.stringify({ username, password, turnstileToken: token }) }); document.activeElement?.blur?.(); notify('登录成功', '', 'success'); done(data.admin); } catch (error) { notify('登录失败', error.message, 'error'); resetTurnstile(); } finally { setLoading(false); } };
   return <main className="admin-login"><form onSubmit={submit}><p>后台管理端</p><h1>LURI ADMIN</h1><label>账号<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" autoFocus required /></label><PasswordField label="密码" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />{turnstile.enabled && <Turnstile siteKey={turnstile.siteKey} onVerify={setToken} onExpire={resetTurnstile} resetSignal={reset} />}<button disabled={loading || (turnstile.enabled && !token)}>{loading ? <><Spinner /> 登录中…</> : '登录'}</button></form></main>;
 }
 

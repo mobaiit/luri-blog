@@ -259,6 +259,10 @@
   .admin-login h1 {
     font-size: 30px;
   }
+  .admin-login input {
+    font-size: 16px;
+    line-height: 1.25;
+  }
   .admin-content > header {
     display: flex;
     justify-content: flex-end;
