@@ -32,7 +32,7 @@ export default function App() {
   const isMusicPage = location.pathname === '/music';
   if (isLegacyMusicPage) return <Navigate to="/music" replace />;
   if (musicConfig.musicOnly && !isMusicPage) return <Navigate to="/music" replace />;
-  if (isMusicPage) return musicConfig.enabled ? <><ScrollToTop /><Navbar musicPageEnabled musicActive musicOnly={musicConfig.musicOnly} aboutPageEnabled={musicConfig.aboutEnabled} /><Routes><Route path="*" element={<LuriMusic accessRequired={musicConfig.accessRequired} />} /></Routes></> : <Navigate to="/" replace />;
+  if (isMusicPage) return musicConfig.enabled ? <><ScrollToTop />{!musicConfig.musicOnly && <Navbar musicPageEnabled musicActive aboutPageEnabled={musicConfig.aboutEnabled} />}<Routes><Route path="*" element={<LuriMusic accessRequired={musicConfig.accessRequired} standalone={musicConfig.musicOnly} />} /></Routes></> : <Navigate to="/" replace />;
   if (!musicConfig.aboutEnabled && location.pathname === '/about') return <Navigate to="/" replace />;
   return (
     <>

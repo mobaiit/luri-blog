@@ -18,6 +18,9 @@
   overflow: hidden !important;
   flex: 1 1 auto;
 }
+.luri-music-clone.is-standalone {
+  padding-top: 0;
+}
 .lm-site-bar {
   position: relative;
   z-index: 20;
@@ -393,6 +396,11 @@
 @media (max-width: 760px) {
   .luri-music-clone .music-workspace {
     margin-top: 0 !important;
+  }
+}
+@media (min-width: 761px) {
+  .luri-music-clone .music-sidebar {
+    top: 3.6rem !important;
   }
 }
 @media (prefers-reduced-motion: reduce) {
