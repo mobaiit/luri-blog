@@ -1,0 +1,40 @@
+.password-input input,
+.lm-password-input input { padding-right: 48px !important; }
+.password-input button,
+.lm-password-input button { display: grid; place-items: center; width: 34px; height: 34px; padding: 7px !important; }
+.password-input svg,
+.lm-password-input svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.record-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 0 0 12px; }
+.record-toolbar span { margin-right: auto; color: #777; font-size: 12px; }
+.record-toolbar button { padding: 8px 11px; border: 1px solid var(--admin-line); background: #fff; font-size: 12px; }
+.record-toolbar .danger { background: #111; color: #fff; }
+.record-toolbar button:disabled { cursor: not-allowed; opacity: .4; }
+.record-table .tr { grid-template-columns: 24px 1.25fr .6fr .65fr 1fr .9fr 1fr; min-width: 920px; }
+.record-table input[type="checkbox"] { width: 15px; height: 15px; accent-color: #111; }
+.admin-modal { position: fixed; z-index: 700; inset: 0; display: grid; place-items: center; padding: 18px; background: #0008; backdrop-filter: blur(5px); }
+.admin-modal > section { position: relative; box-sizing: border-box; width: min(620px, 100%); max-height: calc(100dvh - 36px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; padding: 28px; border: 1px solid #ddd; border-radius: 18px; background: #fff; box-shadow: 0 30px 100px #0005; }
+.admin-modal header span { color: #888; font-size: 10px; font-weight: 700; letter-spacing: .18em; }
+.admin-modal h2 { margin: 7px 0 4px; font-size: 28px; }
+.admin-modal header p { margin: 0 0 20px; color: #777; font-size: 12px; }
+.admin-modal .modal-close { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; padding: 0; border-radius: 50%; background: #f3f3f3; font-size: 20px; }
+.generated-code-list { display: grid; gap: 7px; overflow: auto; padding-right: 4px; }
+.generated-code-list button { display: flex; align-items: center; justify-content: space-between !important; padding: 11px 13px; border: 1px solid var(--admin-line); background: #fafafa; }
+.generated-code-list code { font-weight: 700; letter-spacing: .06em; }
+.generated-code-list small { color: #888; }
+.admin-modal footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 18px; }
+.admin-modal footer button { border: 1px solid var(--admin-line); }
+.admin-modal footer .copy-all { background: #111; color: #fff; }
+.lm-code-history { display: grid; gap: 7px; max-height: 150px; overflow: auto; padding: 13px; border-block: 1px solid #eee; }
+.lm-code-history > b { color: #777; font-size: 11px; }
+.lm-code-history > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.lm-code-history span { display: grid; min-width: 0; }
+.lm-code-history code { overflow: hidden; color: #222; font-size: 11px; text-overflow: ellipsis; }
+.lm-code-history small { color: #999; font-size: 9px; }
+.lm-code-history i { padding: 3px 7px; border-radius: 999px; background: #111; color: #fff; font-size: 9px; font-style: normal; white-space: nowrap; }
+.lm-code-history i.disabled { background: #eee; color: #777; }
+@media (max-width: 600px) {
+  .record-toolbar { flex-wrap: wrap; }
+  .record-toolbar span { width: 100%; }
+  .admin-modal > section { padding: 24px 17px; border-radius: 14px; }
+  .admin-modal h2 { font-size: 23px; }
+}
