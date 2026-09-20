@@ -272,3 +272,4 @@ body.has-global-music-player #root>main:not(.music-page){padding-bottom:5rem}
 @keyframes music-player-spin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
 .music-player .music-controls .play-button .music-spinner{animation:music-player-spin .7s linear infinite}
 @media(prefers-reduced-motion:reduce){.music-player .music-controls .play-button .music-spinner{animation:none}}
+.music-legal-links{display:flex!important;align-items:center;justify-content:center;gap:.55rem;border-left:0!important;padding-left:0!important}.music-legal-links button{border:0;border-bottom:1px solid currentColor;padding:0;background:transparent;color:inherit;font:inherit;cursor:pointer;pointer-events:auto}.music-player>.music-legal-links{white-space:normal!important}

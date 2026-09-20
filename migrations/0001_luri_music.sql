@@ -44,3 +44,5 @@ CREATE TABLE IF NOT EXISTS luri_music_settings (
   updated_at TEXT NOT NULL
 );
 INSERT OR IGNORE INTO luri_music_settings(key, value, updated_at) VALUES ('music_enabled', 'true', datetime('now'));
+INSERT OR IGNORE INTO luri_music_settings(key, value, updated_at) VALUES ('music_access_required', 'true', datetime('now'));
+INSERT OR IGNORE INTO luri_music_settings(key, value, updated_at) VALUES ('music_page_enabled', 'true', datetime('now'));

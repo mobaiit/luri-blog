@@ -2,14 +2,13 @@ import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import './Navbar.css';
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { label: '首页', to: '/' },
   { label: '随笔', to: '/blog' },
-  { label: '音乐', to: '/music' },
   { label: '关于', to: '/about' },
 ];
 
-export default function Navbar() {
+export default function Navbar({ musicPageEnabled = true }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -22,6 +21,8 @@ export default function Navbar() {
 
   // 路由切换时关闭移动菜单
   const closeMenu = () => setMenuOpen(false);
+
+  const navItems = [BASE_NAV_ITEMS[0], BASE_NAV_ITEMS[1], ...(musicPageEnabled ? [{ label: 'LURI MUSIC', to: '/luri-music' }] : []), BASE_NAV_ITEMS[2]];
 
   return (
     <header className={`navbar${scrolled ? ' scrolled' : ''}`}>
@@ -45,7 +46,7 @@ export default function Navbar() {
 
         {/* 导航链接 */}
         <ul className={`navbar__links${menuOpen ? ' open' : ''}`}>
-          {NAV_ITEMS.map(({ label, to }) => (
+          {navItems.map(({ label, to }) => (
             <li key={to}>
               <NavLink
                 to={to}
