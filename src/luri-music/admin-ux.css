@@ -280,33 +280,28 @@
     position: sticky;
     top: 0;
     z-index: 200;
-    display: flex;
-    align-items: center;
-    flex-direction: row;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
     width: 100%;
     height: auto;
-    overflow-x: auto;
-    padding: 8px 10px;
+    overflow: visible;
+    padding: 7px 10px 9px;
     border-right: 0;
     border-bottom: 1px solid var(--admin-line);
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-  .admin-page > aside::-webkit-scrollbar {
-    display: none;
   }
   .admin-page > aside > a {
-    flex: none;
-    margin: 0 10px 0 2px;
-    font-size: 14px;
+    grid-column: 1 / -1;
+    margin: 0 2px 3px;
+    font-size: 13px;
   }
   .admin-page > aside > button {
-    flex: none;
     justify-content: center;
-    min-height: 36px;
-    padding: 8px 11px !important;
+    width: 100%;
+    min-height: 32px;
+    padding: 6px 4px !important;
+    font-size: 11px;
+    text-align: center;
     white-space: nowrap;
   }
   .admin-content {
