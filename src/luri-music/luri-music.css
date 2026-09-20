@@ -21,6 +21,17 @@
 .luri-music-clone.is-standalone {
   padding-top: 0;
 }
+.luri-music-clone.is-global-player {
+  display: contents;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+}
+.luri-music-clone.is-global-player > .lm-site-bar {
+  display: none;
+}
 .lm-site-bar {
   position: relative;
   z-index: 20;
@@ -401,6 +412,10 @@
 @media (min-width: 761px) {
   .luri-music-clone .music-sidebar {
     top: 3.6rem !important;
+  }
+  .luri-music-clone .music-workspace {
+    box-sizing: border-box;
+    padding-bottom: 2.75rem;
   }
 }
 @media (prefers-reduced-motion: reduce) {

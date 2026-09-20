@@ -3,6 +3,7 @@ import { Navigate, Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
+import GlobalMusicCollapse from './components/GlobalMusicCollapse';
 import Home from './pages/Home';
 import About from './pages/About';
 import Blog from './pages/Blog';
@@ -32,17 +33,18 @@ export default function App() {
   const isMusicPage = location.pathname === '/music';
   if (isLegacyMusicPage) return <Navigate to="/music" replace />;
   if (musicConfig.musicOnly && !isMusicPage) return <Navigate to="/music" replace />;
-  if (isMusicPage) return musicConfig.enabled ? <><ScrollToTop />{!musicConfig.musicOnly && <Navbar musicPageEnabled musicActive aboutPageEnabled={musicConfig.aboutEnabled} />}<Routes><Route path="*" element={<LuriMusic accessRequired={musicConfig.accessRequired} standalone={musicConfig.musicOnly} />} /></Routes></> : <Navigate to="/" replace />;
+  if (isMusicPage && !musicConfig.enabled) return <Navigate to="/" replace />;
   if (!musicConfig.aboutEnabled && location.pathname === '/about') return <Navigate to="/" replace />;
   return (
     <>
       <ScrollToTop />
-      <Navbar musicPageEnabled={musicConfig.enabled} aboutPageEnabled={musicConfig.aboutEnabled} />
+      {(!isMusicPage || !musicConfig.musicOnly) && <Navbar musicPageEnabled={musicConfig.enabled} musicActive={isMusicPage} aboutPageEnabled={musicConfig.aboutEnabled} />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<PostDetail />} />
+        <Route path="/music" element={null} />
         {/* 404 */}
         <Route
           path="*"
@@ -56,7 +58,9 @@ export default function App() {
           }
         />
       </Routes>
-      <Footer />
+      {musicConfig.enabled && <LuriMusic active={isMusicPage} accessRequired={musicConfig.accessRequired} standalone={isMusicPage && musicConfig.musicOnly} />}
+      {musicConfig.enabled && <GlobalMusicCollapse />}
+      {!isMusicPage && <Footer />}
     </>
   );
 }
