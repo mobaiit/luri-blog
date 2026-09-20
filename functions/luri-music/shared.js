@@ -28,16 +28,21 @@ export const verifyPassword = async (password, stored) => {
 };
 export const cookie = (request, name) => Object.fromEntries((request.headers.get('cookie') || '').split(';').map((part) => part.trim().split('=')))[name];
 export const sessionCookie = (name, value, seconds) => `${name}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${seconds}`;
-export async function verifyTurnstile(value, env, request) {
-  if (!env.TURNSTILE_SECRET_KEY) return true;
-  if (!value) return false;
+export async function verifyTurnstileToken(value, env) {
+  if (!env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET_KEY) return { success: true };
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (!trimmed) return { success: false, reason: 'missing-token' };
   try {
-    const form = new FormData(); form.set('secret', env.TURNSTILE_SECRET_KEY); form.set('response', value); form.set('remoteip', request.headers.get('CF-Connecting-IP') || '');
-    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
-    if (!response.ok) return false;
-    return Boolean((await response.json()).success);
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: `secret=${encodeURIComponent(env.TURNSTILE_SECRET_KEY)}&response=${encodeURIComponent(trimmed)}`,
+    });
+    if (!response.ok) return { success: false, reason: 'verification-failed' };
+    const result = await response.json();
+    return result.success ? { success: true } : { success: false, reason: 'verification-failed' };
   } catch (error) {
-    console.error('Turnstile verification failed', error);
-    return false;
+    console.error('Turnstile verification error:', error);
+    return { success: false, reason: 'verification-failed' };
   }
 }
