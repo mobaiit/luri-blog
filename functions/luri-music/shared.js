@@ -22,7 +22,13 @@ export const sessionCookie = (name, value, seconds) => `${name}=${value}; HttpOn
 export async function verifyTurnstile(value, env, request) {
   if (!env.TURNSTILE_SECRET_KEY) return true;
   if (!value) return false;
-  const form = new FormData(); form.set('secret', env.TURNSTILE_SECRET_KEY); form.set('response', value); form.set('remoteip', request.headers.get('CF-Connecting-IP') || '');
-  const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
-  return Boolean((await response.json()).success);
+  try {
+    const form = new FormData(); form.set('secret', env.TURNSTILE_SECRET_KEY); form.set('response', value); form.set('remoteip', request.headers.get('CF-Connecting-IP') || '');
+    const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
+    if (!response.ok) return false;
+    return Boolean((await response.json()).success);
+  } catch (error) {
+    console.error('Turnstile verification failed', error);
+    return false;
+  }
 }
