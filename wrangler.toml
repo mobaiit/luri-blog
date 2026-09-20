@@ -5,3 +5,8 @@ compatibility_date = "2026-09-18"
 [assets]
 directory = "./dist"
 not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "LURI_MUSIC_DB"
+database_name = "luri-music"
+database_id = "300fc951-1e16-4382-9d18-dc3ae94bdd94"

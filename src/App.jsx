@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
@@ -8,8 +8,12 @@ import About from './pages/About';
 import Blog from './pages/Blog';
 import PostDetail from './pages/PostDetail';
 import Music from './pages/Music';
+import LuriMusic from './luri-music/LuriMusic';
+import Admin from './luri-music/Admin';
 
 export default function App() {
+  const location = useLocation();
+  if (location.pathname === '/luri-music' || location.pathname === '/admin') return <Routes><Route path="/luri-music" element={<LuriMusic />} /><Route path="/admin" element={<Admin />} /></Routes>;
   return (
     <>
       <ScrollToTop />
