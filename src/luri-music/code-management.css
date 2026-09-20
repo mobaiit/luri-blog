@@ -1,7 +1,7 @@
 .password-input,
 .lm-password-input { position: relative; display: block; }
 .password-input input,
-.lm-password-input input { padding-right: 44px !important; }
+.lm-password-input input { box-sizing: border-box; width: 100%; padding-right: 44px !important; }
 .password-input button,
 .lm-password-input button { position: absolute !important; top: 50%; right: 5px; display: grid; place-items: center; width: 30px; height: 30px; padding: 6px !important; border: 0 !important; border-radius: 50% !important; background: transparent !important; color: #777 !important; box-shadow: none !important; transform: translateY(-50%) !important; }
 .password-input button:hover,
