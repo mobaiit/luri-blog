@@ -261,8 +261,8 @@ body.has-global-music-player #root>main:not(.music-page){padding-bottom:5rem}
 .music-random-button:disabled{cursor:wait;opacity:.65}
 @media(max-width:760px){.music-random-button{width:2.25rem;height:2.25rem;padding:0!important;justify-content:center;border-left:0!important}.music-random-button span:not(.music-spinner){display:none}}
 
-/* Keep the search controls aligned with the page inset on narrow screens. */
-@media(max-width:760px){.music-search{width:calc(100% - var(--space-sm));box-sizing:border-box}}
+/* Keep the search controls and the music panels aligned with the page inset. */
+@media(max-width:760px){.music-search,.music-shell,.music-page.mobile-view-now .music-shell{width:calc(100% - var(--space-sm))!important;box-sizing:border-box}}
 
 /* Transient discovery failures never claim space in the playlist or lyrics pane. */
 .music-toast{position:fixed;z-index:220;bottom:calc(104px + 1rem);left:50%;max-width:min(28rem,calc(100vw - 2rem));padding:.65rem .9rem;background:var(--color-text);color:var(--color-bg);font-size:.78rem;line-height:1.35;text-align:center;transform:translateX(-50%);box-shadow:0 6px 20px #0002}
