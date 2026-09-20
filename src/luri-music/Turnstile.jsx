@@ -10,7 +10,7 @@ export default function Turnstile() {
         const response = await fetch('/api/luri-music/auth/me', { credentials: 'same-origin' }); const { turnstileSiteKey } = await response.json();
         if (disposed || !container.current || !turnstileSiteKey || !window.turnstile) { if (!disposed) setStatus('安全验证暂不可用，请刷新页面'); return; }
         if (widgetId.current !== null) { window.turnstile.reset(widgetId.current); return; }
-        widgetId.current = window.turnstile.render(container.current, { sitekey: turnstileSiteKey, theme: 'auto', callback: (token) => { hidden.current.value = token; setStatus(''); }, 'error-callback': () => { hidden.current.value = ''; setStatus('安全验证加载失败，请刷新后重试'); }, 'expired-callback': () => { hidden.current.value = ''; setStatus('安全验证已过期，请重新完成验证'); } }); setStatus('');
+        widgetId.current = window.turnstile.render(container.current, { sitekey: turnstileSiteKey, theme: 'auto', appearance: 'interaction-only', callback: (token) => { hidden.current.value = token; setStatus(''); }, 'error-callback': () => { hidden.current.value = ''; setStatus('安全验证加载失败，请刷新后重试'); }, 'expired-callback': () => { hidden.current.value = ''; setStatus('安全验证已过期，请重新完成验证'); } }); setStatus('正在进行安全验证…');
       } catch { if (!disposed) setStatus('安全验证加载失败，请刷新后重试'); }
     };
     const existing = document.querySelector('script[data-turnstile="true"]');
