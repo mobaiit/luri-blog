@@ -7,17 +7,24 @@ export const hash = async (value) => {
   const bytes = await crypto.subtle.digest('SHA-256', encoder.encode(value));
   return [...new Uint8Array(bytes)].map((n) => n.toString(16).padStart(2, '0')).join('');
 };
-export const passwordHash = async (password, salt = token()) => {
+const PASSWORD_HASH_VERSION = 'v2';
+const PASSWORD_ITERATIONS = 10000;
+export const passwordHash = async (password, salt = token(), iterations = PASSWORD_ITERATIONS) => {
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
-  // Cloudflare Workers' free CPU budget is tight; 50k keeps first-login
-  // hashing within budget while retaining a salted, slow password derivation.
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: encoder.encode(salt), iterations: 50000, hash: 'SHA-256' }, key, 256);
-  return `${salt}:${[...new Uint8Array(bits)].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+  // A free-plan Worker has a 10 ms CPU cap.  Keep this safely below it and
+  // retain the work factor in the value so it can be raised later.
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: encoder.encode(salt), iterations, hash: 'SHA-256' }, key, 256);
+  return `${PASSWORD_HASH_VERSION}:${iterations}:${salt}:${[...new Uint8Array(bits)].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 };
 export const verifyPassword = async (password, stored) => {
-  const [salt, expected] = String(stored).split(':');
+  const parts = String(stored).split(':');
+  const [salt, expected, iterations] = parts[0] === PASSWORD_HASH_VERSION
+    ? [parts[2], parts[3], Number(parts[1])]
+    // Compatibility with credentials written by the first implementation.
+    : [parts[0], parts[1], 50000];
   if (!salt || !expected) return false;
-  return (await passwordHash(password, salt)).split(':')[1] === expected;
+  const actual = await passwordHash(password, salt, Number.isSafeInteger(iterations) && iterations > 0 ? iterations : PASSWORD_ITERATIONS);
+  return actual.split(':').at(-1) === expected;
 };
 export const cookie = (request, name) => Object.fromEntries((request.headers.get('cookie') || '').split(';').map((part) => part.trim().split('=')))[name];
 export const sessionCookie = (name, value, seconds) => `${name}=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${seconds}`;
