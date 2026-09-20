@@ -13,7 +13,7 @@ import Admin from './luri-music/Admin';
 
 export default function App() {
   const location = useLocation();
-  if (location.pathname === '/luri-music' || location.pathname === '/admin') return <Routes><Route path="/luri-music" element={<LuriMusic />} /><Route path="/admin" element={<Admin />} /></Routes>;
+  if (location.pathname === '/luri-music' || location.pathname === '/admin' || location.search === '?luri-music=1' || location.search === '?admin=1') return <Routes><Route path="*" element={location.search === '?admin=1' || location.pathname === '/admin' ? <Admin /> : <LuriMusic />} /></Routes>;
   return (
     <>
       <ScrollToTop />
