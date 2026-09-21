@@ -61,6 +61,10 @@
   font-size: 12px;
   line-height: 1.75;
 }
+.lm-legal strong {
+  color: #191919;
+  font-weight: 700;
+}
 .lm-legal .primary {
   margin-top: 4px;
 }
@@ -139,8 +143,10 @@
   font-size: 13px;
   line-height: 1.85;
 }
-.lm-announcement b {
+.lm-announcement b,
+.lm-announcement strong {
   color: #111;
+  font-weight: 700;
 }
 .lm-announcement-actions {
   display: flex;
