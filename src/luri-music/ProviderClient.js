@@ -20,11 +20,11 @@ const throwProviderError = async (response) => {
 };
 
 export default class ProviderClient {
-  constructor(config) { this.config = config; this.access = null; this.pending = null; }
+  constructor(config, onStatusChange) { this.config = config; this.onStatusChange = onStatusChange; this.access = null; this.pending = null; }
 
   async authorization() {
     if (this.access && this.access.expiresAt > Date.now() + 15000) return this.access;
-    if (!this.pending) this.pending = api(`providers/${this.config.id}/token`, { method: 'POST', body: '{}' }).then((data) => ({ token: data.accessToken || '', authorization: data.authorization || null, endpoints: data.endpoints, expiresAt: Date.now() + Math.max(30, Number(data.expiresIn) || 900) * 1000 })).finally(() => { this.pending = null; });
+    if (!this.pending) this.pending = api(`providers/${this.config.id}/token`, { method: 'POST', body: '{}' }).then((data) => { if (this.config.status !== (data.account?.status || 'active')) this.onStatusChange?.(); return { token: data.accessToken || '', authorization: data.authorization || null, endpoints: data.endpoints, expiresAt: Date.now() + Math.max(30, Number(data.expiresIn) || 900) * 1000 }; }).finally(() => { this.pending = null; });
     this.access = await this.pending; return this.access;
   }
 
