@@ -151,7 +151,7 @@ export async function handleProviderRequest(request, env, action, user) {
       const credential = await decryptCredential(config, env); const authType = config.auth_type || 'activation_code'; let accessToken = ''; let expiresIn = 900; let authorization = null; let account = null;
       if (authType === 'activation_code') {
         const response = await providerFetch(checkedEndpoint(credential.refreshEndpoint, config.provider_url), { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ refreshToken: credential.refreshToken }) }); const refreshed = await response.json().catch(() => ({}));
-        if (!response.ok || !refreshed.accessToken) { await env.LURI_MUSIC_DB.prepare("UPDATE luri_music_provider_configs SET cached_status='inactive',last_synced_at=?,updated_at=? WHERE id=?").bind(now(), now(), config.id).run(); return json({ error: refreshed.error?.message || 'Provider 凭证已失效' }, 401); }
+        if (!response.ok || !refreshed.accessToken) { await env.LURI_MUSIC_DB.prepare("UPDATE luri_music_provider_configs SET cached_status='inactive',last_synced_at=?,updated_at=? WHERE id=?").bind(now(), now(), config.id).run(); return json({ error: 'Provider 没有访问权限，请重新配置或联系服务提供方', code: 'provider_access_denied' }, 401); }
         accessToken = refreshed.accessToken; expiresIn = refreshed.expiresIn;
         const accountResponse = await providerFetch(checkedEndpoint(credential.accountEndpoint, config.provider_url), { headers: accessHeaders(authType, credential, accessToken) }); account = accountResponse.ok ? await accountResponse.json() : null;
       } else if (authType === 'api_key') {

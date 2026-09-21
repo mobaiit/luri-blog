@@ -1,8 +1,22 @@
 const api = async (path, options = {}) => {
   const response = await fetch(`/api/luri-music/${path}`, { credentials: 'same-origin', headers: { 'content-type': 'application/json' }, ...options });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw Error(data.error || 'Provider 凭证同步失败');
+  if (!response.ok) {
+    const error = new Error(data.error || 'Provider 凭证同步失败');
+    error.status = response.status;
+    error.code = data.code || (response.status === 401 || response.status === 403 ? 'provider_access_denied' : 'provider_request_failed');
+    throw error;
+  }
   return data;
+};
+
+const throwProviderError = async (response) => {
+  if (response.status !== 401 && response.status !== 403) return response;
+  const data = await response.clone().json().catch(() => ({}));
+  const error = new Error(data.error?.message || data.error || 'Provider 没有访问权限');
+  error.status = response.status;
+  error.code = 'provider_access_denied';
+  throw error;
 };
 
 export default class ProviderClient {
@@ -28,6 +42,6 @@ export default class ProviderClient {
     }
     let response = await fetch(target, options);
     if (response.status === 401) { this.access = null; const renewed = await this.authorization(); delete options.headers.authorization; if (renewed.authorization?.header) options.headers[renewed.authorization.header] = `${renewed.authorization.prefix || ''}${renewed.token}`; else if (renewed.token) options.headers.authorization = `Bearer ${renewed.token}`; response = await fetch(target, options); }
-    return response;
+    return throwProviderError(response);
   }
 }
