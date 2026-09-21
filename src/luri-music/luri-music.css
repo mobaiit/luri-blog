@@ -1,4 +1,11 @@
 .luri-music-clone {
+  --lm-text-primary: #102a43;
+  --lm-text-secondary: #243b53;
+  --lm-text-muted: #3f6282;
+  --lm-text-accent: #0f609b;
+  --lm-text-danger: #9b2c2c;
+  --color-text: var(--lm-text-primary);
+  --color-text-muted: var(--lm-text-muted);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -9,6 +16,34 @@
   min-height: 0;
   padding-top: var(--nav-height);
   overflow: hidden;
+}
+
+/* Text hierarchy uses ink and blue hues instead of low-contrast grays. */
+.luri-music-clone .lm-announcement-button,
+.luri-music-clone .lm-docs-button,
+.luri-music-clone .lm-account-trigger,
+.luri-music-clone .lm-account-menu button,
+.luri-music-clone .lm-modal label {
+  color: var(--lm-text-primary);
+}
+.luri-music-clone .lm-account-trigger small,
+.luri-music-clone .lm-account-menu header span,
+.luri-music-clone .lm-account-menu dt {
+  color: var(--lm-text-muted);
+}
+.luri-music-clone .lm-account-trigger small,
+.luri-music-clone .lm-account-menu header span {
+  font-size: 11px;
+}
+.luri-music-clone .lm-account-menu .danger {
+  color: var(--lm-text-danger);
+}
+.luri-music-clone .lm-modal .link {
+  color: var(--lm-text-accent);
+}
+.luri-music-clone input::placeholder {
+  color: var(--lm-text-muted);
+  opacity: 1;
 }
 .luri-music-clone .music-page {
   width: 100%;

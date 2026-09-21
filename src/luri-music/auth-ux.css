@@ -12,6 +12,27 @@
   line-height: 1.6;
   text-align: left;
 }
+
+.luri-music-clone .lm-consent {
+  color: var(--lm-text-secondary);
+}
+.luri-music-clone .lm-consent button,
+.luri-music-clone .lm-forgot {
+  color: var(--lm-text-accent);
+}
+.luri-music-clone .lm-legal-date {
+  color: var(--lm-text-accent);
+}
+.luri-music-clone .lm-legal p {
+  color: var(--lm-text-secondary);
+}
+.luri-music-clone .lm-legal strong {
+  color: var(--lm-text-primary);
+}
+.luri-music-clone .lm-password-input button,
+.luri-music-clone .lm-code-input button {
+  color: var(--lm-text-accent);
+}
 .lm-consent input[type="checkbox"] {
   flex: none;
   width: 16px;
@@ -171,6 +192,22 @@
   font: inherit;
   font-size: 11px;
   cursor: pointer;
+}
+.luri-music-clone .lm-announcement article {
+  color: var(--lm-text-primary);
+}
+.luri-music-clone .lm-announcement article > span {
+  color: var(--lm-text-accent);
+}
+.luri-music-clone .lm-announcement p {
+  color: var(--lm-text-secondary);
+}
+.luri-music-clone .lm-announcement b,
+.luri-music-clone .lm-announcement strong {
+  color: var(--lm-text-primary);
+}
+.luri-music-clone .lm-announcement small {
+  color: var(--lm-text-muted);
 }
 @media (min-width: 761px) {
   .lm-legal-modal > div {
