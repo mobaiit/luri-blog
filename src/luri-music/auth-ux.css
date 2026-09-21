@@ -3,11 +3,30 @@
   gap: 13px;
 }
 .lm-consent {
+  display: flex !important;
+  align-items: center;
+  gap: 7px !important;
   margin: 0;
   color: #888;
   font-size: 11px;
   line-height: 1.6;
-  text-align: center;
+  text-align: left;
+}
+.lm-consent input[type="checkbox"] {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: #111;
+  cursor: pointer;
+}
+.lm-consent label {
+  display: inline !important;
+  gap: 0 !important;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 .lm-consent button {
   display: inline;
