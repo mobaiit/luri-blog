@@ -172,6 +172,31 @@
   font-size: 11px;
   cursor: pointer;
 }
+@media (min-width: 761px) {
+  .lm-legal-modal > div {
+    width: min(760px, calc(100vw - 64px));
+    padding: 38px 42px;
+  }
+  .lm-legal {
+    gap: 23px;
+  }
+  .lm-legal h3 {
+    font-size: 15px;
+  }
+  .lm-legal p {
+    font-size: 14px;
+    line-height: 1.9;
+  }
+  .lm-announcement article {
+    width: min(680px, calc(100vw - 64px));
+    padding: 40px 42px;
+  }
+  .lm-announcement p {
+    margin-bottom: 17px;
+    font-size: 15px;
+    line-height: 1.9;
+  }
+}
 @media (max-width: 600px) {
   .lm-auth-modal > div {
     width: min(340px, calc(100% - 24px));
