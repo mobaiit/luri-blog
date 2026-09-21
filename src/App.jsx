@@ -19,8 +19,8 @@ export default function App() {
   useEffect(() => {
     let active = true;
     fetch('/api/luri-music/site-config').then((response) => response.ok ? response.json() : Promise.reject()).then((data) => {
-      if (active) setMusicConfig({ enabled: data.musicPageEnabled !== false, accessRequired: data.musicAccessRequired !== false, musicOnly: data.musicOnlyMode === true, aboutEnabled: data.aboutPageEnabled !== false });
-    }).catch(() => { if (active) setMusicConfig({ enabled: true, accessRequired: true, musicOnly: false, aboutEnabled: true }); });
+      if (active) setMusicConfig({ enabled: data.musicPageEnabled !== false, accessRequired: data.musicAccessRequired !== false, musicOnly: data.musicOnlyMode === true, aboutEnabled: data.aboutPageEnabled !== false, docsEnabled: data.docsPageEnabled !== false });
+    }).catch(() => { if (active) setMusicConfig({ enabled: true, accessRequired: true, musicOnly: false, aboutEnabled: true, docsEnabled: true }); });
     return () => { active = false; };
   }, []);
   useEffect(() => {
@@ -37,11 +37,12 @@ export default function App() {
   if (isLegacyMusicPage) return <Navigate to="/music" replace />;
   if (musicConfig.musicOnly && !isMusicPage && !isDocsPage) return <Navigate to="/music" replace />;
   if (isMusicPage && !musicConfig.enabled) return <Navigate to="/" replace />;
+  if (isDocsPage && !musicConfig.docsEnabled) return <Navigate to="/" replace />;
   if (!musicConfig.aboutEnabled && location.pathname === '/about') return <Navigate to="/" replace />;
   return (
     <>
       <ScrollToTop />
-      {(!isMusicPage || !musicConfig.musicOnly) && <Navbar musicPageEnabled={musicConfig.enabled} musicActive={isMusicPage} aboutPageEnabled={musicConfig.aboutEnabled} />}
+      {!isDocsPage && (!isMusicPage || !musicConfig.musicOnly) && <Navbar musicPageEnabled={musicConfig.enabled} musicActive={isMusicPage} aboutPageEnabled={musicConfig.aboutEnabled} />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
@@ -62,7 +63,7 @@ export default function App() {
           }
         />
       </Routes>
-      {musicConfig.enabled && <LuriMusic active={isMusicPage} accessRequired={musicConfig.accessRequired} standalone={isMusicPage && musicConfig.musicOnly} />}
+      {musicConfig.enabled && <LuriMusic active={isMusicPage} accessRequired={musicConfig.accessRequired} standalone={isMusicPage && musicConfig.musicOnly} docsEnabled={musicConfig.docsEnabled} />}
       {musicConfig.enabled && <GlobalMusicCollapse />}
       {!isMusicPage && <Footer />}
     </>
