@@ -174,18 +174,42 @@
 }
 @media (min-width: 761px) {
   .lm-legal-modal > div {
-    width: min(760px, calc(100vw - 64px));
-    padding: 38px 42px;
+    width: min(940px, calc(100vw - 64px));
+    padding: 40px 46px;
   }
   .lm-legal {
-    gap: 23px;
+    gap: 0;
+  }
+  .lm-legal-date {
+    margin-bottom: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #ececec;
+  }
+  .lm-legal section {
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 8px 28px;
+    padding: 18px 0;
+    border-bottom: 1px solid #eeeeec;
+  }
+  .lm-legal section h3 {
+    grid-column: 1;
+  }
+  .lm-legal section p,
+  .lm-legal section .lm-protocol-doc-link {
+    grid-column: 2;
   }
   .lm-legal h3 {
     font-size: 15px;
+    line-height: 1.65;
   }
   .lm-legal p {
     font-size: 14px;
     line-height: 1.9;
+  }
+  .lm-legal > .primary {
+    justify-self: end;
+    min-width: 132px;
+    margin-top: 24px;
   }
   .lm-announcement article {
     width: min(680px, calc(100vw - 64px));
