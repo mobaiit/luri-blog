@@ -22,9 +22,9 @@ const manifestExample = `{
     "account": "https://provider.example.com/v1/account",
     "search": "https://provider.example.com/v1/catalog/search",
     "random": "https://provider.example.com/v1/catalog/random",
-    "resolve": "https://provider.example.com/v1/catalog/resolve",
-    "lyrics": "https://provider.example.com/v1/catalog/tracks/{id}/lyrics",
-    "artwork": "https://provider.example.com/v1/catalog/tracks/{id}/artwork"
+    "resolve": "https://provider.example.com/v1/tracks/resolve",
+    "lyrics": "https://provider.example.com/v1/tracks/{id}/lyrics",
+    "artwork": "https://provider.example.com/v1/tracks/{id}/artwork"
   }
 }`;
 
@@ -100,6 +100,8 @@ export default function Docs() {
           ['playback.mode', 'string', '建议', '播放交付方式；当前支持 direct，即 resolve 返回可播放 URL。'],
           ['playback.qualities', 'string[]', '否', '支持的音质标识，例如 128k、320k、lossless。'],
           ['endpoints', 'object', '是', '接口地址集合；所有地址须与 Provider 根地址同源并使用 HTTPS。'],
+          ['endpoints.terms', 'HTTPS URL', '是', 'Provider 服务条款及内容授权范围说明。'],
+          ['endpoints.privacy', 'HTTPS URL', '是', 'Provider 隐私政策、运营主体及联系方式说明。'],
           ['endpoints.search', 'HTTPS URL', '是', '搜索接口地址。'],
           ['endpoints.resolve', 'HTTPS URL', '是', '播放地址解析接口。'],
           ['endpoints.random', 'HTTPS URL', '否', '随机发现接口；声明 random 能力时应提供。'],
@@ -160,7 +162,7 @@ export default function Docs() {
           ['sourceId', 'string', '否', '底层资源标识；未提供时客户端使用 id。'],
           ['year', 'string | number', '否', '发行或发布年份。'],
           ['meta', 'object', '否', 'Provider 自定义的可序列化上下文，会在后续请求中原样传回。'],
-        ]} /><h3>解析播放地址</h3><Endpoint method="POST" path="/v1/catalog/resolve">返回当前曲目的短期可播放地址。请求和响应均为 JSON。</Endpoint><SchemaTable title="请求体" rows={[
+        ]} /><h3>获取播放资源</h3><Endpoint method="POST" path="/v1/tracks/resolve">根据 Provider 自身的合法内容授权返回当前条目的短期播放地址。请求和响应均为 JSON。</Endpoint><SchemaTable title="请求体" rows={[
           ['id', 'string', '是', 'Track.id 或 Track.sourceId。'],
           ['source', 'string', '否', 'Track.source，用于定位具体目录。'],
           ['title', 'string', '否', '曲目标题，便于 Provider 校验或兼容旧数据。'],

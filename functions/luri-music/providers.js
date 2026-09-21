@@ -49,6 +49,7 @@ async function discover(providerUrl) {
   const manifest = await response.json();
   if (manifest.protocol !== 'music-provider' || !String(manifest.protocolVersion || '').startsWith('1.')) throw new Error('Provider 不支持 Music Provider Protocol 1.x');
   if (!manifest.provider?.id || !manifest.endpoints?.search || !manifest.endpoints?.resolve) throw new Error('Provider 协议声明不完整');
+  if (!manifest.endpoints?.terms || !manifest.endpoints?.privacy) throw new Error('Provider 必须公开服务条款和隐私政策');
   const authTypes = Array.isArray(manifest.authentication?.types) ? manifest.authentication.types : [];
   if (!authTypes.some((value) => ['activation_code', 'api_key', 'none'].includes(value))) throw new Error('Provider 未声明客户端支持的认证方式');
   Object.values(manifest.endpoints).filter((value) => typeof value === 'string').forEach((value) => checkedEndpoint(value.replace(/\{[^}]+\}/g, 'resource'), providerUrl));
