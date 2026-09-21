@@ -19,8 +19,8 @@ export default function App() {
   useEffect(() => {
     let active = true;
     fetch('/api/luri-music/site-config').then((response) => response.ok ? response.json() : Promise.reject()).then((data) => {
-      if (active) setMusicConfig({ enabled: data.musicPageEnabled !== false, accessRequired: data.musicAccessRequired !== false, musicOnly: data.musicOnlyMode === true, aboutEnabled: data.aboutPageEnabled !== false, docsEnabled: data.docsPageEnabled !== false });
-    }).catch(() => { if (active) setMusicConfig({ enabled: true, accessRequired: true, musicOnly: false, aboutEnabled: true, docsEnabled: true }); });
+      if (active) setMusicConfig({ enabled: data.musicPageEnabled !== false, navigationEnabled: data.musicNavigationEnabled !== false, accessRequired: data.musicAccessRequired !== false, musicOnly: data.musicOnlyMode === true, aboutEnabled: data.aboutPageEnabled !== false, docsEnabled: data.docsPageEnabled !== false });
+    }).catch(() => { if (active) setMusicConfig({ enabled: true, navigationEnabled: true, accessRequired: true, musicOnly: false, aboutEnabled: true, docsEnabled: true }); });
     return () => { active = false; };
   }, []);
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
-      {!isDocsPage && (!isMusicPage || !musicConfig.musicOnly) && <Navbar musicPageEnabled={musicConfig.enabled} musicActive={isMusicPage} aboutPageEnabled={musicConfig.aboutEnabled} />}
+      {!isDocsPage && (!isMusicPage || !musicConfig.musicOnly) && <Navbar musicNavigationEnabled={musicConfig.enabled && musicConfig.navigationEnabled} musicActive={isMusicPage} aboutPageEnabled={musicConfig.aboutEnabled} />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />

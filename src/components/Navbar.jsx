@@ -8,7 +8,7 @@ const BASE_NAV_ITEMS = [
   { label: '关于', to: '/about' },
 ];
 
-export default function Navbar({ musicPageEnabled = true, musicActive = false, musicOnly = false, aboutPageEnabled = true }) {
+export default function Navbar({ musicNavigationEnabled = true, musicActive = false, musicOnly = false, aboutPageEnabled = true }) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -23,7 +23,7 @@ export default function Navbar({ musicPageEnabled = true, musicActive = false, m
   const closeMenu = () => setMenuOpen(false);
 
   const musicItem = { label: 'LURI MUSIC', to: '/music' };
-  const navItems = musicOnly ? [musicItem] : [BASE_NAV_ITEMS[0], BASE_NAV_ITEMS[1], ...(musicPageEnabled ? [musicItem] : []), ...(aboutPageEnabled ? [BASE_NAV_ITEMS[2]] : [])];
+  const navItems = musicOnly ? [musicItem] : [BASE_NAV_ITEMS[0], BASE_NAV_ITEMS[1], ...(musicNavigationEnabled ? [musicItem] : []), ...(aboutPageEnabled ? [BASE_NAV_ITEMS[2]] : [])];
 
   return (
     <header className={`navbar${scrolled ? ' scrolled' : ''}`}>
