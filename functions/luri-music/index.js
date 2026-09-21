@@ -1,4 +1,5 @@
 import { cookie, hash, id, json, now, passwordHash, sessionCookie, token, verifyPassword, verifyTurnstileToken } from './shared.js';
+import { handleProviderRequest } from './providers.js';
 
 const USER_COOKIE = 'luri_music_session';
 const ADMIN_COOKIE = 'luri_music_admin';
@@ -110,6 +111,7 @@ export async function handleLuriMusic(request, env) {
   const action = new URL(request.url).pathname.replace('/api/luri-music/', '');
   if (action === 'site-config' && request.method === 'GET') return json({ musicPageEnabled: await musicPageEnabled(env), musicAccessRequired: await musicAccessRequired(env), musicOnlyMode: await musicOnlyMode(env), aboutPageEnabled: await aboutPageEnabled(env) });
   if (action === 'auth/me') { const user = await currentUser(request, env); return json({ user: await userPayload(user), turnstile: { enabled: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY), siteKey: env.TURNSTILE_SITE_KEY || '' } }); }
+  if (action === 'providers' || action.startsWith('providers/')) return handleProviderRequest(request, env, action, await currentUser(request, env));
 
   if (action === 'auth/email-code' && request.method === 'POST') {
     const data = await body(request); const mail = normalizeEmail(data.email);
@@ -300,7 +302,7 @@ export async function handleLuriMusic(request, env) {
     if (status === 'active') where.push('u.disabled_at IS NULL');
     const condition = where.join(' AND ');
     const total = await env.LURI_MUSIC_DB.prepare(`SELECT count(*) n FROM luri_music_users u WHERE ${condition}`).bind(...args).first();
-    const rows = await env.LURI_MUSIC_DB.prepare(`SELECT u.id,u.email,u.display_name,u.created_at,u.last_login_at,u.disabled_at,count(c.id) redeemed_count FROM luri_music_users u LEFT JOIN luri_music_codes c ON c.redeemed_by=u.id WHERE ${condition} GROUP BY u.id ORDER BY COALESCE(u.last_login_at,u.created_at) DESC LIMIT ? OFFSET ?`).bind(...args, size, (page - 1) * size).all();
+    const rows = await env.LURI_MUSIC_DB.prepare(`SELECT u.id,u.email,u.display_name,u.created_at,u.last_login_at,u.disabled_at,(SELECT count(*) FROM luri_music_provider_configs pc WHERE pc.user_id=u.id) provider_count,(SELECT pc.display_name FROM luri_music_preferences pref JOIN luri_music_provider_configs pc ON pc.id=pref.active_provider_config_id WHERE pref.user_id=u.id) active_provider FROM luri_music_users u WHERE ${condition} ORDER BY COALESCE(u.last_login_at,u.created_at) DESC LIMIT ? OFFSET ?`).bind(...args, size, (page - 1) * size).all();
     return json({ items: rows.results.map((user) => ({ ...user, status: user.disabled_at ? '已禁用' : '正常' })), total: total.n, page, size });
   }
   if (action === 'admin/user-codes' && request.method === 'GET') {
@@ -322,6 +324,8 @@ export async function handleLuriMusic(request, env) {
     const data = await body(request); const account = await env.LURI_MUSIC_DB.prepare('SELECT id,email FROM luri_music_users WHERE id=?').bind(data.id).first();
     if (!account) return json({ error: '用户不存在' }, 404);
     await env.LURI_MUSIC_DB.batch([
+      env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_preferences WHERE user_id=?').bind(account.id),
+      env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_provider_configs WHERE user_id=?').bind(account.id),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_codes WHERE redeemed_by=?').bind(account.id),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_sessions WHERE user_id=?').bind(account.id),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_entitlements WHERE user_id=?').bind(account.id),
@@ -336,6 +340,8 @@ export async function handleLuriMusic(request, env) {
     const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - years); const cutoffValue = cutoff.toISOString();
     const total = await env.LURI_MUSIC_DB.prepare('SELECT count(*) n FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?').bind(cutoffValue).first();
     await env.LURI_MUSIC_DB.batch([
+      env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_preferences WHERE user_id IN (SELECT id FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?)').bind(cutoffValue),
+      env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_provider_configs WHERE user_id IN (SELECT id FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?)').bind(cutoffValue),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_codes WHERE redeemed_by IN (SELECT id FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?)').bind(cutoffValue),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_sessions WHERE user_id IN (SELECT id FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?)').bind(cutoffValue),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_entitlements WHERE user_id IN (SELECT id FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?)').bind(cutoffValue),
