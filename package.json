@@ -12,7 +12,6 @@
   "dependencies": {
     "@giscus/react": "^3.1.0",
     "@waline/client": "^3.15.2",
-    "crypto-js": "^4.2.0",
     "gray-matter": "^4.0.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
