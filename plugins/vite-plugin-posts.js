@@ -249,7 +249,13 @@ export default function postsPlugin(userOptions = {}) {
           route: '/music',
           outPath: path.join(outDir, 'music', 'index.html'),
           title: 'LURI MUSIC',
-          description: 'LURI MUSIC 音乐搜索与播放页面。',
+          description: 'LURI MUSIC 是支持开放 Music Provider Protocol 的音乐播放器客户端。',
+        },
+        {
+          route: '/docs',
+          outPath: path.join(outDir, 'docs', 'index.html'),
+          title: 'LURI MUSIC 文档',
+          description: 'LURI MUSIC 使用指南、Music Provider Protocol 协议与接口开发文档。',
         },
       ];
 

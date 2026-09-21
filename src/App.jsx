@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Blog from './pages/Blog';
 import PostDetail from './pages/PostDetail';
+import Docs from './pages/Docs';
 import LuriMusic from './luri-music/LuriMusic';
 import Admin from './luri-music/Admin';
 import './luri-music/page-titles.css';
@@ -24,6 +25,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (location.pathname === '/admin' || location.search === '?admin=1') document.title = 'LURI ADMIN';
+    else if (location.pathname === '/docs') document.title = 'LURI MUSIC 文档';
     else if (location.pathname === '/music' || location.pathname === '/luri-music' || location.search === '?luri-music=1') document.title = 'LURI MUSIC';
     else document.title = 'LURI - 落墨留白';
   }, [location.pathname, location.search]);
@@ -31,8 +33,9 @@ export default function App() {
   if (musicConfig === null) return <div className="ui-loading-screen"><span className="ui-spinner" /><p>正在加载网站配置…</p></div>;
   const isLegacyMusicPage = location.pathname === '/luri-music' || location.search === '?luri-music=1';
   const isMusicPage = location.pathname === '/music';
+  const isDocsPage = location.pathname === '/docs';
   if (isLegacyMusicPage) return <Navigate to="/music" replace />;
-  if (musicConfig.musicOnly && !isMusicPage) return <Navigate to="/music" replace />;
+  if (musicConfig.musicOnly && !isMusicPage && !isDocsPage) return <Navigate to="/music" replace />;
   if (isMusicPage && !musicConfig.enabled) return <Navigate to="/" replace />;
   if (!musicConfig.aboutEnabled && location.pathname === '/about') return <Navigate to="/" replace />;
   return (
@@ -44,6 +47,7 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<PostDetail />} />
+        <Route path="/docs" element={<Docs />} />
         <Route path="/music" element={null} />
         {/* 404 */}
         <Route

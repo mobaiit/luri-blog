@@ -60,7 +60,8 @@
 .lm-site-bar.public-access .lm-account-wrap {
   display: none;
 }
-.lm-announcement-button {
+.lm-announcement-button,
+.lm-docs-button {
   justify-self: center;
   padding: 8px 14px;
   border: 1px solid #ddd;
@@ -72,6 +73,7 @@
   backdrop-filter: blur(12px);
   cursor: pointer;
 }
+.lm-docs-button { color: inherit; text-decoration: none; }
 .lm-account-wrap {
   position: relative;
   justify-self: end;
@@ -328,11 +330,13 @@
 }
 @media (max-width: 760px) {
   .lm-site-bar {
+    gap: 6px;
     width: calc(100% - 2rem);
     min-height: 44px;
     padding: 5px 0;
   }
-  .lm-announcement-button {
+  .lm-announcement-button,
+  .lm-docs-button {
     padding: 7px 9px;
     font-size: 10px;
   }
@@ -342,7 +346,7 @@
   }
   .lm-account-trigger {
     min-width: 0;
-    max-width: 155px;
+    max-width: 130px;
     padding: 7px 9px;
     border-radius: 10px;
   }
