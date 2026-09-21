@@ -165,38 +165,96 @@
 }
 .site-settings-list {
   display: grid;
+  gap: 24px;
+  max-width: 1040px;
+}
+.site-settings-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.site-settings-overview > div {
+  display: grid;
+  gap: 6px;
+  padding: 20px 22px;
+  border: 1px solid #dedbd5;
+  border-radius: 16px;
+  background: #111;
+  color: #fff;
+}
+.site-settings-overview span,
+.site-settings-group > header > span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.site-settings-overview strong {
+  font-size: 20px;
+}
+.site-settings-overview small {
+  color: #f2eadf;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.site-settings-group {
+  display: grid;
   gap: 16px;
+  padding: 22px;
+  border: 1px solid #dedbd5;
+  border-radius: 18px;
+  background: #fbfaf7;
+}
+.site-settings-group > header {
+  display: grid;
+  gap: 5px;
+}
+.site-settings-group > header > span {
+  color: #69533e;
+}
+.site-settings-group > header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.site-settings-group > header p {
+  margin: 0;
+  color: #4a4038;
+  font-size: 12px;
+}
+.site-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 .site-settings-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 30px;
-  max-width: 760px;
-  padding: 26px;
+  gap: 22px;
+  min-width: 0;
+  padding: 20px;
   border: 1px solid #e3e3e3;
   border-radius: 16px;
   background: #fff;
 }
 .site-settings-card.disabled {
-  background: #fafafa;
+  background: #f2efe9;
+  opacity: 0.62;
 }
 .site-settings-card > div {
   display: grid;
   gap: 7px;
 }
 .site-settings-card > div > span {
-  color: #777;
+  color: #69533e;
   font-size: 11px;
   letter-spacing: 0.12em;
 }
 .site-settings-card strong {
-  font-size: 18px;
+  font-size: 16px;
 }
 .site-settings-card p {
-  max-width: 540px;
   margin: 0;
-  color: #777;
+  color: #4a4038;
   font-size: 12px;
   line-height: 1.7;
 }
@@ -340,6 +398,13 @@
     align-items: flex-start;
     flex-direction: column;
     padding: 20px;
+  }
+  .site-settings-overview,
+  .site-settings-grid {
+    grid-template-columns: 1fr;
+  }
+  .site-settings-group {
+    padding: 16px;
   }
   .admin-switch {
     align-self: stretch;

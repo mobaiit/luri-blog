@@ -7,6 +7,7 @@ directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 html_handling = "drop-trailing-slash"
+run_worker_first = true
 
 [[d1_databases]]
 binding = "LURI_MUSIC_DB"

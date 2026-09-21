@@ -19,8 +19,8 @@ export default function App() {
   useEffect(() => {
     let active = true;
     fetch('/api/luri-music/site-config').then((response) => response.ok ? response.json() : Promise.reject()).then((data) => {
-      if (active) setMusicConfig({ enabled: data.musicPageEnabled !== false, navigationEnabled: data.musicNavigationEnabled !== false, accessRequired: data.musicAccessRequired !== false, musicOnly: data.musicOnlyMode === true, aboutEnabled: data.aboutPageEnabled !== false, docsEnabled: data.docsPageEnabled !== false });
-    }).catch(() => { if (active) setMusicConfig({ enabled: true, navigationEnabled: true, accessRequired: true, musicOnly: false, aboutEnabled: true, docsEnabled: true }); });
+      if (active) setMusicConfig({ blogEnabled: data.blogSiteEnabled !== false, postsEnabled: data.blogPostsEnabled !== false, enabled: data.musicPageEnabled !== false, navigationEnabled: data.musicNavigationEnabled !== false, blogNavigationEnabled: data.musicBlogNavigationEnabled !== false, accessRequired: data.musicAccessRequired !== false, aboutEnabled: data.aboutPageEnabled !== false, docsEnabled: data.docsPageEnabled !== false });
+    }).catch(() => { if (active) setMusicConfig({ blogEnabled: true, postsEnabled: true, enabled: true, navigationEnabled: true, blogNavigationEnabled: true, accessRequired: true, aboutEnabled: true, docsEnabled: true }); });
     return () => { active = false; };
   }, []);
   useEffect(() => {
@@ -34,15 +34,18 @@ export default function App() {
   const isLegacyMusicPage = location.pathname === '/luri-music' || location.search === '?luri-music=1';
   const isMusicPage = location.pathname === '/music';
   const isDocsPage = location.pathname === '/docs';
+  const isBlogPage = location.pathname === '/' || location.pathname === '/about' || location.pathname === '/blog' || location.pathname.startsWith('/blog/');
+  const showBlogNavbar = musicConfig.blogEnabled && (!isMusicPage || musicConfig.blogNavigationEnabled);
   if (isLegacyMusicPage) return <Navigate to="/music" replace />;
-  if (musicConfig.musicOnly && !isMusicPage && !isDocsPage) return <Navigate to="/music" replace />;
+  if (!musicConfig.blogEnabled && isBlogPage) return musicConfig.enabled ? <Navigate to="/music" replace /> : <Routes><Route path="*" element={<main className="ui-loading-screen"><p>页面暂不可用</p></main>} /></Routes>;
+  if (!musicConfig.postsEnabled && (location.pathname === '/blog' || location.pathname.startsWith('/blog/'))) return <Navigate to="/" replace />;
   if (isMusicPage && !musicConfig.enabled) return <Navigate to="/" replace />;
   if (isDocsPage && !musicConfig.docsEnabled) return <Navigate to="/" replace />;
   if (!musicConfig.aboutEnabled && location.pathname === '/about') return <Navigate to="/" replace />;
   return (
     <>
       <ScrollToTop />
-      {!isDocsPage && (!isMusicPage || !musicConfig.musicOnly) && <Navbar musicNavigationEnabled={musicConfig.enabled && musicConfig.navigationEnabled} musicActive={isMusicPage} aboutPageEnabled={musicConfig.aboutEnabled} />}
+      {!isDocsPage && showBlogNavbar && <Navbar musicNavigationEnabled={musicConfig.enabled && musicConfig.navigationEnabled} musicActive={isMusicPage} postsPageEnabled={musicConfig.postsEnabled} aboutPageEnabled={musicConfig.aboutEnabled} />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
@@ -63,9 +66,9 @@ export default function App() {
           }
         />
       </Routes>
-      {musicConfig.enabled && <LuriMusic active={isMusicPage} accessRequired={musicConfig.accessRequired} standalone={isMusicPage && musicConfig.musicOnly} docsEnabled={musicConfig.docsEnabled} />}
+      {musicConfig.enabled && <LuriMusic active={isMusicPage} accessRequired={musicConfig.accessRequired} standalone={isMusicPage && !showBlogNavbar} docsEnabled={musicConfig.docsEnabled} />}
       {musicConfig.enabled && <GlobalMusicCollapse />}
-      {!isMusicPage && <Footer />}
+      {musicConfig.blogEnabled && !isMusicPage && <Footer />}
     </>
   );
 }
