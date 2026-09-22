@@ -10,6 +10,11 @@ const lyricLine = (line) => { const match = /^\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\](
 const STORE_QUEUE = 'luri.music.queue.v1'; const STORE_LIKES = 'luri.music.likes.v1'; const STORE_SEARCH = 'luri.music.search.v1'; const STORE_QUERY = 'luri.music.query.v1'; const STORE_RECENT_SEARCHES = 'luri.music.recent-searches.v1';
 const MEDIA_LOAD_TIMEOUT_MS = 15000;
 const readStore = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
+const readSession = (key) => { try { return JSON.parse(sessionStorage.getItem(key) || '{}'); } catch { return {}; } };
+const writeSession = (key, value) => { try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { /* Session storage may be unavailable. */ } };
+const randomTextKey = (value) => String(value || '').normalize('NFKC').toLocaleLowerCase().replace(/[\s()（）.·_-]/g, '');
+const randomTrackKey = (track) => `${randomTextKey(track?.title)}:${randomTextKey(track?.artist)}`;
+const trackArtists = (track) => String(track?.artist || '').split(/\s*(?:,|，|、|\/|&|feat\.?|ft\.?)\s*/i).filter(Boolean);
 const trackKey = (track, providerId = '') => { const id = String(track?.id || ''); if (id.startsWith('provider:') || id.startsWith('track:')) return id; const base = `track:${track?.source || 'default'}:${id}`; return providerId ? `provider:${providerId}:${base}` : base; };
 const sourceTrackId = (track) => track?.sourceId ?? String(track?.id || '').replace(/^track:[^:]+:/, '');
 const handleArtworkError = (event) => { if (event.currentTarget.getAttribute('src') !== EMPTY_ART) event.currentTarget.src = EMPTY_ART; };
@@ -82,8 +87,9 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const lyricsRef = useRef(null); const musicListRef = useRef(null); const currentRowRef = useRef(null); const locatedTrackRef = useRef('');
   const resolveRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set());
   const loadingMoreRef = useRef(false); const activeSearchRef = useRef(query.trim());
+  const randomHistoryKey = `luri.music.random-history.v1${storageNamespace ? `.${storageNamespace}` : ''}`; const storedRandomHistory = useRef(readSession(randomHistoryKey));
   const randomRequest = useRef(null); const randomSession = useRef(0); const playMode = useRef('manual'); const localFallbackAttempts = useRef(new Set()); const playbackListRef = useRef('');
-  const randomFallbackTracks = useRef([]); const randomSingers = useRef([]);
+  const randomFallbackTracks = useRef([]); const randomSingers = useRef(Array.isArray(storedRandomHistory.current.singers) ? storedRandomHistory.current.singers : []); const randomTrackKeys = useRef(Array.isArray(storedRandomHistory.current.tracks) ? storedRandomHistory.current.tracks : []);
   const [randomLoading, setRandomLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const activeTracks = activeQueue === 'favorites' ? likedTracks : tracks;
@@ -222,6 +228,12 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     randomRequest.current = null;
     playMode.current = 'manual'; setRandomLoading(false);
   };
+  const rememberRandomTrack = (track, singer = '') => {
+    const singers = [...randomSingers.current, singer, ...trackArtists(track)].filter(Boolean);
+    randomSingers.current = singers.filter((item, index) => singers.findLastIndex((candidate) => randomTextKey(candidate) === randomTextKey(item)) === index).slice(-30);
+    const key = randomTrackKey(track); randomTrackKeys.current = [...randomTrackKeys.current.filter((item) => item !== key), key].filter(Boolean).slice(-50);
+    writeSession(randomHistoryKey, { singers: randomSingers.current, tracks: randomTrackKeys.current });
+  };
   const hasAccess = () => !onRequireAccess || onRequireAccess() !== false;
   const selectTrack = (id, queue = null, mode = 'manual', preserveFailures = false) => {
     if (!hasAccess()) return;
@@ -301,16 +313,18 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const controller = new AbortController(); randomRequest.current = controller;
     playMode.current = 'random'; setMobileView('now'); setRandomLoading(true); setSearchState('');
     try {
-      const excluded = randomSingers.current.map(encodeURIComponent).join(',');
+      const excluded = randomSingers.current.join(',');
       const response = await musicRequest('random', { exclude: excluded }, controller.signal);
       if (!response.ok) throw Error();
       const payload = await response.json();
-      const tracks = (payload.tracks || []).map((track) => ({ ...track, sourceId: track.sourceId ?? track.id, id: trackKey(track, storageNamespace) }));
+      const seen = new Set(); const tracks = (payload.tracks || []).map((track) => ({ ...track, sourceId: track.sourceId ?? track.id, id: trackKey(track, storageNamespace) })).filter((track) => { const key = randomTrackKey(track); if (!key || seen.has(key)) return false; seen.add(key); return true; });
       if (!tracks.length) throw Error();
       if (controller.signal.aborted || session !== randomSession.current) return;
-      const selected = tracks[Math.floor(Math.random() * tracks.length)];
-      randomFallbackTracks.current = tracks.filter((track) => track.id !== selected.id);
-      if (payload.singer) randomSingers.current = [...randomSingers.current, payload.singer].slice(-20);
+      const freshTracks = tracks.filter((track) => !randomTrackKeys.current.includes(randomTrackKey(track))); const candidates = freshTracks.length ? freshTracks : tracks;
+      const selected = candidates[Math.floor(Math.random() * candidates.length)];
+      const fallbackCandidates = tracks.filter((track) => track.id !== selected.id && randomTrackKey(track) !== randomTrackKey(selected) && !randomTrackKeys.current.includes(randomTrackKey(track)));
+      randomFallbackTracks.current = fallbackCandidates.length ? [fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)]] : [];
+      rememberRandomTrack(selected, payload.singer || '');
       playbackListRef.current = 'random'; clearMediaDeadline(); setPlaybackQueue(tracks); setCurrentId(selected.id); setPlaybackTrackId(selected.id); setPlaybackState('resolving');
     } catch (error) {
       if (!controller.signal.aborted && session === randomSession.current) {
@@ -326,6 +340,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!candidates.length) { startRandom(); return; }
     const index = Math.floor(Math.random() * candidates.length);
     const [track] = candidates.splice(index, 1);
+    rememberRandomTrack(track);
     selectTrack(track.id, null, 'random');
   }
 
