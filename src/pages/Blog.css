@@ -66,7 +66,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 6px;
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: 0.78rem;
   letter-spacing: 0.06em;
   color: var(--color-text-muted);
@@ -77,9 +77,9 @@
   cursor: pointer;
   text-align: left;
   transition:
-    color        0.2s ease,
+    color 0.2s ease,
     border-color 0.2s ease,
-    transform    0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tag-filter__btn:hover {
@@ -111,7 +111,7 @@
 }
 
 .timeline::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 8px;
@@ -147,7 +147,7 @@
 }
 
 .timeline__year-label::before {
-  content: '◆';
+  content: "◆";
   font-size: 0.5rem;
   margin-right: 8px;
   color: var(--color-text);
@@ -168,7 +168,7 @@
   opacity: 0;
   transform: translateX(-10px);
   transition:
-    opacity   0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -179,7 +179,7 @@
 
 /* 圆点 */
 .timeline__item::before {
-  content: '';
+  content: "";
   position: absolute;
   left: -28px;
   top: calc(var(--space-sm) + 0.55em);
@@ -190,8 +190,8 @@
   border: 1.5px solid var(--color-border);
   transition:
     border-color 0.2s ease,
-    background   0.2s ease,
-    transform    0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    background 0.2s ease,
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 1;
   transform: translate(-3px, 0);
 }
@@ -206,7 +206,9 @@
 .timeline__item-title {
   font-size: var(--font-size-lg);
   font-weight: 400;
-  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease;
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.2s ease;
   display: inline-block;
 }
 

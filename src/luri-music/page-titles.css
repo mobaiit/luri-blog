@@ -1,1 +1,14 @@
-.admin-page aside a{font-size:0!important}.admin-page aside a::after{content:'LURI ADMIN';font-size:16px}.admin-login h1{font-size:0!important}.admin-login h1::after{content:'LURI ADMIN';font-size:36px}
+.admin-page aside a {
+  font-size: 0 !important;
+}
+.admin-page aside a::after {
+  content: "LURI ADMIN";
+  font-size: 16px;
+}
+.admin-login h1 {
+  font-size: 0 !important;
+}
+.admin-login h1::after {
+  content: "LURI ADMIN";
+  font-size: 36px;
+}

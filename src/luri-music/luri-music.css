@@ -1,9 +1,9 @@
 .luri-music-clone {
-  --lm-text-primary: #102a43;
-  --lm-text-secondary: #243b53;
-  --lm-text-muted: #3f6282;
-  --lm-text-accent: #0f609b;
-  --lm-text-danger: #9b2c2c;
+  --lm-text-primary: var(--color-text);
+  --lm-text-secondary: #333333;
+  --lm-text-muted: var(--color-text-muted);
+  --lm-text-accent: var(--color-text);
+  --lm-text-danger: #8b2f2f;
   --color-text: var(--lm-text-primary);
   --color-text-muted: var(--lm-text-muted);
   position: relative;
@@ -79,7 +79,7 @@
   border-bottom: 1px solid var(--color-border);
   box-sizing: border-box;
   flex: 0 0 auto;
-  font-family: Inter, ui-sans-serif, "Microsoft YaHei", sans-serif;
+  font-family: var(--font-ui);
 }
 .lm-site-bar > strong {
   display: block;
@@ -88,6 +88,7 @@
   font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.14em;
+  font-family: var(--font-serif);
   white-space: nowrap;
 }
 .lm-site-bar.public-access .lm-account-wrap {
@@ -97,20 +98,23 @@
 .lm-docs-button {
   justify-self: center;
   padding: 8px 14px;
-  border: 1px solid #ddd;
-  border-radius: 999px;
-  background: #fffffff0;
-  color: #111;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   backdrop-filter: blur(12px);
   cursor: pointer;
 }
-.lm-docs-button { color: inherit; text-decoration: none; }
+.lm-docs-button {
+  color: inherit;
+  text-decoration: none;
+}
 .lm-account-wrap {
   position: relative;
   justify-self: end;
-  font-family: Inter, ui-sans-serif, "Microsoft YaHei", sans-serif;
+  font-family: var(--font-ui);
 }
 .lm-account-trigger {
   display: flex;
@@ -120,11 +124,11 @@
   width: max-content;
   max-width: 220px;
   padding: 6px 8px;
-  border: 1px solid #e4e4e4;
-  border-radius: 10px;
-  background: #fffffff2;
-  color: #111;
-  box-shadow: 0 8px 28px #0000000d;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
   backdrop-filter: blur(12px);
   text-align: left;
   cursor: pointer;
@@ -157,9 +161,9 @@
   margin-left: auto;
   padding: 3px 6px;
   border-radius: 999px;
-  background: #111;
-  color: #fff;
-  font-size: 10px;
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-size: 11px;
   font-style: normal;
   white-space: nowrap;
 }
@@ -182,10 +186,10 @@
   display: grid;
   width: 310px;
   padding: 10px;
-  border: 1px solid #e5e5e5;
-  border-radius: 15px;
-  background: #fff;
-  box-shadow: 0 20px 60px #0002;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-lg);
   animation: lm-menu-in 0.16s ease-out;
 }
 .lm-account-menu header {
@@ -206,16 +210,16 @@
   flex: none;
   padding: 2px 7px;
   border-radius: 999px;
-  background: #edf6ff;
-  color: #1769a0;
-  font-size: 10px;
+  background: var(--color-bg-alt);
+  color: var(--color-text);
+  font-size: 11px;
   font-style: normal;
   font-weight: 650;
 }
 .lm-account-menu header span {
   margin-top: 3px;
   color: #777;
-  font-size: 11px;
+  font-size: 12px;
 }
 .lm-account-menu dl {
   display: grid;
@@ -257,7 +261,7 @@
   padding: 16px;
   background: #0007;
   backdrop-filter: blur(4px);
-  font-family: Inter, ui-sans-serif, "Microsoft YaHei", sans-serif;
+  font-family: var(--font-ui);
 }
 .lm-modal > div {
   position: relative;
@@ -266,16 +270,18 @@
   max-height: calc(100dvh - 32px);
   overflow: auto;
   padding: 30px;
-  border: 1px solid #e6e6e6;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 28px 90px #0004;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-lg);
   animation: lm-modal-in 0.18s ease-out;
 }
 .lm-modal h2 {
   margin: 0 0 24px;
   font-size: 25px;
   letter-spacing: -0.04em;
+  font-family: var(--font-serif);
+  font-weight: 500;
 }
 .lm-modal form {
   display: grid;
@@ -294,8 +300,7 @@
   width: 100%;
   padding: 12px;
   border: 1px solid #d8d8d8;
-  border-radius: 9px;
-  outline: 0;
+  border-radius: var(--radius-sm);
   background: #fff;
   font: inherit;
   transition:
@@ -304,8 +309,8 @@
 }
 .lm-modal input:focus,
 .lm-modal select:focus {
-  border-color: #111;
-  box-shadow: 0 0 0 3px #0000000c;
+  border-color: var(--color-text);
+  box-shadow: var(--focus-ring);
 }
 .lm-modal .primary {
   display: flex;
@@ -314,9 +319,9 @@
   gap: 8px;
   padding: 12px;
   border: 0;
-  border-radius: 9px;
-  background: #111;
-  color: #fff;
+  border-radius: var(--radius-sm);
+  background: var(--color-text);
+  color: var(--color-bg);
   font: inherit;
   cursor: pointer;
 }
@@ -384,7 +389,7 @@
   .lm-announcement-button,
   .lm-docs-button {
     padding: 7px 9px;
-    font-size: 10px;
+    font-size: 11px;
   }
   .lm-site-bar > strong {
     font-size: 0.74rem;
@@ -403,10 +408,10 @@
     max-width: 58px;
   }
   .lm-login-trigger {
-    font-size: 10px;
+    font-size: 11px;
   }
   .lm-account-trigger i {
-    font-size: 9px;
+    font-size: 10px;
   }
   .lm-account-menu {
     width: min(310px, calc(100vw - 20px));

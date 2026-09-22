@@ -12,10 +12,12 @@
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   padding: 8px 20px;
   cursor: pointer;
-  transition: border-color var(--transition), color var(--transition),
+  transition:
+    border-color var(--transition),
+    color var(--transition),
     background var(--transition);
 }
 
@@ -39,16 +41,16 @@
    =========================== */
 #waline-container {
   /* 主题色改为黑色 */
-  --waline-theme-color: #111111;
+  --waline-theme-color: var(--color-text);
   --waline-active-color: #333333;
   /* 文字颜色 */
-  --waline-color: #111111;
-  --waline-dark-grey: #666666;
-  --waline-light-grey: #999999;
+  --waline-color: var(--color-text);
+  --waline-dark-grey: var(--color-text-muted);
+  --waline-light-grey: #888888;
   /* 背景 */
-  --waline-bg-color: #ffffff;
-  --waline-bg-color-light: #f5f5f5;
-  --waline-bg-color-hover: #f5f5f5;
+  --waline-bg-color: var(--color-bg);
+  --waline-bg-color-light: var(--color-bg-alt);
+  --waline-bg-color-hover: var(--color-bg-alt);
   /* 边框 — 统一用实线深色 */
   --waline-border-color: #111111;
   --waline-border: 1px solid #111111;
@@ -60,7 +62,7 @@
   /* 字号 */
   --waline-font-size: 1rem;
 
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
 }
 
 /* ===========================
@@ -100,7 +102,7 @@
 
 /* input */
 #waline-container .wl-input {
-  font-family: var(--font-sans) !important;
+  font-family: var(--font-serif) !important;
   font-size: 0.9rem !important;
   color: #111111 !important;
 }
@@ -122,7 +124,7 @@
   border: 1px solid #111111 !important;
   border-bottom: none !important;
   border-radius: 0 !important;
-  font-family: var(--font-sans) !important;
+  font-family: var(--font-serif) !important;
   font-size: 1rem !important;
   line-height: 1.8 !important;
   color: #111111 !important;
@@ -132,7 +134,13 @@
 
 #waline-container .wl-editor:focus {
   background: #ffffff !important;
-  outline: none !important;
+  outline: 2px solid var(--color-focus) !important;
+  outline-offset: 2px !important;
+}
+
+#waline-container :where(button, a, input, textarea):focus-visible {
+  outline: 2px solid var(--color-focus) !important;
+  outline-offset: 2px !important;
 }
 
 /* ===========================
@@ -157,7 +165,7 @@
   color: #ffffff !important;
   border: 1px solid #111111 !important;
   border-radius: 0 !important;
-  font-family: var(--font-sans) !important;
+  font-family: var(--font-serif) !important;
   font-size: 0.875rem !important;
   padding: 5px 18px !important;
 }
@@ -175,7 +183,7 @@
   color: #111111 !important;
   border: 1px solid #dddddd !important;
   border-radius: 0 !important;
-  font-family: var(--font-sans) !important;
+  font-family: var(--font-serif) !important;
   font-size: 0.875rem !important;
 }
 

@@ -3,35 +3,50 @@
    =========================== */
 :root {
   /* 颜色 */
-  --color-bg:        #ffffff;
-  --color-bg-alt:    #f5f5f5;
-  --color-text:      #111111;
-  --color-text-muted:#666666;
-  --color-border:    #dddddd;
-  --color-accent:    #111111;
+  --color-bg: #ffffff;
+  --color-bg-alt: #f5f5f5;
+  --color-surface: rgba(255, 255, 255, 0.94);
+  --color-text: #111111;
+  --color-text-muted: #666666;
+  --color-border: #dddddd;
+  --color-accent: #111111;
+  --color-focus: #111111;
 
   /* 字体 */
-  --font-sans: 'Noto Serif SC', 'Georgia', serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-serif: "Noto Serif SC", "Songti SC", "STSong", "Georgia", serif;
+  --font-ui:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "Microsoft YaHei", sans-serif;
+  /* Backward-compatible alias for existing content components. */
+  --font-sans: var(--font-serif);
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
 
   /* 间距 */
-  --space-xs:  0.5rem;
-  --space-sm:  1rem;
-  --space-md:  2rem;
-  --space-lg:  4rem;
-  --space-xl:  8rem;
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 2rem;
+  --space-lg: 4rem;
+  --space-xl: 8rem;
 
   /* 排版 */
   --font-size-base: 1rem;
-  --font-size-sm:   0.875rem;
-  --font-size-lg:   1.25rem;
-  --font-size-xl:   2rem;
-  --font-size-2xl:  3rem;
-  --line-height:    1.8;
+  --font-size-sm: 0.875rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 2rem;
+  --font-size-2xl: 3rem;
+  --line-height: 1.8;
 
   /* 布局 */
   --max-width: 860px;
   --nav-height: 64px;
+
+  /* 控件与表面 */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 8px 24px rgba(17, 17, 17, 0.06);
+  --shadow-lg: 0 24px 72px rgba(17, 17, 17, 0.14);
+  --focus-ring: 0 0 0 3px rgba(17, 17, 17, 0.14);
 
   /* 动画 */
   --transition: 0.2s ease;
