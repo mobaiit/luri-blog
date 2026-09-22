@@ -283,3 +283,5 @@ body.has-global-music-player #root>main:not(.music-page){padding-bottom:5rem}
 .music-player__heading .music-player__title{display:block;flex:1 1 auto;min-width:0;max-width:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .music-player__heading .music-quality{flex:0 0 auto}
 @media(max-width:760px){.music-download-button{display:none}.lyrics-track__actions{width:48px}.lyrics-track__actions .like-button{margin-left:auto}.music-player__heading .music-player__title{max-width:none}}
+.music-player__actions{display:flex;align-items:center;justify-self:end;gap:.65rem;min-width:0}
+@media(max-width:760px){.music-player__actions{display:none}}
