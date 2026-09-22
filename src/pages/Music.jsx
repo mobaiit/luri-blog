@@ -32,11 +32,11 @@ function MusicIcon({ name }) {
 }
 
 const QUALITY_META = {
-  '128k': { label: '128K', icon: 'low' },
-  '192k': { label: '192K', icon: 'medium' },
-  '320k': { label: '320K', icon: 'high' },
-  flac: { label: 'FLAC', icon: 'lossless' },
-  flac24bit: { label: 'HI-RES', icon: 'hires' },
+  '128k': { label: '普通 128K', icon: 'low', mark: 'STD' },
+  '192k': { label: '标准 192K', icon: 'medium', mark: 'HQ' },
+  '320k': { label: '高音质 320K', icon: 'high', mark: 'HQ+' },
+  flac: { label: '无损 FLAC', icon: 'lossless', mark: 'SQ' },
+  flac24bit: { label: 'Hi-Res', icon: 'hires', mark: 'Hi-Res' },
 };
 const QUALITY_RANK = { '128k': 1, '192k': 2, '320k': 3, flac: 4, flac24bit: 5 };
 
@@ -45,7 +45,7 @@ function QualityBadge({ track }) {
   const detail = track.qualityVerified ? '实际音质' : 'Provider 解析档位';
   const requested = track.requestedQuality === 'auto' ? '320k' : track.requestedQuality;
   const degraded = QUALITY_RANK[track.quality] && QUALITY_RANK[requested] ? QUALITY_RANK[track.quality] < QUALITY_RANK[requested] : Boolean(track.degraded);
-  return <i className={`music-quality music-quality--${meta.icon}${degraded ? ' is-degraded' : ''}`} title={`${detail}：${meta.label}${degraded ? '（已降级）' : ''}`} aria-label={`${detail} ${meta.label}${degraded ? '，已降级' : ''}`}><svg viewBox="0 0 20 20" aria-hidden="true">{meta.icon === 'lossless' ? <><path d="m10 2.5 6.5 7.5-6.5 7.5L3.5 10 10 2.5Z" /><path d="M7 10h6" /></> : meta.icon === 'hires' ? <><path d="M4 14V9m4 5V6m4 8V3m4 11v-4" /><path d="m15.5 3 .5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5.5-1.2Z" /></> : <>{[0, 1, 2].slice(0, meta.icon === 'low' ? 1 : meta.icon === 'medium' ? 2 : 3).map((bar) => <path key={bar} d={`M${5 + bar * 5} ${13 - bar * 3}v${3 + bar * 3}`} />)}</>}</svg><span>{meta.label}</span>{degraded && <b aria-hidden="true">↓</b>}</i>;
+  return <i className={`music-quality music-quality--${meta.icon}${degraded ? ' is-degraded' : ''}`} title={`${detail}：${meta.label}${degraded ? '（已降级）' : ''}`} aria-label={`${detail} ${meta.label}${degraded ? '，已降级' : ''}`}><span className="music-quality__mark" aria-hidden="true">{meta.mark}</span>{degraded && <b aria-hidden="true">↓</b>}</i>;
 }
 
 function DownloadButton({ track }) {
