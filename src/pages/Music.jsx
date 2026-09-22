@@ -85,7 +85,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const [volume, setVolume] = useState(0.8); const [muted, setMuted] = useState(false);
   const [lyrics, setLyrics] = useState(''); const [lyricsState, setLyricsState] = useState('');
   const lyricsRef = useRef(null); const musicListRef = useRef(null); const currentRowRef = useRef(null); const locatedTrackRef = useRef('');
-  const resolveRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set());
+  const resolveRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set()); const timeoutResolveAttemptsRef = useRef(new Set()); const blockedResolveIdsRef = useRef(new Set());
   const loadingMoreRef = useRef(false); const activeSearchRef = useRef(query.trim());
   const randomHistoryKey = `luri.music.random-history.v1${storageNamespace ? `.${storageNamespace}` : ''}`; const storedRandomHistory = useRef(readSession(randomHistoryKey));
   const randomRequest = useRef(null); const randomSession = useRef(0); const playMode = useRef('manual'); const localFallbackAttempts = useRef(new Set()); const playbackListRef = useRef('');
@@ -102,7 +102,8 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     mediaDeadlineRef.current = window.setTimeout(() => {
       if (mediaDeadlineTrackRef.current !== id) return;
       ignoreAudioErrorRef.current = true; audio.current?.pause(); audio.current?.removeAttribute('src'); audio.current?.load();
-      setPlaying(false); clearMediaDeadline(); handlePlaybackFailure(false, '音频加载超过 15 秒，已自动播放下一首');
+      setPlaying(false); clearMediaDeadline();
+      if (!retryResolveAfterTimeout()) handlePlaybackFailure(false, '重新解析后仍无法播放，已自动播放下一首');
     }, MEDIA_LOAD_TIMEOUT_MS);
   };
 
@@ -126,7 +127,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_SEARCH), JSON.stringify(cachedResults)); localStorage.setItem(storeKey(STORE_QUERY), query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_RECENT_SEARCHES), JSON.stringify(recentSearches)); } catch { /* Storage is unavailable in private browsing. */ } }, [recentSearches]);
   useEffect(() => {
-    if (!current || current.url) return undefined;
+    if (!current || current.url || blockedResolveIdsRef.current.has(current.id)) return undefined;
     setPlaybackTrackId(current.id); setPlaybackState('resolving');
     const controller = new AbortController();
     resolveRequestRef.current = controller;
@@ -237,7 +238,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const hasAccess = () => !onRequireAccess || onRequireAccess() !== false;
   const selectTrack = (id, queue = null, mode = 'manual', preserveFailures = false) => {
     if (!hasAccess()) return;
-    if (!preserveFailures) failedPlaybackIdsRef.current.clear();
+    if (!preserveFailures) { failedPlaybackIdsRef.current.clear(); timeoutResolveAttemptsRef.current.delete(id); blockedResolveIdsRef.current.delete(id); }
     if (mode === 'manual') stopRandom();
     const sourceQueue = queue?.length ? queue : playbackQueue.some((track) => track.id === id) ? null : activeTracks;
     const forSelectedQuality = (track) => track.id === id && track.url && track.requestedQuality !== playbackQuality ? { ...track, url: undefined } : track;
@@ -270,6 +271,9 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!playing && !hasAccess()) return;
     if (!current && activeTracks[0]) return selectTrack(activeTracks[0].id, activeTracks);
     if (playing) { audio.current?.pause(); return; }
+    if (current && !current.url) {
+      failedPlaybackIdsRef.current.clear(); timeoutResolveAttemptsRef.current.delete(current.id); blockedResolveIdsRef.current.delete(current.id); localFallbackAttempts.current.delete(current.id); setForceLocalFallbackFor(null); setPlaybackTrackId(current.id); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1); return;
+    }
     setPlaybackTrackId(currentId); setPlaybackState('loading'); beginMediaDeadline(currentId);
     if (audio.current && current?.url && !audio.current.getAttribute('src')) { ignoreAudioErrorRef.current = false; audio.current.src = current.url; audio.current.load(); }
     audio.current?.play().catch(() => { clearMediaDeadline(); setPlaying(false); setPlaybackState('error'); });
@@ -288,6 +292,22 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     clearMediaDeadline(); setPlaybackState('resolving');
     return true;
   };
+  const retryResolveAfterTimeout = () => {
+    if (!current || timeoutResolveAttemptsRef.current.has(current.id)) return false;
+    timeoutResolveAttemptsRef.current.add(current.id); blockedResolveIdsRef.current.delete(current.id); localFallbackAttempts.current.delete(current.id); setForceLocalFallbackFor(null);
+    const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track;
+    setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl));
+    setPlaybackTrackId(current.id); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1);
+    return true;
+  };
+  const discardCurrentUrl = () => {
+    if (!current) return;
+    blockedResolveIdsRef.current.add(current.id);
+    const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track;
+    setLikedTracks((items) => items.map(clearUrl));
+    setTracks((items) => items.map(clearUrl));
+    setPlaybackQueue((items) => items.map(clearUrl));
+  };
   function skipFailedTrack(message = '歌曲播放失败，已自动播放下一首') {
     const queue = playbackQueue.length ? playbackQueue : activeTracks;
     failedPlaybackIdsRef.current.add(currentId);
@@ -301,6 +321,11 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   }
   function handlePlaybackFailure(allowLocalFallback = true, message) {
     setPlaying(false);
+    if (current && (timeoutResolveAttemptsRef.current.has(current.id) || localFallbackAttempts.current.has(current.id))) {
+      discardCurrentUrl();
+      if (playMode.current === 'random') { playNextRandom(); return; }
+      skipFailedTrack(message); return;
+    }
     if (allowLocalFallback && retryWithLocalFallback()) return;
     if (playMode.current === 'random') { playNextRandom(); return; }
     skipFailedTrack(message);
