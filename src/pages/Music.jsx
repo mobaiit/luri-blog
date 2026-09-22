@@ -16,7 +16,7 @@ const randomTextKey = (value) => String(value || '').normalize('NFKC').toLocaleL
 const randomTrackKey = (track) => `${randomTextKey(track?.title)}:${randomTextKey(track?.artist)}`;
 const trackArtists = (track) => String(track?.artist || '').split(/\s*(?:,|，|、|\/|&|feat\.?|ft\.?)\s*/i).filter(Boolean);
 const trackKey = (track, providerId = '') => { const id = String(track?.id || ''); if (id.startsWith('provider:') || id.startsWith('track:')) return id; const base = `track:${track?.source || 'default'}:${id}`; return providerId ? `provider:${providerId}:${base}` : base; };
-const sourceTrackId = (track) => track?.sourceId ?? String(track?.id || '').replace(/^track:[^:]+:/, '');
+const sourceTrackId = (track) => track?.sourceId ?? String(track?.id || '').replace(/^(?:provider:[^:]+:)?track:[^:]+:/, '');
 const handleArtworkError = (event) => { if (event.currentTarget.getAttribute('src') !== EMPTY_ART) event.currentTarget.src = EMPTY_ART; };
 // The source status is shown only while an operation is in progress.
 TEXT.source = '';
@@ -287,8 +287,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!current || localFallbackAttempts.current.has(current.id)) return false;
     localFallbackAttempts.current.add(current.id); setForceLocalFallbackFor(current.id);
     const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track;
-    (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map(clearUrl));
-    setPlaybackQueue((items) => items.map(clearUrl));
+    setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl));
     clearMediaDeadline(); setPlaybackState('resolving');
     return true;
   };
@@ -321,6 +320,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   }
   function handlePlaybackFailure(allowLocalFallback = true, message) {
     setPlaying(false);
+    if (current && timeoutResolveAttemptsRef.current.has(current.id) && retryWithLocalFallback()) return;
     if (current && (timeoutResolveAttemptsRef.current.has(current.id) || localFallbackAttempts.current.has(current.id))) {
       discardCurrentUrl();
       if (playMode.current === 'random') { playNextRandom(); return; }
