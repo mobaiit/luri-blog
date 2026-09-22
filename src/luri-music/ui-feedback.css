@@ -266,6 +266,20 @@
     left: 12px;
     width: auto;
   }
+
+  /* Keep music feedback below whichever header stack is currently visible. */
+  .luri-music-clone:not(.is-standalone):not(.is-global-player) .ui-toast {
+    top: calc(var(--nav-height) + 56px);
+  }
+
+  .luri-music-clone.is-standalone .ui-toast {
+    top: 56px;
+  }
+
+  .luri-music-clone.is-global-player .ui-toast {
+    top: calc(var(--nav-height) + 12px);
+  }
+
   .ui-confirm {
     padding: 18px;
     border-radius: 17px;
