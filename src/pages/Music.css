@@ -3119,4 +3119,21 @@ body.has-global-music-player #root > main:not(.music-page) {
     font-size: max(0.625rem, 10px) !important;
     line-height: 1.35 !important;
   }
+
+  /* Tighten the space beneath the mobile view switcher. */
+  .music-page {
+    padding-bottom: 104px !important;
+  }
+
+  .music-mobile-tabs {
+    bottom: 104px !important;
+  }
+
+  .music-mobile-tabs button {
+    padding: 0.38rem 0.45rem 0.25rem;
+  }
+
+  .music-player {
+    min-height: 104px !important;
+  }
 }
