@@ -48,6 +48,35 @@
 .admin-content > section {
   animation: admin-view-in 0.16s ease-out;
 }
+.view-heading {
+  margin: 28px 0 18px;
+}
+.view-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.view-heading span {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+}
+.view-heading span::after {
+  margin-left: 7px;
+  color: #bbb;
+  content: "/";
+}
+.view-heading h1 {
+  margin: 0;
+  color: #555;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.view-heading p {
+  display: none;
+}
 .admin-content > header {
   justify-content: space-between;
 }
@@ -350,11 +379,10 @@
     padding: 12px 12px 42px;
   }
   .view-heading {
-    margin: 20px 0 16px;
+    margin: 16px 0 14px;
   }
-  .view-heading h1,
-  .admin-content > section > h1 {
-    font-size: 28px;
+  .view-heading h1 {
+    font-size: 12px;
   }
   .view-heading p {
     font-size: 12px;
