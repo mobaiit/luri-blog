@@ -196,6 +196,22 @@
 .lm-account-menu header b {
   font-size: 15px;
 }
+.lm-account-menu__identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.lm-account-menu__identity i {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #edf6ff;
+  color: #1769a0;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 650;
+}
 .lm-account-menu header span {
   margin-top: 3px;
   color: #777;
