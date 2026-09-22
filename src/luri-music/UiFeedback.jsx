@@ -26,7 +26,7 @@ export function Toast({ toast, onClose }) {
   const type = META[toast?.type] ? toast.type : 'info';
   const duration = toast?.duration || META[type].duration;
   const closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
   useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => closeRef.current(), duration);
