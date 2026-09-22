@@ -3094,6 +3094,11 @@ body.has-global-music-player #root > main:not(.music-page) {
   outline-offset: 3px;
 }
 
+.music-page .music-search input:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
 .music-kicker,
 .music-brand,
 .source-summary,
