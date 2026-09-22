@@ -15,7 +15,7 @@ const manifestExample = `{
     "accessTokenSeconds": 900
   },
   "capabilities": ["search", "random", "lyrics", "artwork", "playback"],
-  "playback": { "mode": "direct", "qualities": ["128k", "320k"] },
+  "playback": { "mode": "direct", "qualities": ["128k", "192k", "320k", "flac", "flac24bit"] },
   "endpoints": {
     "activate": "https://provider.example.com/v1/auth/activate",
     "refresh": "https://provider.example.com/v1/auth/refresh",
@@ -170,6 +170,9 @@ export default function Docs() {
           ['expiresAt', 'ISO 8601 string | null', '建议', '播放地址失效时间；长期地址可为 null。'],
           ['bitrate', 'integer', '否', '实际码率，单位 kbps。'],
           ['quality', 'string', '否', '实际返回的音质标识。'],
+          ['requestedQuality', 'string', '否', '客户端请求的音质；auto 表示由 Provider 自动选择。'],
+          ['degraded', 'boolean', '否', '实际解析档位是否低于首选档位。'],
+          ['qualityVerified', 'boolean', '否', '音质是否由上游返回的码率信息确认。'],
           ['mimeType', 'string', '否', '音频 MIME 类型，例如 audio/mpeg。'],
           ['art', 'HTTPS URL', '否', '解析阶段补充或更新的封面地址。'],
         ]} /><h3>歌词</h3><Endpoint method="GET" path="/v1/catalog/tracks/{id}/lyrics">将路径中的 {`{id}`} 替换为 URL 编码后的曲目标识，并附加可用的上下文查询参数。</Endpoint><SchemaTable title="查询与响应" rows={[

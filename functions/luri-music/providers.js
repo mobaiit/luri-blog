@@ -147,9 +147,9 @@ export async function handleProviderRequest(request, env, action, user) {
   if (action === 'providers' && request.method === 'GET') {
     const [configs, preference] = await Promise.all([
       env.LURI_MUSIC_DB.prepare('SELECT * FROM luri_music_provider_configs WHERE user_id=? ORDER BY updated_at DESC').bind(user.id).all(),
-      env.LURI_MUSIC_DB.prepare('SELECT active_provider_config_id,provider_revision FROM luri_music_preferences WHERE user_id=?').bind(user.id).first(),
+      env.LURI_MUSIC_DB.prepare('SELECT active_provider_config_id,provider_revision,playback_quality FROM luri_music_preferences WHERE user_id=?').bind(user.id).first(),
     ]);
-    return json({ items: configs.results.map((row) => publicConfig(row, preference?.active_provider_config_id)), activeProviderId: preference?.active_provider_config_id || null, revision: preference?.provider_revision || 0 });
+    return json({ items: configs.results.map((row) => publicConfig(row, preference?.active_provider_config_id)), activeProviderId: preference?.active_provider_config_id || null, revision: preference?.provider_revision || 0, preferences: { playbackQuality: preference?.playback_quality || 'auto' } });
   }
 
   if (action === 'providers/discover' && request.method === 'POST') {

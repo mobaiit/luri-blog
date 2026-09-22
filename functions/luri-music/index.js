@@ -12,6 +12,7 @@ const body = async (request) => request.json().catch(() => ({}));
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 const isEmail = (value) => /^\S+@\S+\.\S+$/.test(value);
 const validPassword = (value) => typeof value === 'string' && value.length >= 8 && value.length <= 128;
+const PLAYBACK_QUALITIES = new Set(['auto', '128k', '192k', '320k', 'flac', 'flac24bit']);
 
 const currentUser = async (request, env) => {
   const value = cookie(request, USER_COOKIE);
@@ -147,6 +148,13 @@ export async function handleLuriMusic(request, env) {
     return json(await loadSiteConfig(env));
   }
   if (action === 'auth/me') { const user = await currentUser(request, env); return json({ user: await userPayload(user), turnstile: { enabled: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY), siteKey: env.TURNSTILE_SITE_KEY || '' } }); }
+  if (action === 'preferences' && request.method === 'PATCH') {
+    const user = await currentUser(request, env); if (!user) return json({ error: '请先登录' }, 401);
+    const data = await body(request); const playbackQuality = String(data.playbackQuality || '').toLowerCase();
+    if (!PLAYBACK_QUALITIES.has(playbackQuality)) return json({ error: '不支持的音质设置' }, 400);
+    await env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_preferences(user_id,playback_quality,provider_revision,updated_at) VALUES(?,?,0,?) ON CONFLICT(user_id) DO UPDATE SET playback_quality=excluded.playback_quality,updated_at=excluded.updated_at').bind(user.id, playbackQuality, now()).run();
+    return json({ playbackQuality });
+  }
   if (action === 'providers' || action.startsWith('providers/')) return handleProviderRequest(request, env, action, await currentUser(request, env));
 
   if (action === 'auth/email-code' && request.method === 'POST') {
