@@ -115,11 +115,13 @@
 .lm-account-trigger {
   display: flex;
   align-items: center;
-  gap: 18px;
-  min-width: 230px;
-  padding: 9px 12px;
+  gap: 9px;
+  min-width: 0;
+  width: max-content;
+  max-width: 220px;
+  padding: 6px 8px;
   border: 1px solid #e4e4e4;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fffffff2;
   color: #111;
   box-shadow: 0 8px 28px #0000000d;
@@ -144,7 +146,7 @@
 }
 .lm-account-trigger b {
   overflow: hidden;
-  max-width: 180px;
+  max-width: 100px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -153,7 +155,7 @@
 }
 .lm-account-trigger i {
   margin-left: auto;
-  padding: 4px 7px;
+  padding: 3px 6px;
   border-radius: 999px;
   background: #111;
   color: #fff;
@@ -375,14 +377,14 @@
   .lm-account-trigger {
     min-width: 0;
     max-width: 130px;
-    gap: 6px;
-    padding: 7px 9px;
-    border-radius: 10px;
+    gap: 5px;
+    padding: 5px 7px;
+    border-radius: 9px;
   }
   .lm-account-trigger span {
     display: grid;
     min-width: 0;
-    max-width: 88px;
+    max-width: 58px;
   }
   .lm-login-trigger {
     font-size: 10px;
