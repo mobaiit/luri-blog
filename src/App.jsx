@@ -66,8 +66,8 @@ export default function App() {
           }
         />
       </Routes>
-      {musicConfig.enabled && <LuriMusic active={isMusicPage} accessRequired={musicConfig.accessRequired} standalone={isMusicPage && !showBlogNavbar} docsEnabled={musicConfig.docsEnabled} />}
-      {musicConfig.enabled && <GlobalMusicCollapse />}
+      {musicConfig.enabled && !isDocsPage && <LuriMusic active={isMusicPage} accessRequired={musicConfig.accessRequired} standalone={isMusicPage && !showBlogNavbar} docsEnabled={musicConfig.docsEnabled} />}
+      {musicConfig.enabled && !isDocsPage && <GlobalMusicCollapse />}
       {musicConfig.blogEnabled && !isMusicPage && <Footer />}
     </>
   );

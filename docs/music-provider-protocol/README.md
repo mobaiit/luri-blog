@@ -1,6 +1,6 @@
 # Music Provider Protocol 1.0
 
-Music Provider Protocol（MPP）是 LURI MUSIC 与独立音乐 Provider 之间的开放 JSON/HTTP 协议。客户端不加载远程 JavaScript，也不预置 Provider；用户主动输入 HTTPS 地址并选择 Provider 声明支持的认证方式。
+Music Provider Protocol（MPP）是 LURI MUSIC 与独立音乐 Provider 之间的开放 JSON/HTTP 协议。客户端不加载远程 JavaScript，也不预置 Provider；用户可以连接官方源、HTTPS 私有源，按需配置 API Key、Authorization 或一次性激活码。
 
 Provider 可以用于连接私有音乐库、机构授权曲库、开放许可内容、播客或广播目录，以及开发测试服务。协议兼容只表示技术格式兼容，不代表 LURI MUSIC 对服务或内容进行审核、推荐或授权。
 
@@ -9,7 +9,7 @@ Provider 可以用于连接私有音乐库、机构授权曲库、开放许可�
 协议模块：
 
 - [发现与校验](discovery.md)
-- [认证与设备](authentication.md)
+- [Provider 认证](authentication.md)
 - [能力与播放](capabilities.md)
 - [目录接口](catalog.md)
 - [错误、CORS 与安全](security.md)

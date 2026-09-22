@@ -56,19 +56,25 @@ async function discover(providerUrl) {
   return manifest;
 }
 
-function providerAuth(manifest, requested) {
+const CONNECTION_TYPES = ['official', 'private_https', 'activation_code'];
+
+function providerAuth(manifest, requested, hasApiKey) {
+  const connectionType = String(requested || 'official');
+  if (!CONNECTION_TYPES.includes(connectionType)) throw new Error('不支持的 Provider 连接方式');
+  const authType = connectionType === 'activation_code' ? 'activation_code' : hasApiKey ? 'api_key' : 'none';
   const supported = Array.isArray(manifest.authentication?.types) ? manifest.authentication.types : [];
-  const authType = String(requested || 'activation_code');
-  if (!['activation_code', 'api_key', 'none'].includes(authType)) throw new Error('不支持的 Provider 连接方式');
-  if (!supported.includes(authType)) throw new Error(`该 Provider 不支持 ${authType} 连接方式`);
-  if (authType === 'activation_code' && (!manifest.endpoints?.activate || !manifest.endpoints?.refresh || !manifest.endpoints?.account)) throw new Error('Provider 的授权码认证接口不完整');
-  return authType;
+  if (!supported.includes(authType)) throw new Error(`该 Provider 不支持 ${authType} 认证方式`);
+  if (authType === 'activation_code' && (!manifest.endpoints?.activate || !manifest.endpoints?.refresh || !manifest.endpoints?.account)) throw new Error('Provider 的激活码认证接口不完整');
+  return { connectionType, authType };
 }
 
-function apiKeyAuthorization(manifest) {
+function apiKeyAuthorization(manifest, data) {
   const config = manifest.authentication?.apiKey || {};
-  const header = String(config.header || 'Authorization').trim();
-  const prefix = String(config.prefix ?? (header.toLowerCase() === 'authorization' ? 'Bearer ' : '')).slice(0, 32);
+  const credentialMode = data.credentialMode === 'authorization' ? 'authorization' : 'api_key';
+  const defaultHeader = credentialMode === 'authorization' ? 'Authorization' : config.header || 'X-API-Key';
+  const header = String(credentialMode === 'authorization' ? 'Authorization' : data.credentialHeader || defaultHeader).trim();
+  const defaultPrefix = credentialMode === 'authorization' ? 'Bearer ' : config.prefix || '';
+  const prefix = String(data.credentialPrefix ?? defaultPrefix).slice(0, 32);
   if (!/^[A-Za-z][A-Za-z0-9-]{0,63}$/.test(header) || ['cookie', 'host', 'origin', 'referer'].includes(header.toLowerCase())) throw new Error('Provider 声明了不安全的 API Key 请求头');
   return { header, prefix };
 }
@@ -79,7 +85,62 @@ function accessHeaders(authType, credential, token) {
   return { accept: 'application/json', authorization: `Bearer ${token}` };
 }
 
-const publicConfig = (row, activeId) => ({ id: row.id, providerId: row.provider_id, providerUrl: row.provider_url, displayName: row.display_name, protocolVersion: row.protocol_version, authType: row.auth_type, status: row.cached_status, expiresAt: row.cached_expires_at, lastSyncedAt: row.last_synced_at, active: row.id === activeId, createdAt: row.created_at });
+async function activateCredential(manifest, providerUrl, data, user) {
+  const activationCode = String(data.activationCode || '').trim();
+  const idempotencyKey = String(data.idempotencyKey || '').trim().slice(0, 100);
+  if (!activationCode || !idempotencyKey) throw new Error('请填写 Provider 激活码');
+  const response = await providerFetch(checkedEndpoint(manifest.endpoints.activate, providerUrl), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({
+      activationCode,
+      idempotencyKey,
+      clientAccount: {
+        id: String(user.id || '').slice(0, 100),
+        name: String(user.display_name || '').slice(0, 80),
+        email: String(user.email || '').slice(0, 160),
+      },
+    }),
+  });
+  const activated = await response.json().catch(() => ({}));
+  if (!response.ok || !activated.refreshToken) {
+    const failure = new Error(activated.error?.message || 'Provider 激活失败');
+    failure.status = response.status >= 400 && response.status < 500 ? response.status : 502;
+    throw failure;
+  }
+  return {
+    credential: {
+      refreshToken: activated.refreshToken,
+      refreshEndpoint: checkedEndpoint(manifest.endpoints.refresh, providerUrl),
+      accountEndpoint: checkedEndpoint(manifest.endpoints.account, providerUrl),
+      manifest,
+    },
+    account: activated.account || null,
+    initialAccess: { accessToken: activated.accessToken, expiresIn: activated.expiresIn },
+  };
+}
+
+async function prepareCredential(manifest, providerUrl, data, user) {
+  const credentialValue = String(data.credentialValue || data.apiKey || '').trim();
+  const credentialMode = ['api_key', 'authorization'].includes(data.credentialMode) ? data.credentialMode : 'none';
+  if (credentialMode !== 'none' && !credentialValue) throw new Error('请填写 Provider 认证凭证');
+  const { connectionType, authType } = providerAuth(manifest, data.connectionType || data.authType, credentialMode !== 'none');
+  if (authType === 'activation_code') return { connectionType, authType, ...(await activateCredential(manifest, providerUrl, data, user)) };
+  if (authType === 'api_key') {
+    const authorization = apiKeyAuthorization(manifest, data);
+    const accountEndpoint = manifest.endpoints.account ? checkedEndpoint(manifest.endpoints.account, providerUrl) : null;
+    let account = null;
+    if (accountEndpoint) {
+      const response = await providerFetch(accountEndpoint, { headers: accessHeaders(authType, { authorization }, credentialValue) });
+      if (!response.ok) { const failure = new Error(response.status === 401 || response.status === 403 ? 'Provider API Key 无效或无权访问' : 'Provider 账号校验失败'); failure.status = response.status >= 400 && response.status < 500 ? response.status : 502; throw failure; }
+      account = await response.json().catch(() => null);
+    }
+    return { connectionType, authType, credential: { apiKey: credentialValue, authorization, accountEndpoint, manifest }, account, initialAccess: { accessToken: credentialValue, expiresIn: 900, authorization } };
+  }
+  return { connectionType, authType, credential: { manifest }, account: null, initialAccess: { accessToken: '', expiresIn: 3600, authorization: null } };
+}
+
+const publicConfig = (row, activeId) => ({ id: row.id, providerId: row.provider_id, providerUrl: row.provider_url, displayName: row.display_name, protocolVersion: row.protocol_version, connectionType: row.connection_type || (row.auth_type === 'none' ? 'private_https' : row.auth_type), authType: row.auth_type, status: row.cached_status, expiresAt: row.cached_expires_at, lastSyncedAt: row.last_synced_at, active: row.id === activeId, createdAt: row.created_at });
 
 export async function handleProviderRequest(request, env, action, user) {
   if (!user) return json({ error: '请先登录' }, 401);
@@ -100,41 +161,39 @@ export async function handleProviderRequest(request, env, action, user) {
     const data = await parseBody(request);
     try {
       const providerUrl = normalizeProviderUrl(data.providerUrl); const manifest = await discover(providerUrl);
-      const authType = providerAuth(manifest, data.authType); let credential; let account = null; let initialAccess = null;
-      if (authType === 'activation_code') {
-        const deviceId = String(data.deviceId || '').trim().slice(0, 100);
-        if (!deviceId || !String(data.activationCode || '').trim()) return json({ error: '请填写 Provider 授权码并提供设备标识' }, 400);
-        const response = await providerFetch(checkedEndpoint(manifest.endpoints.activate, providerUrl), { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ activationCode: String(data.activationCode).trim(), deviceId, deviceName: String(data.deviceName || '').slice(0, 80), clientAccount: { id: String(user.id || '').slice(0, 100), name: String(user.display_name || '').slice(0, 80), email: String(user.email || '').slice(0, 160) } }) });
-        const activated = await response.json().catch(() => ({}));
-        if (!response.ok || !activated.refreshToken) return json({ error: activated.error?.message || 'Provider 授权失败' }, response.status >= 400 && response.status < 500 ? response.status : 502);
-        credential = { refreshToken: activated.refreshToken, refreshEndpoint: checkedEndpoint(manifest.endpoints.refresh, providerUrl), accountEndpoint: checkedEndpoint(manifest.endpoints.account, providerUrl), manifest };
-        account = activated.account || null; initialAccess = { accessToken: activated.accessToken, expiresIn: activated.expiresIn };
-      } else if (authType === 'api_key') {
-        const apiKey = String(data.apiKey || '').trim(); if (!apiKey) return json({ error: '请填写 Provider API Key' }, 400);
-        const authorization = apiKeyAuthorization(manifest); credential = { apiKey, authorization, accountEndpoint: manifest.endpoints.account ? checkedEndpoint(manifest.endpoints.account, providerUrl) : null, manifest };
-        if (credential.accountEndpoint) {
-          const response = await providerFetch(credential.accountEndpoint, { headers: accessHeaders(authType, credential, apiKey) });
-          if (!response.ok) return json({ error: response.status === 401 || response.status === 403 ? 'Provider API Key 无效或无权访问' : 'Provider 账号校验失败' }, response.status >= 400 && response.status < 500 ? response.status : 502);
-          account = await response.json().catch(() => null);
-        }
-        initialAccess = { accessToken: apiKey, expiresIn: 900, authorization };
-      } else {
-        credential = { manifest }; initialAccess = { accessToken: '', expiresIn: 3600, authorization: null };
-      }
-      const encrypted = await encryptCredential(credential, env);
+      const duplicate = await env.LURI_MUSIC_DB.prepare('SELECT id FROM luri_music_provider_configs WHERE user_id=? AND provider_url=? AND provider_id=?').bind(user.id, providerUrl, String(manifest.provider.id)).first();
+      if (duplicate) return json({ error: '该 Provider 已存在，请编辑现有配置' }, 409);
+      const prepared = await prepareCredential(manifest, providerUrl, data, user); const encrypted = await encryptCredential(prepared.credential, env);
       const configId = id(); const timestamp = now(); const displayName = String(data.displayName || manifest.provider.name || 'Music Provider').trim().slice(0, 60);
       await env.LURI_MUSIC_DB.batch([
-        env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_provider_configs(id,user_id,provider_id,provider_url,display_name,protocol_version,auth_type,credential_ciphertext,credential_iv,cached_status,cached_expires_at,last_synced_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(configId, user.id, String(manifest.provider.id), providerUrl, displayName, String(manifest.protocolVersion), authType, encrypted.ciphertext, encrypted.iv, account?.status || 'active', account?.expiresAt || null, timestamp, timestamp, timestamp),
+        env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_provider_configs(id,user_id,provider_id,provider_url,display_name,protocol_version,auth_type,connection_type,credential_ciphertext,credential_iv,cached_status,cached_expires_at,last_synced_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(configId, user.id, String(manifest.provider.id), providerUrl, displayName, String(manifest.protocolVersion), prepared.authType, prepared.connectionType, encrypted.ciphertext, encrypted.iv, prepared.account?.status || 'active', prepared.account?.expiresAt || null, timestamp, timestamp, timestamp),
         env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_preferences(user_id,active_provider_config_id,provider_revision,updated_at) VALUES(?,?,1,?) ON CONFLICT(user_id) DO UPDATE SET active_provider_config_id=CASE WHEN active_provider_config_id IS NULL THEN excluded.active_provider_config_id ELSE active_provider_config_id END,provider_revision=provider_revision+1,updated_at=excluded.updated_at').bind(user.id, configId, timestamp),
       ]);
-      return json({ config: { id: configId, providerId: manifest.provider.id, providerUrl, displayName, protocolVersion: manifest.protocolVersion, authType, status: account?.status || 'active', expiresAt: account?.expiresAt || null }, access: { ...initialAccess, endpoints: manifest.endpoints } }, 201, { 'cache-control': 'no-store' });
-    } catch (error) { return json({ error: error.message || 'Provider 配置失败' }, 400); }
+      return json({ config: { id: configId, providerId: manifest.provider.id, providerUrl, displayName, protocolVersion: manifest.protocolVersion, connectionType: prepared.connectionType, authType: prepared.authType, status: prepared.account?.status || 'active', expiresAt: prepared.account?.expiresAt || null }, access: { ...prepared.initialAccess, endpoints: manifest.endpoints } }, 201, { 'cache-control': 'no-store' });
+    } catch (error) { return json({ error: error.message || 'Provider 配置失败' }, error.status || 400); }
   }
 
   const configMatch = action.match(/^providers\/([^/]+)(?:\/(activate|token))?$/);
   if (!configMatch) return json({ error: 'Not found' }, 404);
   const config = await env.LURI_MUSIC_DB.prepare('SELECT * FROM luri_music_provider_configs WHERE id=? AND user_id=?').bind(configMatch[1], user.id).first();
   if (!config) return json({ error: 'Provider 配置不存在' }, 404);
+
+  if (request.method === 'PATCH' && !configMatch[2]) {
+    const data = await parseBody(request);
+    try {
+      const providerUrl = normalizeProviderUrl(data.providerUrl); const manifest = await discover(providerUrl);
+      const duplicate = await env.LURI_MUSIC_DB.prepare('SELECT id FROM luri_music_provider_configs WHERE user_id=? AND provider_url=? AND provider_id=? AND id<>?').bind(user.id, providerUrl, String(manifest.provider.id), config.id).first();
+      if (duplicate) return json({ error: '该 Provider 已存在，请编辑对应配置' }, 409);
+      const prepared = await prepareCredential(manifest, providerUrl, data, user); const encrypted = await encryptCredential(prepared.credential, env);
+      const timestamp = now(); const displayName = String(data.displayName || manifest.provider.name || 'Music Provider').trim().slice(0, 60);
+      await env.LURI_MUSIC_DB.batch([
+        env.LURI_MUSIC_DB.prepare('UPDATE luri_music_provider_configs SET provider_id=?,provider_url=?,display_name=?,protocol_version=?,auth_type=?,connection_type=?,credential_ciphertext=?,credential_iv=?,cached_status=?,cached_expires_at=?,last_synced_at=?,updated_at=? WHERE id=? AND user_id=?').bind(String(manifest.provider.id), providerUrl, displayName, String(manifest.protocolVersion), prepared.authType, prepared.connectionType, encrypted.ciphertext, encrypted.iv, prepared.account?.status || 'active', prepared.account?.expiresAt || null, timestamp, timestamp, config.id, user.id),
+        env.LURI_MUSIC_DB.prepare('UPDATE luri_music_preferences SET provider_revision=provider_revision+1,updated_at=? WHERE user_id=?').bind(timestamp, user.id),
+      ]);
+      return json({ config: { id: config.id, providerId: manifest.provider.id, providerUrl, displayName, protocolVersion: manifest.protocolVersion, connectionType: prepared.connectionType, authType: prepared.authType, status: prepared.account?.status || 'active', expiresAt: prepared.account?.expiresAt || null }, access: { ...prepared.initialAccess, endpoints: manifest.endpoints } }, 200, { 'cache-control': 'no-store' });
+    } catch (error) { return json({ error: error.message || 'Provider 更新失败' }, error.status || 400); }
+  }
+
   if (request.method === 'DELETE' && !configMatch[2]) {
     const timestamp = now();
     await env.LURI_MUSIC_DB.batch([
@@ -149,15 +208,15 @@ export async function handleProviderRequest(request, env, action, user) {
   }
   if (configMatch[2] === 'token' && request.method === 'POST') {
     try {
-      const credential = await decryptCredential(config, env); const authType = config.auth_type || 'activation_code'; let accessToken = ''; let expiresIn = 900; let authorization = null; let account = null;
+      const credential = await decryptCredential(config, env); const authType = config.auth_type || 'none'; let accessToken = ''; let expiresIn = 900; let authorization = null; let account = null;
       if (authType === 'activation_code') {
         const response = await providerFetch(checkedEndpoint(credential.refreshEndpoint, config.provider_url), { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ refreshToken: credential.refreshToken }) }); const refreshed = await response.json().catch(() => ({}));
-        if (!response.ok || !refreshed.accessToken) { await env.LURI_MUSIC_DB.prepare("UPDATE luri_music_provider_configs SET cached_status='inactive',last_synced_at=?,updated_at=? WHERE id=?").bind(now(), now(), config.id).run(); return json({ error: 'Provider 没有访问权限，请重新配置或联系服务提供方', code: 'provider_access_denied' }, 401); }
+        if (!response.ok || !refreshed.accessToken) { await env.LURI_MUSIC_DB.prepare("UPDATE luri_music_provider_configs SET cached_status='inactive',last_synced_at=?,updated_at=? WHERE id=?").bind(now(), now(), config.id).run(); return json({ error: 'Provider 没有访问权限，请编辑配置并更新凭证', code: 'provider_access_denied' }, 401); }
         accessToken = refreshed.accessToken; expiresIn = refreshed.expiresIn;
         const accountResponse = await providerFetch(checkedEndpoint(credential.accountEndpoint, config.provider_url), { headers: accessHeaders(authType, credential, accessToken) }); account = accountResponse.ok ? await accountResponse.json() : null;
       } else if (authType === 'api_key') {
         accessToken = credential.apiKey; authorization = credential.authorization; expiresIn = 900;
-        if (credential.accountEndpoint) { const accountResponse = await providerFetch(checkedEndpoint(credential.accountEndpoint, config.provider_url), { headers: accessHeaders(authType, credential, accessToken) }); if (accountResponse.status === 401 || accountResponse.status === 403) return json({ error: 'Provider API Key 已失效' }, 401); account = accountResponse.ok ? await accountResponse.json() : null; }
+        if (credential.accountEndpoint) { const accountResponse = await providerFetch(checkedEndpoint(credential.accountEndpoint, config.provider_url), { headers: accessHeaders(authType, credential, accessToken) }); if (accountResponse.status === 401 || accountResponse.status === 403) return json({ error: 'Provider 认证凭证已失效', code: 'provider_access_denied' }, 401); account = accountResponse.ok ? await accountResponse.json() : null; }
       } else if (authType === 'none') { expiresIn = 3600; }
       else return json({ error: 'Provider 认证类型不受支持' }, 400);
       const timestamp = now(); await env.LURI_MUSIC_DB.prepare("UPDATE luri_music_provider_configs SET cached_status=?,cached_expires_at=COALESCE(?,cached_expires_at),last_synced_at=?,updated_at=? WHERE id=?").bind(account?.status || 'active', account?.expiresAt || null, timestamp, timestamp, config.id).run();
