@@ -15,12 +15,12 @@ const ANNOUNCEMENT_DISMISSED = 'luri.music.announcement.dismissed.v2';
 const TERMS_VERSION = '2026-09-21.3';
 const PROVIDER_PROTOCOL_DOCS = '/docs#protocol';
 const QUALITY_OPTIONS = [
-  { value: 'auto', label: '自动', note: '优先 320K，失败时降级 128K' },
-  { value: '128k', label: '普通', note: '128 Kbps · 更省流量' },
-  { value: '192k', label: '标准', note: '192 Kbps · 均衡选择' },
-  { value: '320k', label: '高音质', note: '320 Kbps · 清晰度优先' },
-  { value: 'flac', label: '无损 FLAC', note: '无损音频 · 流量较高' },
-  { value: 'flac24bit', label: 'Hi-Res', note: '24-bit FLAC · 实验性支持' },
+  { value: 'auto', label: '自动', mark: 'AUTO', tone: 'auto', note: '优先 320K，失败时降级 128K' },
+  { value: '128k', label: '普通', mark: 'STD', tone: 'low', note: '128 Kbps · 更省流量' },
+  { value: '192k', label: '标准', mark: 'HQ', tone: 'medium', note: '192 Kbps · 均衡选择' },
+  { value: '320k', label: '高音质', mark: 'HQ+', tone: 'high', note: '320 Kbps · 清晰度优先' },
+  { value: 'flac', label: '无损 FLAC', mark: 'SQ', tone: 'lossless', note: '无损音频 · 流量较高' },
+  { value: 'flac24bit', label: 'Hi-Res', mark: 'Hi-Res', tone: 'hires', note: '24-bit FLAC · 实验性支持' },
 ];
 const shouldShowAnnouncement = () => { try { return localStorage.getItem(ANNOUNCEMENT_DISMISSED) !== '1'; } catch { return true; } };
 const renderStrongText = (value) => String(value).split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) => part.startsWith('**') ? <strong key={index}>{part.slice(2, -2)}</strong> : part);
@@ -117,7 +117,7 @@ function PasswordDialog({ close, notify }) {
 function QualityDialog({ value, saved, close, notify }) {
   const [selected, setSelected] = useState(value); const [saving, setSaving] = useState(false);
   const submit = async (event) => { event.preventDefault(); setSaving(true); try { const data = await api('preferences', { method: 'PATCH', body: JSON.stringify({ playbackQuality: selected }) }); saved(data.playbackQuality); notify('音质设置已保存', '从下一首歌曲开始生效', 'success'); } catch (error) { notify('保存失败', error.message, 'error'); } finally { setSaving(false); } };
-  return <Modal className="lm-quality-modal" title="播放音质" close={close}><form onSubmit={submit}><div className="lm-quality-options">{QUALITY_OPTIONS.map((option) => <label className={selected === option.value ? 'active' : ''} key={option.value}><input type="radio" name="quality" value={option.value} checked={selected === option.value} onChange={() => setSelected(option.value)} /><span><b>{option.label}</b><small>{option.note}</small></span><i aria-hidden="true" /></label>)}</div><p className="lm-quality-note">实际可用音质由歌曲和当前 Provider 决定；发生降级时播放器会显示最终档位。</p><button className="primary" disabled={saving}>{saving ? <><Spinner /> 保存中…</> : '保存设置'}</button></form></Modal>;
+  return <Modal className="lm-quality-modal" title="播放音质" close={close}><form onSubmit={submit}><div className="lm-quality-options">{QUALITY_OPTIONS.map((option) => <label className={selected === option.value ? 'active' : ''} key={option.value}><input type="radio" name="quality" value={option.value} checked={selected === option.value} onChange={() => setSelected(option.value)} /><em className={`lm-quality-mark lm-quality-mark--${option.tone}`} aria-hidden="true">{option.mark}</em><span><b>{option.label}</b><small>{option.note}</small></span><i aria-hidden="true" /></label>)}</div><p className="lm-quality-note">实际可用音质由歌曲和当前 Provider 决定；发生降级时播放器会显示最终档位。</p><button className="primary" disabled={saving}>{saving ? <><Spinner /> 保存中…</> : '保存设置'}</button></form></Modal>;
 }
 
 function Announcement({ close, dismissForever }) { return <div className="lm-announcement" role="dialog" aria-modal="true" aria-label="网站公告" onClick={close}><article><span>NOTICE</span><h2>网站公告</h2><p><strong>LURI MUSIC 是一款基于 Web 的可扩展媒体播放客户端。</strong>我们专注于提供内容检索与播放界面、播放列表、本地播放控制、账号服务及 Provider 配置管理，让用户能够连接符合 Music Provider Protocol 的独立内容服务。</p><p><strong>LURI MUSIC 不预置内容源，不实现具体内容源适配，不运营音乐曲库，也不托管、存储、缓存、代理或分发音频文件。</strong>检索结果、条目信息、播放地址、歌词及封面等数据，均由用户主动选择的 Provider 处理和返回。连接前请核实 Provider 的运营主体、服务条款、隐私政策、数据来源与内容授权范围，并仅访问和使用你依法有权使用的内容。</p><p>Music Provider Protocol 是一套开放的技术接口规范，第三方开发者及用户可以据此接入私有媒体库、授权曲库、开放许可内容、播客或广播目录等服务。<strong>协议兼容仅表示接口格式兼容，不代表 LURI MUSIC 对第三方 Provider 的审核、推荐、授权、合作或担保。</strong>你可以随时停用或删除 Provider 配置；安全问题或权利投诉请联系 <strong>luri@luri.cc.cd</strong>。</p><div className="lm-announcement-actions"><small>点击公告任意位置关闭</small><button type="button" onClick={(event) => { event.stopPropagation(); dismissForever(); }}>不再提示</button></div></article></div>; }

@@ -92,6 +92,8 @@
 .lm-quality-options small { color: #777; font-size: 10px; font-weight: 400; line-height: 1.45; }
 .lm-quality-options i { width: 8px; height: 8px; margin-left: auto; border: 1px solid #aaa; border-radius: 50%; }
 .lm-quality-options label.active i { border-color: #111; background: #111; box-shadow: inset 0 0 0 2px #fff; }
+.lm-quality-mark { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 31px; height: 18px; box-sizing: border-box; border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; color: #6b7280; font-size: 9px; font-style: normal; font-weight: 800; line-height: 1; letter-spacing: 0; }
+.lm-quality-mark--auto { color: #555; font-size: 8px; }.lm-quality-mark--medium { color: #2563a8; }.lm-quality-mark--high { color: #087f6d; }.lm-quality-mark--lossless { color: #16834b; }.lm-quality-mark--hires { border-style: double; color: #a16207; font-size: 8px; }
 .lm-quality-note { margin: 0; color: #777; font-size: 10px; line-height: 1.6; }
 .admin-page .generator-layout > .generation-summary { position: static; z-index: auto; inset: auto; align-self: start; display: grid; grid-template-columns: auto 1fr; align-items: end; width: 100%; height: fit-content; min-height: 0; max-height: none; box-sizing: border-box; flex-direction: initial; gap: 0; margin: 0; padding: 16px 18px; border: 1px solid var(--admin-line); border-radius: 14px; background: #fff; box-shadow: 0 2px 10px #00000008; }
 .generation-summary > span { grid-column: 1 / -1; margin-bottom: 7px; }

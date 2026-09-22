@@ -292,4 +292,5 @@ body.has-global-music-player #root>main:not(.music-page){padding-bottom:5rem}
 .music-quality--low{color:#6b7280}.music-quality--medium{color:#2563a8}.music-quality--high{color:#087f6d}.music-quality--lossless{color:#16834b}.music-quality--hires{min-width:2.25rem;border-style:double;color:#a16207;font-size:.43rem;letter-spacing:-.03em}
 .music-quality.is-degraded b{margin-left:.02rem;font-size:.52rem;line-height:1}
 .track-title>b,.lyrics-track h2>b,.music-player__title{flex:1 1 auto;min-width:0}
+.track-title{align-items:center}.track-title>b{flex:0 1 auto}.track-title .music-quality{align-self:center}
 @media(max-width:760px){.music-quality{display:inline-flex!important;flex:0 0 auto!important;height:1rem;min-width:1.45rem;padding:.06rem .2rem}.music-quality--hires{min-width:2.15rem}.lyrics-track h2,.music-page.is-playing:has(.music-mobile-tabs button:last-child.active) .lyrics-track h2{display:flex!important;min-width:0;max-width:100%;overflow:hidden!important;white-space:nowrap!important}.lyrics-track h2>b{overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}.lyrics-track h2 .music-quality{flex:0 0 auto!important}}
