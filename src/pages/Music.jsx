@@ -301,8 +301,8 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   }
   function handlePlaybackFailure(allowLocalFallback = true, message) {
     setPlaying(false);
-    if (playMode.current === 'random') { playNextRandom(); return; }
     if (allowLocalFallback && retryWithLocalFallback()) return;
+    if (playMode.current === 'random') { playNextRandom(); return; }
     skipFailedTrack(message);
   }
   const startRandom = async () => {
