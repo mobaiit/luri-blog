@@ -264,13 +264,6 @@ body.has-global-music-player #root>main:not(.music-page){padding-bottom:5rem}
 /* The page panels share one mobile inset; the search fills that same panel. */
 @media(max-width:760px){.music-shell,.music-page.mobile-view-now .music-shell{width:calc(100% - var(--space-sm))!important;box-sizing:border-box}.music-search{width:100%!important;box-sizing:border-box}}
 
-/* Transient discovery failures never claim space in the playlist or lyrics pane. */
-.music-toast{position:fixed;z-index:220;bottom:calc(104px + 1rem);left:50%;display:flex;align-items:center;gap:.65rem;box-sizing:border-box;max-width:min(30rem,calc(100vw - 2rem));padding:.72rem 1rem .72rem .8rem;border:1px solid color-mix(in srgb,var(--color-text) 14%,transparent);border-radius:14px;background:color-mix(in srgb,var(--color-bg) 92%,transparent);color:var(--color-text);font-size:.78rem;font-weight:500;line-height:1.4;text-align:left;transform:translateX(-50%);box-shadow:0 16px 45px #00000024,0 3px 12px #00000012;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:music-toast-in .24s cubic-bezier(.2,.8,.2,1)}
-.music-toast::before{width:.5rem;height:.5rem;flex:0 0 auto;border-radius:50%;background:var(--color-text);box-shadow:0 0 0 4px color-mix(in srgb,var(--color-text) 10%,transparent);content:""}
-@keyframes music-toast-in{from{opacity:0;transform:translate(-50%,10px) scale(.98)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
-@media(max-width:760px){.music-toast{right:.75rem;bottom:calc(112px + .75rem);left:.75rem;max-width:none;padding:.68rem .85rem;font-size:.72rem;transform:none}.music-toast::before{width:.45rem;height:.45rem}@keyframes music-toast-in{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}}
-@media(prefers-reduced-motion:reduce){.music-toast{animation:none}}
-
 /* The spinner must retain its centring translation while it rotates. */
 @keyframes music-player-spin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
 .music-player .music-controls .play-button .music-spinner{animation:music-player-spin .7s linear infinite}
