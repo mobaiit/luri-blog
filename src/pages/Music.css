@@ -270,3 +270,16 @@ body.has-global-music-player #root>main:not(.music-page){padding-bottom:5rem}
 .music-player .music-controls .play-button .music-spinner{animation:music-player-spin .7s linear infinite}
 @media(prefers-reduced-motion:reduce){.music-player .music-controls .play-button .music-spinner{animation:none}}
 .music-legal-links{display:flex!important;align-items:center;justify-content:center;gap:.55rem;border-left:0!important;padding-left:0!important}.music-legal-links button{border:0;border-bottom:1px solid currentColor;padding:0;background:transparent;color:inherit;font:inherit;cursor:pointer;pointer-events:auto}.music-player>.music-legal-links{white-space:normal!important}
+
+/* Provider-direct desktop download and resilient player metadata layout. */
+.lyrics-track__actions{display:flex!important;align-items:center;justify-self:end;gap:.4rem;min-width:0}
+.music-download-button{display:inline-grid;place-items:center;width:2rem;height:2rem;box-sizing:border-box;border:1px solid var(--color-border);background:transparent;color:var(--color-text-muted);text-decoration:none;cursor:pointer;transition:border-color .18s ease,color .18s ease}
+.music-download-button:hover{border-color:var(--color-text);color:var(--color-text)}
+.music-download-button:focus-visible{outline:1px solid var(--color-text);outline-offset:3px}
+.music-download-button:disabled{opacity:.35;cursor:default}
+.music-download-button .music-icon{width:1rem;height:1rem}
+.music-player__copy{display:grid;flex:1 1 auto;min-width:0}
+.music-player__heading{display:flex;align-items:center;min-width:0}
+.music-player__heading .music-player__title{display:block;flex:1 1 auto;min-width:0;max-width:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.music-player__heading .music-quality{flex:0 0 auto}
+@media(max-width:760px){.music-download-button{display:none}.lyrics-track__actions{width:48px}.lyrics-track__actions .like-button{margin-left:auto}.music-player__heading .music-player__title{max-width:none}}
