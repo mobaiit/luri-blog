@@ -187,13 +187,16 @@
 .lm-announcement-actions button {
   flex: none;
   padding: 8px 12px;
-  border: 1px solid #111;
+  border: 1px solid var(--lm-text-primary, #111111);
   border-radius: var(--radius-sm);
-  background: var(--color-text);
-  color: var(--color-bg);
+  background: var(--lm-text-primary, #111111);
+  color: #ffffff;
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+}
+.lm-announcement-actions button:hover {
+  background: #333333;
 }
 .luri-music-clone .lm-announcement article {
   color: var(--lm-text-primary);

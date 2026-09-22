@@ -1,8 +1,9 @@
 .luri-music-clone {
-  --lm-text-primary: var(--color-text);
+  /* Concrete ink values avoid a circular reference with the scoped aliases. */
+  --lm-text-primary: #111111;
   --lm-text-secondary: #333333;
-  --lm-text-muted: var(--color-text-muted);
-  --lm-text-accent: var(--color-text);
+  --lm-text-muted: #666666;
+  --lm-text-accent: #111111;
   --lm-text-danger: #8b2f2f;
   --color-text: var(--lm-text-primary);
   --color-text-muted: var(--lm-text-muted);
