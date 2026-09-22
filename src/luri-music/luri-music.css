@@ -383,18 +383,26 @@
   }
   .lm-account-trigger {
     min-width: 0;
-    max-width: 130px;
+    max-width: 150px;
+    gap: 6px;
     padding: 7px 9px;
     border-radius: 10px;
   }
   .lm-account-trigger span {
-    display: none;
+    display: grid;
+    min-width: 0;
+    max-width: 88px;
   }
   .lm-login-trigger {
     font-size: 10px;
   }
-  .lm-account-trigger small {
+  .lm-account-trigger b {
     display: none;
+  }
+  .lm-account-trigger small {
+    display: block;
+    margin-top: 0;
+    font-size: 9px;
   }
   .lm-account-trigger i {
     font-size: 9px;
