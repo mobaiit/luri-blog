@@ -2355,7 +2355,8 @@
   font-size: 0.78rem !important;
   text-align: left;
 }
-.music-search-history__item:hover {
+.music-search-history__item:hover,
+.music-search-history__item.active {
   background: #00000008;
 }
 @media (max-width: 760px) {
