@@ -11,26 +11,28 @@ import PostDetail from './pages/PostDetail';
 import Docs from './pages/Docs';
 import LuriMusic from './luri-music/LuriMusic';
 import Admin from './luri-music/Admin';
+import { fetchSiteConfig, readSiteConfig, writeSiteConfig } from './luri-music/siteConfig';
 import './luri-music/page-titles.css';
 
 export default function App() {
   const location = useLocation();
-  const [musicConfig, setMusicConfig] = useState(null);
+  const isAdminEntry = location.pathname === '/admin' || location.search === '?admin=1';
+  const [musicConfig, setMusicConfig] = useState(() => initialSiteConfig(location.pathname, readSiteConfig()));
   useEffect(() => {
+    if (isAdminEntry) return undefined;
     let active = true;
-    fetch('/api/luri-music/site-config').then((response) => response.ok ? response.json() : Promise.reject()).then((data) => {
-      if (active) setMusicConfig({ blogEnabled: data.blogSiteEnabled !== false, postsEnabled: data.blogPostsEnabled !== false, enabled: data.musicPageEnabled !== false, navigationEnabled: data.musicNavigationEnabled !== false, blogNavigationEnabled: data.musicBlogNavigationEnabled !== false, accessRequired: data.musicAccessRequired !== false, aboutEnabled: data.aboutPageEnabled !== false, docsEnabled: data.docsPageEnabled !== false });
-    }).catch(() => { if (active) setMusicConfig({ blogEnabled: true, postsEnabled: true, enabled: true, navigationEnabled: true, blogNavigationEnabled: true, accessRequired: true, aboutEnabled: true, docsEnabled: true }); });
+    fetchSiteConfig().then((data) => {
+      if (active) setMusicConfig(writeSiteConfig(data));
+    }).catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [isAdminEntry]);
   useEffect(() => {
     if (location.pathname === '/admin' || location.search === '?admin=1') document.title = 'LURI ADMIN';
     else if (location.pathname === '/docs') document.title = 'LURI MUSIC 文档';
     else if (location.pathname === '/music' || location.pathname === '/luri-music' || location.search === '?luri-music=1') document.title = 'LURI MUSIC';
     else document.title = 'LURI - 落墨留白';
   }, [location.pathname, location.search]);
-  if (location.pathname === '/admin' || location.search === '?admin=1') return <Routes><Route path="*" element={<Admin />} /></Routes>;
-  if (musicConfig === null) return <div className="ui-loading-screen"><span className="ui-spinner" /><p>正在加载网站配置…</p></div>;
+  if (isAdminEntry) return <Routes><Route path="*" element={<Admin />} /></Routes>;
   const isLegacyMusicPage = location.pathname === '/luri-music' || location.search === '?luri-music=1';
   const isMusicPage = location.pathname === '/music';
   const isDocsPage = location.pathname === '/docs';
@@ -71,4 +73,28 @@ export default function App() {
       {musicConfig.blogEnabled && !isMusicPage && <Footer />}
     </>
   );
+}
+
+function initialSiteConfig(pathname, cached) {
+  const music = pathname === '/music' || pathname === '/luri-music';
+  const docs = pathname === '/docs';
+  const blog = pathname === '/' || pathname === '/about' || pathname === '/blog' || pathname.startsWith('/blog/');
+  const config = cached || {
+    blogEnabled: !music && !docs,
+    postsEnabled: true,
+    enabled: music,
+    navigationEnabled: false,
+    blogNavigationEnabled: false,
+    accessRequired: true,
+    aboutEnabled: true,
+    docsEnabled: docs,
+  };
+  return {
+    ...config,
+    blogEnabled: blog || config.blogEnabled,
+    postsEnabled: pathname.startsWith('/blog') || config.postsEnabled,
+    enabled: music || config.enabled,
+    aboutEnabled: pathname === '/about' || config.aboutEnabled,
+    docsEnabled: docs || config.docsEnabled,
+  };
 }

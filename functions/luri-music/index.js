@@ -7,6 +7,7 @@ const RESEND_SETTING = 'resend_api_key';
 const RESEND_FROM = 'LURI MUSIC <no-reply@luri.cc.cd>';
 const EMAIL_CODE_TTL = 10 * 60 * 1000;
 const EMAIL_CODE_COOLDOWN = 60 * 1000;
+const SITE_CONFIG_KEYS = ['blog_site_enabled', 'blog_posts_enabled', 'music_page_enabled', 'music_navigation_enabled', 'music_blog_navigation_enabled', 'music_access_required', 'music_only_mode', 'about_page_enabled', 'docs_page_enabled'];
 const body = async (request) => request.json().catch(() => ({}));
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 const isEmail = (value) => /^\S+@\S+\.\S+$/.test(value);
@@ -89,10 +90,6 @@ const musicPageEnabled = async (env) => {
   const setting = await env.LURI_MUSIC_DB.prepare("SELECT value FROM luri_music_settings WHERE key='music_page_enabled'").first();
   return setting?.value !== 'false';
 };
-const musicNavigationEnabled = async (env) => {
-  const setting = await env.LURI_MUSIC_DB.prepare("SELECT value FROM luri_music_settings WHERE key='music_navigation_enabled'").first();
-  return setting?.value !== 'false';
-};
 const musicOnlyMode = async (env) => {
   const setting = await env.LURI_MUSIC_DB.prepare("SELECT value FROM luri_music_settings WHERE key='music_only_mode'").first();
   return setting?.value === 'true';
@@ -105,10 +102,6 @@ const blogPostsEnabled = async (env) => {
   const setting = await env.LURI_MUSIC_DB.prepare("SELECT value FROM luri_music_settings WHERE key='blog_posts_enabled'").first();
   return setting?.value !== 'false';
 };
-const musicBlogNavigationEnabled = async (env) => {
-  const setting = await env.LURI_MUSIC_DB.prepare("SELECT value FROM luri_music_settings WHERE key='music_blog_navigation_enabled'").first();
-  return setting ? setting.value !== 'false' : !await musicOnlyMode(env);
-};
 const aboutPageEnabled = async (env) => {
   const setting = await env.LURI_MUSIC_DB.prepare("SELECT value FROM luri_music_settings WHERE key='about_page_enabled'").first();
   return setting?.value !== 'false';
@@ -116,6 +109,24 @@ const aboutPageEnabled = async (env) => {
 const docsPageEnabled = async (env) => {
   const setting = await env.LURI_MUSIC_DB.prepare("SELECT value FROM luri_music_settings WHERE key='docs_page_enabled'").first();
   return setting?.value !== 'false';
+};
+const loadSiteConfig = async (env) => {
+  const placeholders = SITE_CONFIG_KEYS.map(() => '?').join(',');
+  const result = await env.LURI_MUSIC_DB.prepare(`SELECT key,value FROM luri_music_settings WHERE key IN (${placeholders})`).bind(...SITE_CONFIG_KEYS).all();
+  const settings = Object.fromEntries((result.results || []).map((row) => [row.key, row.value]));
+  const legacyMusicOnly = settings.music_only_mode === 'true';
+  const blog = settings.blog_site_enabled === undefined ? !legacyMusicOnly : settings.blog_site_enabled !== 'false';
+  return {
+    blogSiteEnabled: blog,
+    blogPostsEnabled: settings.blog_posts_enabled !== 'false',
+    musicPageEnabled: settings.music_page_enabled !== 'false',
+    musicNavigationEnabled: settings.music_navigation_enabled !== 'false',
+    musicBlogNavigationEnabled: settings.music_blog_navigation_enabled === undefined ? !legacyMusicOnly : settings.music_blog_navigation_enabled !== 'false',
+    musicAccessRequired: settings.music_access_required !== 'false',
+    musicOnlyMode: !blog,
+    aboutPageEnabled: settings.about_page_enabled !== 'false',
+    docsPageEnabled: settings.docs_page_enabled !== 'false',
+  };
 };
 export const isMusicPageEnabled = musicPageEnabled;
 export const isBlogSiteEnabled = blogSiteEnabled;
@@ -133,8 +144,7 @@ export async function handleLuriMusic(request, env) {
   if (!env.LURI_MUSIC_DB) return json({ error: '音乐服务尚未配置' }, 503);
   const action = new URL(request.url).pathname.replace('/api/luri-music/', '');
   if (action === 'site-config' && request.method === 'GET') {
-    const blog = await blogSiteEnabled(env);
-    return json({ blogSiteEnabled: blog, blogPostsEnabled: await blogPostsEnabled(env), musicPageEnabled: await musicPageEnabled(env), musicNavigationEnabled: await musicNavigationEnabled(env), musicBlogNavigationEnabled: await musicBlogNavigationEnabled(env), musicAccessRequired: await musicAccessRequired(env), musicOnlyMode: !blog, aboutPageEnabled: await aboutPageEnabled(env), docsPageEnabled: await docsPageEnabled(env) });
+    return json(await loadSiteConfig(env));
   }
   if (action === 'auth/me') { const user = await currentUser(request, env); return json({ user: await userPayload(user), turnstile: { enabled: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY), siteKey: env.TURNSTILE_SITE_KEY || '' } }); }
   if (action === 'providers' || action.startsWith('providers/')) return handleProviderRequest(request, env, action, await currentUser(request, env));
@@ -249,8 +259,7 @@ export async function handleLuriMusic(request, env) {
   if (!admin) return json({ error: '管理员登录已失效' }, 401);
   if (action === 'admin/me' && request.method === 'GET') return json({ admin: { id: admin.id, username: admin.username } });
   if (action === 'admin/site-config' && request.method === 'GET') {
-    const blog = await blogSiteEnabled(env);
-    return json({ blogSiteEnabled: blog, blogPostsEnabled: await blogPostsEnabled(env), musicPageEnabled: await musicPageEnabled(env), musicNavigationEnabled: await musicNavigationEnabled(env), musicBlogNavigationEnabled: await musicBlogNavigationEnabled(env), musicAccessRequired: await musicAccessRequired(env), musicOnlyMode: !blog, aboutPageEnabled: await aboutPageEnabled(env), docsPageEnabled: await docsPageEnabled(env) });
+    return json(await loadSiteConfig(env));
   }
   if (action === 'admin/site-config' && request.method === 'POST') {
     const data = await body(request); const blog = data.blogSiteEnabled !== false; const posts = data.blogPostsEnabled !== false; const enabled = data.musicPageEnabled !== false; const navigation = data.musicNavigationEnabled !== false; const blogNavigation = data.musicBlogNavigationEnabled !== false; const required = data.musicAccessRequired === true; const about = data.aboutPageEnabled !== false; const docs = data.docsPageEnabled !== false; const timestamp = now();
