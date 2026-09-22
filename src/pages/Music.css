@@ -2328,6 +2328,8 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   border: 1px solid var(--color-border);
   background: var(--color-bg);
   box-shadow: 0 8px 18px #0000000d;
@@ -2365,6 +2367,8 @@
 @media (max-width: 760px) {
   .music-search-history {
     top: calc(100% + 5px);
+    max-height: min(20rem, 45dvh);
+    overflow-y: scroll;
   }
   .music-search-history__item {
     padding: 0.55rem 0.6rem !important;
