@@ -15,7 +15,6 @@ const ANNOUNCEMENT_DISMISSED = 'luri.music.announcement.dismissed.v2';
 const TERMS_VERSION = '2026-09-21.3';
 const PROVIDER_PROTOCOL_DOCS = '/docs#protocol';
 const QUALITY_OPTIONS = [
-  { value: 'auto', label: '自动', mark: 'AUTO', tone: 'auto', note: '优先 320K，失败时降级 128K' },
   { value: '128k', label: '普通', mark: 'STD', tone: 'low', note: '128 Kbps · 更省流量' },
   { value: '192k', label: '标准', mark: 'HQ', tone: 'medium', note: '192 Kbps · 均衡选择' },
   { value: '320k', label: '高音质', mark: 'HQ+', tone: 'high', note: '320 Kbps · 清晰度优先' },
@@ -47,17 +46,17 @@ const LEGAL_DOCUMENTS = {
 };
 
 export default function LuriMusic({ active = true, accessRequired = true, standalone = false, docsEnabled = true }) {
-  const [booting, setBooting] = useState(true); const [user, setUser] = useState(null); const [providers, setProviders] = useState([]); const [playbackQuality, setPlaybackQuality] = useState('auto'); const [turnstile, setTurnstile] = useState({ enabled: false, siteKey: '' }); const [authMode, setAuthMode] = useState('login'); const [dialog, setDialog] = useState(''); const [menuOpen, setMenuOpen] = useState(false); const [toast, setToast] = useState(null); const [announcement, setAnnouncement] = useState(shouldShowAnnouncement);
+  const [booting, setBooting] = useState(true); const [user, setUser] = useState(null); const [providers, setProviders] = useState([]); const [playbackQuality, setPlaybackQuality] = useState('128k'); const [turnstile, setTurnstile] = useState({ enabled: false, siteKey: '' }); const [authMode, setAuthMode] = useState('login'); const [dialog, setDialog] = useState(''); const [menuOpen, setMenuOpen] = useState(false); const [toast, setToast] = useState(null); const [announcement, setAnnouncement] = useState(shouldShowAnnouncement);
   const notify = useCallback((title, message = '', type = 'info') => setToast({ title, message, type }), []);
-  const loadProviders = useCallback(async () => { const data = await api('providers'); setProviders(data.items || []); setPlaybackQuality(data.preferences?.playbackQuality || 'auto'); return data.items || []; }, []);
-  const refresh = useCallback(async () => { const data = await api('auth/me'); setUser(data.user || null); setTurnstile(data.turnstile || { enabled: false, siteKey: '' }); if (data.user) await loadProviders(); else { setProviders([]); setPlaybackQuality('auto'); } return data.user; }, [loadProviders]);
+  const loadProviders = useCallback(async () => { const data = await api('providers'); setProviders(data.items || []); setPlaybackQuality(data.preferences?.playbackQuality === 'auto' ? '128k' : data.preferences?.playbackQuality || '128k'); return data.items || []; }, []);
+  const refresh = useCallback(async () => { const data = await api('auth/me'); setUser(data.user || null); setTurnstile(data.turnstile || { enabled: false, siteKey: '' }); if (data.user) await loadProviders(); else { setProviders([]); setPlaybackQuality('128k'); } return data.user; }, [loadProviders]);
   useEffect(() => { refresh().catch((error) => notify('加载失败', error.message, 'error')).finally(() => setBooting(false)); }, [refresh, notify]);
   const activeProvider = providers.find((provider) => provider.active) || null;
   const providerClient = useMemo(() => activeProvider ? new ProviderClient(activeProvider, () => loadProviders().catch(() => {})) : null, [activeProvider, loadProviders]);
   if (booting) return active ? <LoadingScreen label="正在加载 LURI MUSIC…" /> : null;
   const openAuth = () => { setAuthMode('login'); setDialog('auth'); setMenuOpen(false); };
   const openAccountDialog = (name) => { setDialog(name); setMenuOpen(false); };
-  const logout = async () => { try { await api('auth/logout', { method: 'POST' }); setUser(null); setProviders([]); setPlaybackQuality('auto'); setMenuOpen(false); notify('已退出登录', '', 'success'); } catch (error) { notify('退出失败', error.message, 'error'); } };
+  const logout = async () => { try { await api('auth/logout', { method: 'POST' }); setUser(null); setProviders([]); setPlaybackQuality('128k'); setMenuOpen(false); notify('已退出登录', '', 'success'); } catch (error) { notify('退出失败', error.message, 'error'); } };
   const requireAccess = () => { if (!user) { openAuth(); notify('请先登录', '登录后即可配置并使用 Provider', 'warning'); return false; } if (!activeProvider) { openAccountDialog('providers'); notify('尚未激活 Provider', '请先添加或选择一个 Provider', 'warning'); return false; } if (activeProvider.expiresAt && Date.parse(activeProvider.expiresAt) <= Date.now()) { openAccountDialog('providers'); notify('Provider 权限已过期', '请更换有效的 Provider 配置', 'warning'); return false; } return true; };
   const dismissAnnouncementForever = () => { try { localStorage.setItem(ANNOUNCEMENT_DISMISSED, '1'); } catch { /* 浏览器可能禁用本地存储 */ } setAnnouncement(false); };
   const legalLinks = <button type="button" onClick={() => setDialog('terms')}>使用条款</button>;
@@ -115,7 +114,7 @@ function PasswordDialog({ close, notify }) {
 }
 
 function QualityDialog({ value, saved, close, notify }) {
-  const [selected, setSelected] = useState(value); const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState(value === 'auto' ? '128k' : value || '128k'); const [saving, setSaving] = useState(false);
   const submit = async (event) => { event.preventDefault(); setSaving(true); try { const data = await api('preferences', { method: 'PATCH', body: JSON.stringify({ playbackQuality: selected }) }); saved(data.playbackQuality); notify('音质设置已保存', '从下一首歌曲开始生效', 'success'); } catch (error) { notify('保存失败', error.message, 'error'); } finally { setSaving(false); } };
   return <Modal className="lm-quality-modal" title="播放音质" close={close}><form onSubmit={submit}><div className="lm-quality-options">{QUALITY_OPTIONS.map((option) => <label className={selected === option.value ? 'active' : ''} key={option.value}><input type="radio" name="quality" value={option.value} checked={selected === option.value} onChange={() => setSelected(option.value)} /><em className={`lm-quality-mark lm-quality-mark--${option.tone}`} aria-hidden="true">{option.mark}</em><span><b>{option.label}</b><small>{option.note}</small></span><i aria-hidden="true" /></label>)}</div><p className="lm-quality-note">实际可用音质由歌曲和当前 Provider 决定；发生降级时播放器会显示最终档位。</p><button className="primary" disabled={saving}>{saving ? <><Spinner /> 保存中…</> : '保存设置'}</button></form></Modal>;
 }

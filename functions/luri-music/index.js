@@ -150,8 +150,9 @@ export async function handleLuriMusic(request, env) {
   if (action === 'auth/me') { const user = await currentUser(request, env); return json({ user: await userPayload(user), turnstile: { enabled: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY), siteKey: env.TURNSTILE_SITE_KEY || '' } }); }
   if (action === 'preferences' && request.method === 'PATCH') {
     const user = await currentUser(request, env); if (!user) return json({ error: '请先登录' }, 401);
-    const data = await body(request); const playbackQuality = String(data.playbackQuality || '').toLowerCase();
-    if (!PLAYBACK_QUALITIES.has(playbackQuality)) return json({ error: '不支持的音质设置' }, 400);
+    const data = await body(request); const requestedQuality = String(data.playbackQuality || '').toLowerCase();
+    if (!PLAYBACK_QUALITIES.has(requestedQuality)) return json({ error: '不支持的音质设置' }, 400);
+    const playbackQuality = requestedQuality === 'auto' ? '128k' : requestedQuality;
     await env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_preferences(user_id,playback_quality,provider_revision,updated_at) VALUES(?,?,0,?) ON CONFLICT(user_id) DO UPDATE SET playback_quality=excluded.playback_quality,updated_at=excluded.updated_at').bind(user.id, playbackQuality, now()).run();
     return json({ playbackQuality });
   }

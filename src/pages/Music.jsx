@@ -44,7 +44,7 @@ const QUALITY_RANK = { '128k': 1, '192k': 2, '320k': 3, flac: 4, flac24bit: 5 };
 function QualityBadge({ track }) {
   const meta = QUALITY_META[track?.quality]; if (!meta) return null;
   const detail = track.qualityVerified ? '实际音质' : 'Provider 解析档位';
-  const requested = track.requestedQuality === 'auto' ? '320k' : track.requestedQuality;
+  const requested = track.requestedQuality === 'auto' ? '128k' : track.requestedQuality;
   const degraded = QUALITY_RANK[track.quality] && QUALITY_RANK[requested] ? QUALITY_RANK[track.quality] < QUALITY_RANK[requested] : Boolean(track.degraded);
   return <i className={`music-quality music-quality--${meta.icon}${degraded ? ' is-degraded' : ''}`} title={`${detail}：${meta.label}${degraded ? '（已降级）' : ''}`} aria-label={`${detail} ${meta.label}${degraded ? '，已降级' : ''}`}><span className="music-quality__mark" aria-hidden="true">{meta.mark}</span>{degraded && <b aria-hidden="true">↓</b>}</i>;
 }
@@ -57,7 +57,7 @@ function DownloadButton({ track }) {
   return <a className="music-download-button" href={href} download={filename} target="_blank" rel="noreferrer" aria-label={`下载 ${track.title}`} title="直接打开 Provider 音频源"><MusicIcon name="download" /></a>;
 }
 
-export default function Music({ forceMusicPage = false, providerClient = null, playbackQuality = 'auto', storageNamespace = '', onRequireAccess, pageTitle = forceMusicPage ? 'LURI MUSIC' : TEXT.title, headerNotice = null, legalLinks = null }) {
+export default function Music({ forceMusicPage = false, providerClient = null, playbackQuality = '128k', storageNamespace = '', onRequireAccess, pageTitle = forceMusicPage ? 'LURI MUSIC' : TEXT.title, headerNotice = null, legalLinks = null }) {
   const location = useLocation();
   const isMusicPage = forceMusicPage || location.pathname === '/music';
   const audio = useRef(null);

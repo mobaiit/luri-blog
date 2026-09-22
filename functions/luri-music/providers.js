@@ -149,7 +149,8 @@ export async function handleProviderRequest(request, env, action, user) {
       env.LURI_MUSIC_DB.prepare('SELECT * FROM luri_music_provider_configs WHERE user_id=? ORDER BY updated_at DESC').bind(user.id).all(),
       env.LURI_MUSIC_DB.prepare('SELECT active_provider_config_id,provider_revision,playback_quality FROM luri_music_preferences WHERE user_id=?').bind(user.id).first(),
     ]);
-    return json({ items: configs.results.map((row) => publicConfig(row, preference?.active_provider_config_id)), activeProviderId: preference?.active_provider_config_id || null, revision: preference?.provider_revision || 0, preferences: { playbackQuality: preference?.playback_quality || 'auto' } });
+    const playbackQuality = !preference?.playback_quality || preference.playback_quality === 'auto' ? '128k' : preference.playback_quality;
+    return json({ items: configs.results.map((row) => publicConfig(row, preference?.active_provider_config_id)), activeProviderId: preference?.active_provider_config_id || null, revision: preference?.provider_revision || 0, preferences: { playbackQuality } });
   }
 
   if (action === 'providers/discover' && request.method === 'POST') {
@@ -167,7 +168,7 @@ export async function handleProviderRequest(request, env, action, user) {
       const configId = id(); const timestamp = now(); const displayName = String(data.displayName || manifest.provider.name || 'Music Provider').trim().slice(0, 60);
       await env.LURI_MUSIC_DB.batch([
         env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_provider_configs(id,user_id,provider_id,provider_url,display_name,protocol_version,auth_type,connection_type,credential_ciphertext,credential_iv,cached_status,cached_expires_at,last_synced_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(configId, user.id, String(manifest.provider.id), providerUrl, displayName, String(manifest.protocolVersion), prepared.authType, prepared.connectionType, encrypted.ciphertext, encrypted.iv, prepared.account?.status || 'active', prepared.account?.expiresAt || null, timestamp, timestamp, timestamp),
-        env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_preferences(user_id,active_provider_config_id,provider_revision,updated_at) VALUES(?,?,1,?) ON CONFLICT(user_id) DO UPDATE SET active_provider_config_id=CASE WHEN active_provider_config_id IS NULL THEN excluded.active_provider_config_id ELSE active_provider_config_id END,provider_revision=provider_revision+1,updated_at=excluded.updated_at').bind(user.id, configId, timestamp),
+        env.LURI_MUSIC_DB.prepare("INSERT INTO luri_music_preferences(user_id,active_provider_config_id,playback_quality,provider_revision,updated_at) VALUES(?,?,'128k',1,?) ON CONFLICT(user_id) DO UPDATE SET active_provider_config_id=CASE WHEN active_provider_config_id IS NULL THEN excluded.active_provider_config_id ELSE active_provider_config_id END,provider_revision=provider_revision+1,updated_at=excluded.updated_at").bind(user.id, configId, timestamp),
       ]);
       return json({ config: { id: configId, providerId: manifest.provider.id, providerUrl, displayName, protocolVersion: manifest.protocolVersion, connectionType: prepared.connectionType, authType: prepared.authType, status: prepared.account?.status || 'active', expiresAt: prepared.account?.expiresAt || null }, access: { ...prepared.initialAccess, endpoints: manifest.endpoints } }, 201, { 'cache-control': 'no-store' });
     } catch (error) { return json({ error: error.message || 'Provider 配置失败' }, error.status || 400); }
@@ -203,7 +204,7 @@ export async function handleProviderRequest(request, env, action, user) {
     return json({ ok: true });
   }
   if (configMatch[2] === 'activate' && request.method === 'POST') {
-    await env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_preferences(user_id,active_provider_config_id,provider_revision,updated_at) VALUES(?,?,1,?) ON CONFLICT(user_id) DO UPDATE SET active_provider_config_id=excluded.active_provider_config_id,provider_revision=provider_revision+1,updated_at=excluded.updated_at').bind(user.id, config.id, now()).run();
+    await env.LURI_MUSIC_DB.prepare("INSERT INTO luri_music_preferences(user_id,active_provider_config_id,playback_quality,provider_revision,updated_at) VALUES(?,?,'128k',1,?) ON CONFLICT(user_id) DO UPDATE SET active_provider_config_id=excluded.active_provider_config_id,provider_revision=provider_revision+1,updated_at=excluded.updated_at").bind(user.id, config.id, now()).run();
     return json({ ok: true, activeProviderId: config.id });
   }
   if (configMatch[2] === 'token' && request.method === 'POST') {
