@@ -783,9 +783,14 @@
     z-index: 1;
     padding: 0 0 0.5rem 0;
   }
+  .music-chart-controls {
+    flex: 0 0 auto;
+    order: 3;
+    padding: 0 0 0.5rem 0;
+  }
   .music-workspace {
     flex: 1 1 auto;
-    order: 3;
+    order: 4;
     min-height: 0;
   }
   .music-brand {
@@ -853,6 +858,7 @@
     grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1.42fr);
     gap: 4.5rem;
     margin-top: 1.1rem;
+    align-items: stretch;
   }
   .music-sidebar {
     top: 8.8rem;
@@ -862,12 +868,21 @@
   }
   .music-lyrics {
     padding-left: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
   .lyrics-track {
     padding-bottom: 1.5rem;
+    flex: 0 0 auto;
+  }
+  .lyrics-body {
+    flex: 1 1 auto;
   }
   .music-results {
     padding-top: 0;
+    display: flex;
+    flex-direction: column;
   }
 }
 
@@ -989,7 +1004,7 @@
 @media (min-width: 761px) {
   .music-lyrics {
     position: relative;
-    margin-top: -3.6rem;
+    margin-top: 0;
     padding-top: 0;
   }
   .lyrics-track {
@@ -1253,7 +1268,7 @@
 /* Align the active-song cover with the search field on the desktop layout. */
 @media (min-width: 761px) {
   .music-lyrics {
-    margin-top: -4.25rem;
+    margin-top: 0;
   }
 }
 
@@ -2644,6 +2659,8 @@
   display: grid;
   gap: 6px;
   width: min(100%, 620px);
+  order: 2.5;
+  margin-top: 0.35rem;
 }
 
 .music-chart-switch {
@@ -2700,6 +2717,23 @@
 
   .music-header--charts .music-chart-controls {
     margin-left: auto;
+  }
+
+  .music-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .music-sidebar {
+    order: 2;
+  }
+
+  .music-chart-controls {
+    order: 3;
+  }
+
+  .music-workspace {
+    order: 4;
   }
 }
 
