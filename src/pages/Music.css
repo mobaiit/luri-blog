@@ -3127,6 +3127,40 @@ body.has-global-music-player #root > main:not(.music-page) {
   font-size: 0.625rem;
 }
 
+/* Compact transport buttons: three equal, independent rounded squares. */
+.music-player .music-controls > div:first-child {
+  gap: 6px !important;
+}
+
+.music-player .music-controls .music-icon-button,
+.music-player .music-controls .play-button {
+  position: relative !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 8px !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text) !important;
+  box-shadow: none !important;
+  line-height: 0 !important;
+}
+
+.music-player .music-controls .music-icon-button:hover {
+  border-color: #c9c9c9 !important;
+  background: #f8f8f6 !important;
+  color: var(--color-text) !important;
+}
+
+.music-player .music-controls .music-icon-button .music-icon {
+  width: 13px;
+  height: 13px;
+}
+
 @media (max-width: 760px) {
   .music-global-disclaimer {
     font-size: max(0.625rem, 10px) !important;
