@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "update:singers": "node scripts/update-singers.mjs"
   },
   "dependencies": {
     "@giscus/react": "^3.1.0",
