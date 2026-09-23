@@ -381,7 +381,6 @@ export async function handleLuriMusic(request, env) {
     const data = await body(request); const account = await env.LURI_MUSIC_DB.prepare('SELECT id,email FROM luri_music_users WHERE id=?').bind(data.id).first();
     if (!account) return json({ error: '用户不存在' }, 404);
     await env.LURI_MUSIC_DB.batch([
-      env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_favorite_snapshots WHERE user_id=?').bind(account.id),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_preferences WHERE user_id=?').bind(account.id),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_provider_configs WHERE user_id=?').bind(account.id),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_codes WHERE redeemed_by=?').bind(account.id),
@@ -398,7 +397,6 @@ export async function handleLuriMusic(request, env) {
     const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - years); const cutoffValue = cutoff.toISOString();
     const total = await env.LURI_MUSIC_DB.prepare('SELECT count(*) n FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?').bind(cutoffValue).first();
     await env.LURI_MUSIC_DB.batch([
-      env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_favorite_snapshots WHERE user_id IN (SELECT id FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?)').bind(cutoffValue),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_preferences WHERE user_id IN (SELECT id FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?)').bind(cutoffValue),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_provider_configs WHERE user_id IN (SELECT id FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?)').bind(cutoffValue),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_codes WHERE redeemed_by IN (SELECT id FROM luri_music_users WHERE COALESCE(last_login_at,created_at)<=?)').bind(cutoffValue),

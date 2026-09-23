@@ -199,7 +199,6 @@ export async function handleProviderRequest(request, env, action, user) {
     const timestamp = now();
     await env.LURI_MUSIC_DB.batch([
       env.LURI_MUSIC_DB.prepare('UPDATE luri_music_preferences SET active_provider_config_id=CASE WHEN active_provider_config_id=? THEN NULL ELSE active_provider_config_id END,provider_revision=provider_revision+1,updated_at=? WHERE user_id=?').bind(config.id, timestamp, user.id),
-      env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_favorite_snapshots WHERE provider_config_id=? AND user_id=?').bind(config.id, user.id),
       env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_provider_configs WHERE id=? AND user_id=?').bind(config.id, user.id),
     ]);
     return json({ ok: true });
