@@ -1,6 +1,6 @@
 # 能力与播放
 
-标准能力：`search`、`random`、`lyrics`、`artwork`、`playback`、`qualities`。客户端只显示 Provider 声明的能力。
+标准能力：`search`、`random`、`charts`、`lyrics`、`artwork`、`playback`、`qualities`。客户端只显示 Provider 声明的能力。
 
 播放模式：
 

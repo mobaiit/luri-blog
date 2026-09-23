@@ -30,11 +30,12 @@ export default class ProviderClient {
 
   async request(kind, params = {}, signal) {
     const access = await this.authorization(); const endpoints = access.endpoints || {}; let target; const headers = { accept: 'application/json' };
-    if (!endpoints[kind]) return new Response(JSON.stringify({ error: `当前 Provider 不支持 ${kind} 能力` }), { status: 501, headers: { 'content-type': 'application/json' } });
+    const endpoint = endpoints[kind] || (kind === 'charts' ? new URL('/v1/catalog/charts', this.config.providerUrl).href : '');
+    if (!endpoint) return new Response(JSON.stringify({ error: `当前 Provider 不支持 ${kind} 能力` }), { status: 501, headers: { 'content-type': 'application/json' } });
     if (access.authorization?.header) headers[access.authorization.header] = `${access.authorization.prefix || ''}${access.token}`;
     else if (access.token) headers.authorization = `Bearer ${access.token}`;
     let options = { signal, headers };
-    if (kind === 'search' || kind === 'random') { target = new URL(endpoints[kind]); Object.entries(params).forEach(([key, value]) => value !== undefined && value !== '' && target.searchParams.set(key, String(value))); }
+    if (kind === 'search' || kind === 'random' || kind === 'charts') { target = new URL(endpoint); Object.entries(params).forEach(([key, value]) => value !== undefined && value !== '' && target.searchParams.set(key, String(value))); }
     else if (kind === 'resolve') { target = new URL(endpoints.resolve); options = { ...options, method: 'POST', headers: { ...options.headers, 'content-type': 'application/json' }, body: JSON.stringify(params) }; }
     else {
       target = new URL(endpoints[kind].replace('{id}', encodeURIComponent(params.id || '')));

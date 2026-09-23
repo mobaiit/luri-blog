@@ -2627,6 +2627,110 @@
   }
 }
 
+/* Provider-backed charts use explicit user refresh and browser-persistent data. */
+.music-chart-controls {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 620px);
+}
+
+.music-chart-switch {
+  display: flex;
+  gap: 5px;
+}
+
+.music-chart-switch button,
+.music-chart-meta button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.music-chart-switch button.active {
+  border-color: var(--color-text);
+  background: var(--color-text);
+  color: var(--color-surface);
+}
+
+.music-chart-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+}
+
+.music-chart-meta button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 48px;
+}
+
+.music-chart-meta button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (min-width: 761px) {
+  .music-header--charts {
+    display: flex;
+    width: 100%;
+    align-items: end;
+  }
+
+  .music-header--charts .music-chart-controls {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .music-header--charts > .music-chart-controls {
+    display: grid !important;
+    width: 100%;
+  }
+
+  .music-chart-switch {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .music-chart-switch::-webkit-scrollbar {
+    display: none;
+  }
+
+  .music-chart-switch button {
+    flex: 1 0 auto;
+  }
+
+  .music-chart-meta span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .music-sidebar {
+    justify-content: flex-start !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .music-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .music-sidebar .music-nav {
+    flex: 0 0 auto;
+  }
+}
+
 @media (max-width: 760px) {
   .music-page {
     padding-bottom: 112px !important;

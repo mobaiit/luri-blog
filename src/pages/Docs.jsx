@@ -14,7 +14,7 @@ const manifestExample = `{
     "apiKey": { "header": "X-API-Key", "prefix": "" },
     "accessTokenSeconds": 900
   },
-  "capabilities": ["search", "random", "lyrics", "artwork", "playback"],
+  "capabilities": ["search", "random", "charts", "lyrics", "artwork", "playback"],
   "playback": { "mode": "direct", "qualities": ["128k", "192k", "320k", "flac", "flac24bit"] },
   "endpoints": {
     "activate": "https://provider.example.com/v1/auth/activate",
@@ -22,6 +22,7 @@ const manifestExample = `{
     "account": "https://provider.example.com/v1/account",
     "search": "https://provider.example.com/v1/catalog/search",
     "random": "https://provider.example.com/v1/catalog/random",
+    "charts": "https://provider.example.com/v1/catalog/charts",
     "resolve": "https://provider.example.com/v1/tracks/resolve",
     "lyrics": "https://provider.example.com/v1/tracks/{id}/lyrics",
     "artwork": "https://provider.example.com/v1/tracks/{id}/artwork"
@@ -39,6 +40,23 @@ const trackExample = `{
   }],
   "page": 1,
   "hasMore": false
+}`;
+
+const chartExample = `{
+  "platform": "netease",
+  "chart": "hot",
+  "title": "网易云音乐热歌榜",
+  "updatedAt": "2026-09-23T10:30:00Z",
+  "tracks": [{
+    "rank": 1,
+    "id": "track-001",
+    "source": "provider-source",
+    "title": "Track title",
+    "artist": "Artist",
+    "album": "Album",
+    "art": "https://provider.example.com/artwork/track-001",
+    "meta": {}
+  }]
 }`;
 
 const nav = [
@@ -80,7 +98,7 @@ export default function Docs() {
 
         <section id="provider-types"><h2>连接方式</h2><p>同一账号可保存多个 Provider，但同一时间只启用一个。官方源和 HTTPS 私有源可选择无认证、API Key 或 Authorization，激活码放在最后作为独立授权入口。</p><div className="docs-cards"><article><i>01</i><h3>官方源</h3><p>连接符合协议的正式 Provider 服务，可按其声明选择认证参数。</p><code>none / api_key</code></article><article><i>02</i><h3>HTTPS 私有源</h3><p>连接自建或私有 HTTPS Provider，可自定义认证请求头和前缀。</p><code>none / api_key</code></article><article><i>03</i><h3>激活码</h3><p>使用 Provider 签发的一次性凭证领取独立授权。</p><code>activation_code</code></article></div><div className="docs-note"><b>凭证安全</b><span>API Key、Authorization 凭证和 refresh token 均由 LURI MUSIC 服务端加密保存，不会写入浏览器存储或 URL。</span></div></section>
 
-        <section id="usage"><h2>使用说明</h2><h3>添加、编辑与切换</h3><p>Provider 地址应填写服务根地址，例如 <code>https://provider.example.com</code>。客户端会读取标准发现文件并核对协议版本、认证能力及接口地址。编辑配置时会先验证新地址和凭证，验证失败不会覆盖原配置。</p><h3>搜索与播放</h3><p>搜索、随机发现、歌曲详情、播放地址、歌词和封面均由当前 Provider 按其能力声明返回。播放列表和播放状态保存在浏览器中；切换 Provider 后，客户端会使用独立的存储命名空间，避免不同服务的数据混淆。</p><h3>删除配置</h3><p>删除操作会移除 LURI MUSIC 加密保存的连接凭证。已使用的激活码不能再次兑换，删除后无法通过原激活码恢复。</p></section>
+        <section id="usage"><h2>使用说明</h2><h3>添加、编辑与切换</h3><p>Provider 地址应填写服务根地址，例如 <code>https://provider.example.com</code>。客户端会读取标准发现文件并核对协议版本、认证能力及接口地址。编辑配置时会先验证新地址和凭证，验证失败不会覆盖原配置。</p><h3>搜索与播放</h3><p>搜索、随机发现、歌曲详情、播放地址、歌词和封面均由当前 Provider 按其能力声明返回。播放列表和播放状态保存在浏览器中；切换 Provider 后，客户端会使用独立的存储命名空间，避免不同服务的数据混淆。</p><h3>音乐榜单与缓存</h3><p>音乐榜单支持网易和 QQ 音乐的飙升榜、新歌榜、原创榜及热歌榜。每个平台和榜单使用独立的浏览器持久缓存；首次进入时向 Provider 请求，之后直接读取缓存，不自动过期或后台刷新。只有点击“刷新”才会重新请求；刷新失败时继续展示上次缓存。点击榜单歌曲后，当前完整榜单成为上一首、下一首的播放队列。</p><h3>删除配置</h3><p>删除操作会移除 LURI MUSIC 加密保存的连接凭证。已使用的激活码不能再次兑换，删除后无法通过原激活码恢复。</p></section>
 
         <section id="protocol"><h2>协议概览</h2><p>Music Provider Protocol 是基于 HTTPS 与 JSON 的开放接口约定。客户端不会下载或执行 Provider 提供的远程 JavaScript，所有能力通过声明式清单和固定 HTTP 接口完成。</p><ul><li>协议标识固定为 <code>music-provider</code>。</li><li>1.x 客户端忽略未知字段，兼容新增的可选能力。</li><li>发现文件和所有接口必须使用 HTTPS 且保持同源。</li><li>Provider 应仅声明自己确实实现的能力与端点。</li></ul></section>
 
@@ -102,6 +120,7 @@ export default function Docs() {
           ['endpoints.search', 'HTTPS URL', '是', '搜索接口地址。'],
           ['endpoints.resolve', 'HTTPS URL', '是', '播放地址解析接口。'],
           ['endpoints.random', 'HTTPS URL', '否', '随机发现接口；声明 random 能力时应提供。'],
+          ['endpoints.charts', 'HTTPS URL', '否', '音乐榜单接口；声明 charts 能力时应提供。旧版清单可使用默认路径 /v1/catalog/charts。'],
           ['endpoints.lyrics', 'URL template', '否', '歌词接口，以 {id} 表示曲目标识。'],
           ['endpoints.artwork', 'URL template', '否', '封面接口，以 {id} 表示曲目标识。'],
           ['endpoints.activate', 'HTTPS URL', '条件', '使用 activation_code 时必填的激活码兑换接口。'],
@@ -145,7 +164,18 @@ export default function Docs() {
           ['exclude', 'string', '否', '希望排除的艺人名称列表，逗号分隔。'],
           ['tracks', 'Track[]', '响应必填', '可随机选择并播放的候选曲目。'],
           ['singer', 'string', '响应可选', '本次推荐使用的艺人标识，客户端会用于后续去重。'],
-        ]} /><Code>{trackExample}</Code><SchemaTable title="Track 对象" rows={[
+        ]} /><Code>{trackExample}</Code><h3>音乐榜单</h3><Endpoint method="GET" path="/v1/catalog/charts?platform={platform}&chart={chart}&refresh={refresh}">返回指定平台和类型的完整榜单。客户端持久缓存成功响应，只有用户主动刷新时才传入 refresh=1。</Endpoint><SchemaTable title="榜单查询参数" rows={[
+          ['platform', 'string', '是', '平台标识：netease 或 qq。'],
+          ['chart', 'string', '是', '榜单类型：rising、new、original 或 hot。'],
+          ['refresh', '0 | 1', '否', '值为 1 时请求 Provider 跳过普通榜单缓存；Provider 应限制强制刷新频率。'],
+        ]} /><SchemaTable title="榜单响应字段" rows={[
+          ['platform', 'string', '是', '实际返回的平台标识。'],
+          ['chart', 'string', '是', '实际返回的榜单类型。'],
+          ['title', 'string', '是', '面向用户展示的榜单名称。'],
+          ['updatedAt', 'ISO 8601 string', '是', '当前榜单数据的获取或更新时间。'],
+          ['tracks', 'Track[]', '是', '按排名顺序返回的完整曲目数组。'],
+          ['tracks[].rank', 'integer', '是', '从 1 开始的榜单排名。'],
+        ]} /><Code>{chartExample}</Code><SchemaTable title="Track 对象" rows={[
           ['id', 'string', '是', 'Provider 内稳定且唯一的曲目标识，后续接口通过此值引用曲目。'],
           ['title', 'string', '是', '歌曲或音频标题。'],
           ['artist', 'string', '是', '艺人、作者或节目名称。'],
