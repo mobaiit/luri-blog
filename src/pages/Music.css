@@ -3289,9 +3289,18 @@ body.has-global-music-player #root > main:not(.music-page) {
 
 /* These final overrides win over the legacy mobile player layers above. */
 @media (max-width: 760px) {
+  .music-page.mobile-view-playlist .music-lyrics {
+    display: none !important;
+  }
+
   .music-player {
     grid-template-columns: minmax(0, 1fr) 132px 36px !important;
     column-gap: 8px !important;
+  }
+
+  .music-player__song {
+    display: flex !important;
+    align-self: center;
   }
 
   .music-controls {
