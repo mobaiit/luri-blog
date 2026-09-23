@@ -864,7 +864,7 @@
     top: 8.8rem;
   }
   .music-list-head {
-    padding-top: 2.3rem;
+    padding-top: 0.5rem;
   }
   .music-lyrics {
     padding-left: 0;
@@ -883,6 +883,7 @@
     padding-top: 0;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
   }
 }
 
@@ -1376,8 +1377,11 @@
     order: 2;
     padding: 0 0 1rem;
   }
-  .music-workspace {
+  .music-chart-controls {
     order: 3;
+  }
+  .music-workspace {
+    order: 4;
   }
   .music-header > div {
     display: none;
@@ -2469,14 +2473,22 @@
   .music-header {
     position: static !important;
     flex: 0 0 auto;
+    order: 1;
     padding: 0 0 0.4rem !important;
   }
   .music-sidebar {
     flex: 0 0 auto;
+    order: 2;
+    padding: 0 0 0.35rem !important;
+  }
+  .music-chart-controls {
+    flex: 0 0 auto;
+    order: 3;
     padding: 0 0 0.35rem !important;
   }
   .music-workspace {
     flex: 1 1 auto;
+    order: 4;
     min-height: 0;
     margin: 0 !important;
   }
@@ -2485,6 +2497,7 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
+    justify-content: flex-start;
   }
   .music-page.mobile-view-playlist .music-list {
     height: auto !important;
@@ -2494,10 +2507,11 @@
   }
   .music-page.mobile-view-now .music-workspace {
     display: block !important;
-    height: 100%;
+    order: 4;
   }
   .music-page.mobile-view-now .music-lyrics {
     display: flex !important;
+    order: 5;
     height: 100%;
     min-height: 0;
     padding: 0 !important;
@@ -2658,9 +2672,10 @@
 .music-chart-controls {
   display: grid;
   gap: 6px;
-  width: min(100%, 620px);
-  order: 2.5;
+  width: 100%;
+  order: 3;
   margin-top: 0.35rem;
+  margin-bottom: 0.75rem;
 }
 
 .music-chart-switch {
@@ -2724,6 +2739,10 @@
     flex-direction: column;
   }
 
+  .music-header {
+    order: 1;
+  }
+
   .music-sidebar {
     order: 2;
   }
@@ -2738,9 +2757,11 @@
 }
 
 @media (max-width: 760px) {
-  .music-header--charts > .music-chart-controls {
+  .music-chart-controls {
     display: grid !important;
     width: 100%;
+    order: 3;
+    margin-bottom: 0.5rem;
   }
 
   .music-chart-switch {
