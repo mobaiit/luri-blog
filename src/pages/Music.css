@@ -767,10 +767,26 @@
   .music-shell {
     position: relative;
   }
+  .music-content {
+    display: flex;
+    min-height: 0;
+    height: 100%;
+    flex-direction: column;
+  }
+  .music-header {
+    flex: 0 0 auto;
+    order: 1;
+  }
   .music-sidebar {
-    position: static;
+    flex: 0 0 auto;
+    order: 2;
     z-index: 1;
     padding: 0 0 0.5rem 0;
+  }
+  .music-workspace {
+    flex: 1 1 auto;
+    order: 3;
+    min-height: 0;
   }
   .music-brand {
     display: none;
