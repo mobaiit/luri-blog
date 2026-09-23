@@ -2961,32 +2961,69 @@ body.has-global-music-player #root > main:not(.music-page) {
 }
 @media (max-width: 760px) {
   body.has-global-music-player .music-player {
-    min-height: 68px !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: 8px 42px !important;
+    column-gap: 8px !important;
+    row-gap: 6px !important;
+    min-height: 84px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
   }
+
+  body.has-global-music-player .music-player__progress {
+    display: block !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body.has-global-music-player .music-player__progress input[type="range"] {
+    height: 2px !important;
+  }
+
   body.has-global-music-player .music-player__song {
     display: flex !important;
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    align-self: center !important;
   }
+
   body.has-global-music-player .music-player__song img {
     width: 32px !important;
     height: 32px !important;
   }
+
   body.has-global-music-player .music-player__song small {
     display: block !important;
   }
-  body.has-global-music-player .music-player {
-    grid-template-columns: minmax(0, 1fr) minmax(154px, 1.15fr) !important;
-  }
+
   body.has-global-music-player .music-controls {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0 !important;
     width: auto !important;
     min-width: 0 !important;
   }
-  body.has-global-music-player .music-controls .timeline {
-    grid-template-columns: 24px minmax(0, 1fr) 24px !important;
+
+  /* Hide non-essential controls on mobile global player */
+  body.has-global-music-player .music-player .music-player__time,
+  body.has-global-music-player .music-player .music-quality,
+  body.has-global-music-player .music-player .music-download-button,
+  body.has-global-music-player .music-player .music-volume,
+  body.has-global-music-player .music-player__lyrics-button {
+    display: none !important;
   }
+
   body.has-global-music-player .music-mobile-tabs {
     display: none !important;
   }
 }
+
 
 /* Random discovery belongs beside search: it is a one-click alternative, not a new view. */
 .music-search input {
