@@ -3288,29 +3288,74 @@ body.has-global-music-player #root > main:not(.music-page) {
 }
 
 /* These final overrides win over the legacy mobile player layers above. */
+.music-player__mobile-time {
+  display: none;
+}
+
 @media (max-width: 760px) {
   .music-page.mobile-view-playlist .music-lyrics {
     display: none !important;
   }
 
-  .music-player {
-    grid-template-columns: minmax(0, 1fr) 132px 36px !important;
-    column-gap: 8px !important;
+  body:not(.has-global-music-player) .music-page {
+    padding-bottom: 84px !important;
   }
 
-  .music-player__song {
+  body:not(.has-global-music-player) .music-player {
+    grid-template-columns: minmax(0, 1fr) auto 36px !important;
+    grid-template-rows: 8px 42px !important;
+    column-gap: 8px !important;
+    row-gap: 6px !important;
+    min-height: 84px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  body:not(.has-global-music-player) .music-player__song {
     display: flex !important;
+    grid-column: 1;
+    grid-row: 2;
     align-self: center;
   }
 
-  .music-controls {
-    width: 132px !important;
-    min-width: 132px !important;
+  body:not(.has-global-music-player) .music-controls {
+    display: contents;
+    width: auto !important;
+    min-width: 0 !important;
   }
 
-  .music-controls .timeline {
-    grid-template-columns: 24px minmax(68px, 1fr) 24px !important;
-    gap: 0.25rem !important;
+  body:not(.has-global-music-player) .music-controls > div:first-child {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+  }
+
+  body:not(.has-global-music-player) .music-controls .timeline {
+    display: block !important;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    margin: 0 !important;
+  }
+
+  body:not(.has-global-music-player) .music-controls .timeline > span {
+    display: none;
+  }
+
+  body:not(.has-global-music-player) .music-controls .timeline input {
+    display: block;
+    width: 100%;
+    margin: 0;
+  }
+
+  body:not(.has-global-music-player) .music-player__lyrics-button {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: center;
+  }
+
+  body:not(.has-global-music-player) .music-player__mobile-time {
+    display: inline;
   }
 }
 
@@ -3325,18 +3370,17 @@ body.has-global-music-player #root > main:not(.music-page) {
 }
 
 @media (max-width: 390px) {
-  .music-player {
-    grid-template-columns: minmax(0, 1fr) 112px 34px !important;
-    column-gap: 6px !important;
+  body:not(.has-global-music-player) .music-player {
+    grid-template-columns: minmax(0, 1fr) auto 32px !important;
+    column-gap: 5px !important;
   }
 
-  .music-controls {
-    width: 112px !important;
-    min-width: 112px !important;
+  body:not(.has-global-music-player) .music-player__song img {
+    width: 32px !important;
+    height: 32px !important;
   }
 
-  .music-controls .timeline {
-    grid-template-columns: 22px minmax(56px, 1fr) 22px !important;
-    font-size: 0.5rem !important;
+  body:not(.has-global-music-player) .music-player .music-controls > div:first-child {
+    gap: 4px !important;
   }
 }
