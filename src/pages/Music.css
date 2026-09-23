@@ -3693,3 +3693,14 @@ body.has-global-music-player #root > main:not(.music-page) {
   margin-top: 6px;
   order: 99;
 }
+
+/* Hide list-head title when empty (chart views) */
+.music-list-head > span:empty {
+  display: none;
+}
+.music-list-head:has(> span:empty) {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
