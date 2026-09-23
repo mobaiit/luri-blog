@@ -3432,9 +3432,9 @@ body.has-global-music-player #root > main:not(.music-page) {
   }
 
   body:not(.has-global-music-player) .music-player {
-    grid-template-columns: minmax(120px, 1fr) auto 36px !important;
+    grid-template-columns: minmax(0, 1fr) auto 36px !important;
     grid-template-rows: 8px 50px !important;
-    column-gap: 6px !important;
+    column-gap: 8px !important;
     row-gap: 6px !important;
     min-height: 92px !important;
     padding-top: 8px !important;
@@ -3446,6 +3446,32 @@ body.has-global-music-player #root > main:not(.music-page) {
     grid-column: 1;
     grid-row: 2;
     align-self: center;
+    min-width: 0;
+    gap: 0.5rem;
+  }
+
+  body:not(.has-global-music-player) .music-player__song img {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+  }
+
+  body:not(.has-global-music-player) .music-player__song > span {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  body:not(.has-global-music-player) .music-player__song .music-player__copy {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  body:not(.has-global-music-player) .music-player__song .music-player__title,
+  body:not(.has-global-music-player) .music-player__song small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   body:not(.has-global-music-player) .music-controls {
@@ -3458,7 +3484,7 @@ body.has-global-music-player #root > main:not(.music-page) {
     grid-column: 2;
     grid-row: 2;
     align-self: center;
-    gap: 5px !important;
+    gap: 6px !important;
   }
 
   body:not(.has-global-music-player) .music-controls .timeline {
@@ -3652,7 +3678,7 @@ body.has-global-music-player #root > main:not(.music-page) {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    gap: 0.2rem !important;
+    gap: 0.3rem !important;
     width: auto !important;
     min-width: 0 !important;
   }
@@ -3675,14 +3701,14 @@ body.has-global-music-player #root > main:not(.music-page) {
   /* Show time and quality info on mobile */
   body:not(.has-global-music-player) .music-player .music-player__time {
     display: block !important;
-    font-size: 0.58rem !important;
-    margin-right: 0.15rem !important;
+    font-size: 0.62rem !important;
+    margin-right: 0.2rem !important;
   }
 
   body:not(.has-global-music-player) .music-player .music-quality {
     display: inline-flex !important;
     margin-left: 0 !important;
-    margin-right: 0.15rem !important;
+    margin-right: 0.2rem !important;
   }
 
   body:not(.has-global-music-player) .music-player .music-download-button {
