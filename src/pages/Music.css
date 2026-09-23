@@ -3705,3 +3705,8 @@ body.has-global-music-player #root > main:not(.music-page) {
     order: 3;
   }
 }
+
+/* Cancel sticky header — search bar scrolls with content */
+.music-header {
+  position: static !important;
+}
