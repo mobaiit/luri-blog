@@ -15,9 +15,10 @@ const isEmail = (value) => /^\S+@\S+\.\S+$/.test(value);
 const validPassword = (value) => typeof value === 'string' && value.length >= 8 && value.length <= 128;
 const PLAYBACK_QUALITIES = new Set(['auto', '128k', '192k', '320k', 'flac', 'flac24bit']);
 
-const currentUser = async (request, env) => {
+const currentUser = async (request, env, includeFavorites = false) => {
   const value = cookie(request, USER_COOKIE);
-  return value && env.LURI_MUSIC_DB.prepare('SELECT u.id,u.email,u.display_name,e.expires_at FROM luri_music_sessions s JOIN luri_music_users u ON u.id=s.user_id LEFT JOIN luri_music_entitlements e ON e.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled_at IS NULL').bind(await hash(value), now()).first();
+  const favoriteFields = includeFavorites ? ',u.favorites_json,u.favorites_updated_at' : '';
+  return value && env.LURI_MUSIC_DB.prepare(`SELECT u.id,u.email,u.display_name,e.expires_at${favoriteFields} FROM luri_music_sessions s JOIN luri_music_users u ON u.id=s.user_id LEFT JOIN luri_music_entitlements e ON e.user_id=u.id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled_at IS NULL`).bind(await hash(value), now()).first();
 };
 const publicUser = (user) => user && ({ id: user.id, email: user.email, name: user.display_name, expiresAt: user.expires_at || null, hasPlayback: Boolean(user.expires_at && Date.parse(user.expires_at) > Date.now()) });
 const currentAdmin = async (request, env) => {
@@ -51,7 +52,9 @@ const recomputeEntitlement = async (env, userId) => {
   return expiresAt;
 };
 const userPayload = async (user) => {
-  return user && publicUser(user);
+  if (!user) return null;
+  let favorites = []; try { favorites = JSON.parse(user.favorites_json || '[]'); } catch { /* Invalid legacy data is returned as an empty collection. */ }
+  return { ...publicUser(user), favorites: Array.isArray(favorites) ? favorites : [], favoritesUpdatedAt: user.favorites_updated_at || null };
 };
 const verifyHuman = async (data, env) => {
   const result = await verifyTurnstileToken(data.turnstileToken, env);
@@ -148,7 +151,7 @@ export async function handleLuriMusic(request, env) {
   if (action === 'site-config' && request.method === 'GET') {
     return json(await loadSiteConfig(env));
   }
-  if (action === 'auth/me') { const user = await currentUser(request, env); return json({ user: await userPayload(user), turnstile: { enabled: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY), siteKey: env.TURNSTILE_SITE_KEY || '' } }); }
+  if (action === 'auth/me') { const user = await currentUser(request, env, true); return json({ user: await userPayload(user), turnstile: { enabled: Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY), siteKey: env.TURNSTILE_SITE_KEY || '' } }); }
   if (action === 'preferences' && request.method === 'PATCH') {
     const user = await currentUser(request, env); if (!user) return json({ error: '请先登录' }, 401);
     const data = await body(request); const requestedQuality = String(data.playbackQuality || '').toLowerCase();
@@ -188,7 +191,7 @@ export async function handleLuriMusic(request, env) {
     catch { return json({ error: '该邮箱已注册' }, 409); }
     await env.LURI_MUSIC_DB.prepare('DELETE FROM luri_music_email_codes WHERE id=?').bind(emailCode.id).run();
     const value = await createSession(userId, env);
-    return json({ user: { id: userId, email: mail, name, expiresAt: null, hasPlayback: false } }, 201, { 'set-cookie': sessionCookie(USER_COOKIE, value, 2592000) });
+    return json({ user: { id: userId, email: mail, name, expiresAt: null, hasPlayback: false, favorites: [], favoritesUpdatedAt: null } }, 201, { 'set-cookie': sessionCookie(USER_COOKIE, value, 2592000) });
   }
 
   if (action === 'auth/login' && request.method === 'POST') {
