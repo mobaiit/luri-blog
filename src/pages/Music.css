@@ -3639,6 +3639,15 @@ body.has-global-music-player #root > main:not(.music-page) {
     text-align: left !important;
   }
 
+  /* Layout order from left to right: quality, time, control buttons */
+  .music-controls .music-quality {
+    order: -2 !important;
+  }
+
+  .music-controls .music-player__time {
+    order: -1 !important;
+  }
+
   /* Old timeline no longer in DOM; actions content moved inline */
   .music-player__actions {
     display: none !important;
