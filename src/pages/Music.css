@@ -3197,6 +3197,9 @@ body.has-global-music-player #root > main:not(.music-page) {
   gap: 0.4rem;
   min-width: 0;
 }
+.lyrics-track__actions .music-quality {
+  margin-left: 0;
+}
 .music-download-button {
   display: inline-grid;
   place-items: center;
