@@ -768,11 +768,9 @@
     position: relative;
   }
   .music-sidebar {
-    position: absolute;
+    position: static;
     z-index: 1;
-    top: 12.35rem;
-    left: 0;
-    padding: 0;
+    padding: 0 0 0.5rem 0;
   }
   .music-brand {
     display: none;
@@ -782,7 +780,7 @@
     font-size: 0.68rem;
   }
   .music-list-head {
-    padding-top: 2.65rem;
+    padding-top: 0.35rem;
   }
   .music-workspace {
     grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.28fr);
@@ -2004,7 +2002,6 @@
 }
 @media (min-width: 761px) {
   .music-sidebar {
-    top: 10.5rem !important;
     align-items: center;
   }
   .music-nav,
@@ -2018,7 +2015,7 @@
   }
   .music-list-head {
     align-items: center;
-    padding: 0.25rem 0 !important;
+    padding: 0.35rem 0 !important;
   }
 }
 @media (max-width: 760px) {
