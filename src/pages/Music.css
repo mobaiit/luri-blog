@@ -3705,3 +3705,8 @@ body.has-global-music-player #root > main:not(.music-page) {
     order: 3;
   }
 }
+
+/* Remove gray border below track list head */
+.music-list-head {
+  border-bottom: 0 !important;
+}
