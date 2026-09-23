@@ -2860,9 +2860,9 @@ body.has-global-music-player .music-page + .footer {
   display: block !important;
 }
 body.has-global-music-player .music-player {
-  grid-template-rows: auto !important;
+  grid-template-rows: 5px auto !important;
   min-height: 68px !important;
-  padding-top: 5px !important;
+  padding-top: 0 !important;
   padding-bottom: 5px !important;
 }
 body.has-global-music-player .music-player > .music-global-disclaimer {
@@ -3563,6 +3563,7 @@ body.has-global-music-player #root > main:not(.music-page) {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
+    align-self: center !important;
     gap: 0.35rem !important;
     white-space: nowrap !important;
     width: auto !important;
