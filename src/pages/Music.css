@@ -3657,12 +3657,12 @@ body.has-global-music-player #root > main:not(.music-page) {
     min-width: 0 !important;
   }
 
-  /* Layout order from left to right: time, quality, control buttons */
-  body:not(.has-global-music-player) .music-controls .music-player__time {
+  /* Layout order from left to right: quality, time, control buttons */
+  body:not(.has-global-music-player) .music-controls .music-quality {
     order: -2 !important;
   }
 
-  body:not(.has-global-music-player) .music-controls .music-quality {
+  body:not(.has-global-music-player) .music-controls .music-player__time {
     order: -1 !important;
   }
 
