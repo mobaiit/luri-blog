@@ -3634,3 +3634,25 @@ body.has-global-music-player #root > main:not(.music-page) {
     margin-bottom: 8px;
   }
 }
+
+/* Patch: remove player border */
+.music-player { border-top: 0 !important; }
+
+/* Patch: darken download and like buttons */
+.music-download-button {
+  color: var(--color-text) !important;
+}
+.like-button {
+  color: var(--color-text) !important;
+}
+
+/* Patch: header supports chart controls as second row */
+.music-header {
+  flex-wrap: wrap !important;
+}
+.music-header .music-chart-controls {
+  flex: 1 0 100%;
+  width: 100%;
+  margin-top: 6px;
+  order: 99;
+}
