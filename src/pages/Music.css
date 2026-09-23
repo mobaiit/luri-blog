@@ -2004,7 +2004,7 @@
 }
 @media (min-width: 761px) {
   .music-sidebar {
-    top: 7.4rem !important;
+    top: 9.2rem !important;
     align-items: center;
   }
   .music-nav,
@@ -2629,7 +2629,7 @@
 /* Provider-backed charts use explicit user refresh and browser-persistent data. */
 .music-chart-controls {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   width: min(100%, 620px);
 }
 
@@ -3753,7 +3753,7 @@ body.has-global-music-player #root > main:not(.music-page) {
 .music-header .music-chart-controls {
   flex: 1 0 100%;
   width: 100%;
-  margin-top: 6px;
+  margin-top: 0.35rem;
   order: 99;
 }
 
