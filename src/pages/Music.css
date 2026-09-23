@@ -2959,7 +2959,7 @@ body.has-global-music-player .music-player__song {
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.04em;
-  vertical-align: 0.12em;
+  vertical-align: middle;
 }
 .music-quality svg {
   width: 0.66rem;
