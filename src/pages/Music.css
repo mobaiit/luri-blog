@@ -764,6 +764,7 @@
 }
 
 @media (min-width: 761px) {
+@media (min-width: 761px) {
   .music-shell {
     position: relative;
   }
@@ -773,6 +774,12 @@
     top: 12.35rem;
     left: 0;
     padding: 0;
+  }
+  /* Adjust sidebar position when chart controls are present */
+  .music-header--charts + * .music-sidebar,
+  .music-content:has(.music-header--charts) + * .music-sidebar,
+  .music-shell:has(.music-header--charts) .music-sidebar {
+    top: 15.5rem;
   }
   .music-brand {
     display: none;
