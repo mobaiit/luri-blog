@@ -500,6 +500,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   };
   function showToast(message, type = 'error') { setToast({ title: type === 'warning' ? '需要处理' : '播放服务异常', message, type }); }
   function handlePlayRejection(error) {
+    // Changing or clearing the media URL rejects the previous play() promise
+    // with AbortError. The audio error/selection path already owns recovery;
+    // treating this as another failure races the refresh and skips the track.
+    if (error?.name === 'AbortError') return;
     clearMediaDeadline();
     if (error?.name === 'NotAllowedError') { setPlaying(false); setPlaybackState('paused'); return; }
     ignoreAudioErrorRef.current = true;
