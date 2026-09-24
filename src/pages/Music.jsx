@@ -370,7 +370,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     };
   }, [favoriteSyncEnabled, favoriteBackupUpdatedAt, favoriteDirtyKey, favoriteNamespace, favoriteSyncedKey]);
   useEffect(() => { if (listView === 'likes') void favoriteSyncRef.current.pull?.(); }, [favoriteSyncEnabled, listView]);
-  useEffect(() => { if (!audio.current) return; audio.current.volume = volume ** 2; audio.current.muted = muted; }, [volume, muted]);
+  useEffect(() => { if (!audio.current) return; audio.current.volume = volume; audio.current.muted = muted; }, [volume, muted]);
   useEffect(() => { document.documentElement.style.setProperty('--music-progress', `${duration ? Math.min(100, Math.max(0, progress / duration * 100)) : 0}%`); }, [duration, progress]);
   useEffect(() => { const title = document.querySelector('.music-row.current .track-title'); setTitleOverflows(Boolean(title && title.scrollWidth > title.clientWidth)); }, [currentId, results, tracks, chartData]);
   useEffect(() => {

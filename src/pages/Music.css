@@ -4047,6 +4047,10 @@ body.has-global-music-player #root > main:not(.music-page) {
     overflow: hidden;
   }
 
+  .music-list-head.music-list-head--charts {
+    margin-top: 8px;
+  }
+
   .music-results > .music-list {
     flex: 1 1 auto;
     min-height: 0;
