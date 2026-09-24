@@ -85,9 +85,8 @@
 .lm-site-bar > strong {
   display: block;
   margin-right: auto;
-  padding: 7px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
+  padding: 7px 0;
+  border: 0;
   color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 600;
