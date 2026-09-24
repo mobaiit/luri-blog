@@ -412,7 +412,12 @@
     max-width: 58px;
   }
   .lm-login-trigger {
+    width: auto;
+    min-width: 82px;
+    max-width: none;
     font-size: 11px;
+    padding: 0 10px;
+    white-space: nowrap;
   }
   .lm-account-trigger i {
     font-size: 10px;
