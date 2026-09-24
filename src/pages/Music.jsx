@@ -190,6 +190,61 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     return () => { controller.abort(); if (resolveRequestRef.current === controller) resolveRequestRef.current = null; };
   }, [activeQueue, current, playbackAttempt, forceLocalFallbackFor, playbackQuality]);
   useEffect(() => {
+    if ('mediaSession' in navigator && current) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: current.title || '未知歌曲',
+        artist: current.artist || '未知艺人',
+        album: current.album || '',
+        artwork: current.art && current.art !== EMPTY_ART ? [
+          { src: current.art, sizes: '96x96', type: 'image/jpeg' },
+          { src: current.art, sizes: '128x128', type: 'image/jpeg' },
+          { src: current.art, sizes: '192x192', type: 'image/jpeg' },
+          { src: current.art, sizes: '256x256', type: 'image/jpeg' },
+          { src: current.art, sizes: '384x384', type: 'image/jpeg' },
+          { src: current.art, sizes: '512x512', type: 'image/jpeg' },
+        ] : []
+      });
+      navigator.mediaSession.setActionHandler('play', toggle);
+      navigator.mediaSession.setActionHandler('pause', toggle);
+      navigator.mediaSession.setActionHandler('previoustrack', previous);
+      navigator.mediaSession.setActionHandler('nexttrack', next);
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        if (audio.current) {
+          const skipTime = details.seekOffset || 10;
+          audio.current.currentTime = Math.max(audio.current.currentTime - skipTime, 0);
+        }
+      });
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        if (audio.current) {
+          const skipTime = details.seekOffset || 10;
+          audio.current.currentTime = Math.min(audio.current.currentTime + skipTime, audio.current.duration || 0);
+        }
+      });
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (audio.current && details.seekTime !== null && details.seekTime !== undefined) {
+          audio.current.currentTime = details.seekTime;
+        }
+      });
+    }
+    return () => {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = null;
+        navigator.mediaSession.setActionHandler('play', null);
+        navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('previoustrack', null);
+        navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('seekbackward', null);
+        navigator.mediaSession.setActionHandler('seekforward', null);
+        navigator.mediaSession.setActionHandler('seekto', null);
+      }
+    };
+  }, [current?.id, current?.title, current?.artist, current?.album, current?.art]);
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+    }
+  }, [playing]);
+  useEffect(() => {
     if (!current || (current.art && current.art !== EMPTY_ART) || !current.source) return undefined;
     const controller = new AbortController();
     musicRequest('artwork', { source: current.source, id: sourceTrackId(current), title: current.title || '', artist: current.artist || '', meta: current.meta || undefined }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
