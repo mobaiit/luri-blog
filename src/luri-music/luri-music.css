@@ -125,6 +125,10 @@
   color: inherit;
   text-decoration: none;
 }
+.lm-announcement-button,
+.lm-docs-button {
+  border: 0;
+}
 .lm-account-wrap {
   position: relative;
   justify-self: end;

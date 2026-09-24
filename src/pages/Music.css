@@ -3479,8 +3479,9 @@ body.has-global-music-player #root > main:not(.music-page) {
 }
 
 .music-player .music-controls .music-icon-button .music-icon {
-  width: 13px;
-  height: 13px;
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 @media (max-width: 760px) {
