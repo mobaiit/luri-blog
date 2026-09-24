@@ -34,6 +34,14 @@ const readSession = (key) => { try { return JSON.parse(sessionStorage.getItem(ke
 const writeSession = (key, value) => { try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { /* Session storage may be unavailable. */ } };
 const randomTextKey = (value) => String(value || '').normalize('NFKC').toLocaleLowerCase().replace(/[\s()（）.·_-]/g, '');
 const randomTrackKey = (track) => `${randomTextKey(track?.title)}:${randomTextKey(track?.artist)}`;
+const shuffled = (items) => {
+  const values = [...items];
+  for (let index = values.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [values[index], values[target]] = [values[target], values[index]];
+  }
+  return values;
+};
 const trackArtists = (track) => String(track?.artist || '').split(/\s*(?:,|，|、|\/|&|feat\.?|ft\.?)\s*/i).filter(Boolean);
 const sameFavorite = (left, right) => Boolean(left?.songId && right?.songId && left.songId === right.songId);
 const chartStoreKey = (providerId, platform, chart) => `${STORE_CHART}.${providerId || 'guest'}.${platform}.${chart}`;
@@ -539,7 +547,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       const freshTracks = tracks.filter((track) => !randomTrackKeys.current.includes(randomTrackKey(track))); const candidates = freshTracks.length ? freshTracks : tracks;
       const selected = candidates[Math.floor(Math.random() * candidates.length)];
       const fallbackCandidates = tracks.filter((track) => track.songId !== selected.songId && randomTrackKey(track) !== randomTrackKey(selected) && !randomTrackKeys.current.includes(randomTrackKey(track)));
-      randomFallbackTracks.current = fallbackCandidates.length ? [fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)]] : [];
+      randomFallbackTracks.current = shuffled(fallbackCandidates).slice(0, 5);
       rememberRandomTrack(selected, payload.singer || '');
       playbackListRef.current = 'random'; clearMediaDeadline(); setPlaybackQueue(tracks); setCurrentId(selected.songId); setPlaybackTrackId(selected.songId); setPlaybackState('resolving');
     } catch (error) {
