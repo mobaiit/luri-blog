@@ -3480,8 +3480,8 @@ body.has-global-music-player #root > main:not(.music-page) {
 
 .music-player .music-controls .music-icon-button .music-icon {
   display: block;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 @media (max-width: 760px) {
