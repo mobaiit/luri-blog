@@ -64,8 +64,7 @@ Content-Type: application/json
     "meta": {},
     "art": "https://provider.example.com/artwork/track-001"
   },
-  "quality": "320k",
-  "refresh": false
+  "quality": "320k"
 }`;
 
 const resolveResponse = `{
@@ -332,6 +331,10 @@ export default function Docs() {
           <h3>解析播放资源</h3>
           <Endpoint method="POST" path="/v1/tracks/resolve">接收完整歌曲上下文。Provider 可优先使用 binding，也可按原始 title、artist、album 重新检索并返回新的 binding。</Endpoint>
           <Code>{resolveRequest}</Code>
+          <SchemaTable title="resolve 请求" rows={[
+            ['quality', 'string', '否', '期望音质；支持 128k、192k、320k、flac 和 flac24bit。'],
+            ['refresh', 'url | decode', '否', 'url 表示地址或网络失败，绕过缓存并保持原音质链；decode 表示浏览器无法解码，绕过缓存并将无损请求降级到 MP3 链。'],
+          ]} />
           <SchemaTable title="resolve 响应" rows={[
             ['songId', 'string', '是', '必须与请求歌曲一致。'],
             ['url', 'HTTPS URL | empty string', '是', '非空时可尝试播放；空字符串表示本次没有取得播放资源。'],
@@ -347,7 +350,7 @@ export default function Docs() {
           <Code>{resolveResponse}</Code>
           <p>HTTP 200 与空 URL仍可用于兼容简单 Provider；推荐使用 no_candidate、all_resolvers_failed、quality_unavailable、upstream_timeout 等稳定错误码，让客户端直接切歌、降级或稍后重试：</p>
           <Code>{emptyResolveResponse}</Code>
-          <div className="docs-retry-flow"><span>首次 resolve</span><i>→</i><span>明确业务错误则切歌</span><i>→</i><span>仅 URL 播放失败时 refresh=true</span><i>→</i><span>成功播放或结束重试</span></div>
+          <div className="docs-retry-flow"><span>首次 resolve</span><i>→</i><span>地址失败 refresh=url</span><i>→</i><span>解码失败 refresh=decode</span><i>→</i><span>成功播放或结束重试</span></div>
 
           <h3>歌词与封面</h3>
           <Endpoint method="GET" path="/v1/tracks/{songId}/lyrics?title=&artist=&album=&binding=&refresh=">返回 {`{ songId, lyrics, translation?, binding }`}；没有歌词时 lyrics 为空字符串，外部歌词回退结果的 binding 可以为 null。</Endpoint>

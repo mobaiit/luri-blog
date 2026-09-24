@@ -52,7 +52,7 @@
 - `GET /v1/catalog/search?q=&page=&limit=` 返回 `{ tracks, page, hasMore }`。
 - `GET /v1/catalog/random` 返回 `{ singer?, tracks }`。
 - `GET /v1/catalog/charts?platform=&chart=&refresh=` 返回 `{ platform, chart, title, updatedAt, tracks }`。
-- `POST /v1/tracks/resolve` 接收 `{ songId, title, artist, album, binding, quality?, refresh? }`。
+- `POST /v1/tracks/resolve` 接收 `{ songId, title, artist, album, binding, quality?, refresh? }`。`refresh` 可取 `url` 或 `decode`：`url` 表示地址过期、网络失败或加载超时，Provider 绕过缓存并保持原音质降级链；`decode` 表示浏览器无法解码或不支持媒体格式，Provider 绕过缓存，并将无损请求切换到 `320k → 192k → 128k`。
 - `GET /v1/tracks/{songId}/lyrics?title=&artist=&album=&binding=` 接收统一单曲上下文，返回 `{ songId, lyrics, translation?, binding }`；没有歌词时 `lyrics` 为空字符串，无法绑定到平台资源的外部歌词回退允许 `binding: null`。
 - `GET /v1/tracks/{songId}/artwork?title=&artist=&album=&binding=` 接收统一单曲上下文，返回 `{ songId, url, binding }`；没有封面时 `url` 为空字符串。
 
@@ -74,7 +74,7 @@
 }
 ```
 
-为兼容简单 Provider，HTTP 200 且 `url: ""` 仍表示本次没有取得可播放地址。推荐实现使用标准错误结构返回稳定错误码：`no_candidate` 表示没有找到任何资源绑定，`all_resolvers_failed` 表示候选存在但全部解析失败，`quality_unavailable` 表示请求档位及允许的降级档位均不可用，`upstream_timeout` 表示上游超时。客户端收到这些明确错误后可以直接切换歌曲，不再执行无意义的相同重试；只有 URL 已返回但浏览器播放失败时才使用 `refresh: true` 强制解析一次。每次用户播放操作最多执行一次强制刷新，禁止无限重试。歌词和封面的空字符串采用“当前没有资源”语义，但不触发音频播放重试。
+为兼容简单 Provider，HTTP 200 且 `url: ""` 仍表示本次没有取得可播放地址。推荐实现使用标准错误结构返回稳定错误码：`no_candidate` 表示没有找到任何资源绑定，`all_resolvers_failed` 表示候选存在但全部解析失败，`quality_unavailable` 表示请求档位及允许的降级档位均不可用，`upstream_timeout` 表示上游超时。客户端收到这些明确错误后可以直接切换歌曲，不再执行无意义的相同重试；URL 已返回但因地址、网络或超时失败时使用 `refresh: "url"`，浏览器报告解码失败或格式不支持时使用 `refresh: "decode"`。每次用户播放操作最多执行一次强制刷新，禁止无限重试。歌词和封面的空字符串采用“当前没有资源”语义，但不触发音频播放重试。
 
 榜单的平台和榜单标识由 Provider 定义。`refresh=1` 表示用户主动请求刷新，Provider 可以限制强制刷新频率。客户端按 Provider 配置、平台和榜单类型分别持久缓存成功响应；刷新失败时必须保留旧缓存。Provider 可以返回 `stale: true` 表示本次使用了上一次成功快照。
 

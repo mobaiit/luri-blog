@@ -11,6 +11,7 @@ const api = async (path, options = {}) => {
 };
 
 const PROVIDER_REQUEST_TIMEOUT_MS = 30 * 1000;
+const isRefreshRequest = (value) => value === true || value === 1 || value === '1' || value === 'url' || value === 'decode';
 const requestDeadline = (signal) => {
   const controller = new AbortController(); let timedOut = false;
   const relayAbort = () => controller.abort(signal?.reason);
@@ -86,7 +87,7 @@ export default class ProviderClient {
 
   async request(kind, params = {}, signal) {
     const cacheKey = this.cacheKey(kind, params);
-    const cached = this.cachedResponse(cacheKey, params.refresh === true || params.refresh === 1 || params.refresh === '1');
+    const cached = this.cachedResponse(cacheKey, isRefreshRequest(params.refresh));
     if (cached) return cached;
     const deadline = requestDeadline(signal);
     try {

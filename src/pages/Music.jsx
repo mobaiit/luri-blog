@@ -142,7 +142,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const [lyrics, setLyrics] = useState(''); const [translation, setTranslation] = useState(''); const [lyricsState, setLyricsState] = useState('');
   const lyricsRef = useRef(null); const musicListRef = useRef(null); const currentRowRef = useRef(null); const searchSuggestionsRef = useRef(null); const locatedTrackRef = useRef('');
   const searchInputRef = useRef(null); const controlButtonRefs = useRef({}); const controlFeedbackTimerRef = useRef(null);
-  const resolveRequestRef = useRef(null); const chartRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set()); const playbackRefreshIdsRef = useRef(new Set()); const artworkRefreshIdsRef = useRef(new Set());
+  const resolveRequestRef = useRef(null); const chartRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set()); const playbackRefreshModesRef = useRef(new Map()); const artworkRefreshIdsRef = useRef(new Set());
   const likedTracksRef = useRef(likedTracks); const favoriteMutationRef = useRef(0); const favoriteSyncRef = useRef({ syncing: false, pulling: false, timer: null, schedule: null, pull: null, dirtySince: (() => { try { return Number(localStorage.getItem(favoriteDirtyKey)) || 0; } catch { return 0; } })() });
   const loadingMoreRef = useRef(false); const activeSearchRef = useRef(query.trim()); const searchRequestRef = useRef(null);
   const mediaActionsRef = useRef({ play: () => {}, pause: () => {}, previous: () => {}, next: () => {} });
@@ -207,7 +207,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     setPlaybackTrackId(current.songId); setPlaybackState('resolving');
     const controller = new AbortController();
     resolveRequestRef.current = controller;
-    const refresh = playbackRefreshIdsRef.current.has(current.songId);
+    const refresh = playbackRefreshModesRef.current.get(current.songId) || false;
     musicRequest('resolve', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, quality: playbackQuality, binding: current.binding, refresh }, controller.signal).then(providerPayload).then((payload) => {
       if (!payload.url || Date.parse(payload.expiresAt || '') <= Date.now() + 5000) { const failure = new Error('播放地址不可用'); failure.code = 'url_expired'; throw failure; }
       if (!controller.signal.aborted) {
@@ -447,7 +447,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const hasAccess = () => !onRequireAccess || onRequireAccess() !== false;
   const selectTrack = (id, queue = null, mode = 'manual', preserveFailures = false) => {
     if (!hasAccess()) return;
-    if (!preserveFailures) { failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(id); }
+    if (!preserveFailures) { failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(id); }
     if (mode === 'manual') stopRandom();
     const sourceQueue = queue?.length ? queue : playbackQueue.some((track) => track.songId === id) ? null : activeTracks;
     const forSelectedQuality = (track) => track.songId === id && track.url && (track.requestedQuality !== playbackQuality || playbackUrlExpired(track)) ? { ...track, url: undefined } : track;
@@ -481,7 +481,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (playing) { audio.current?.pause(); return; }
     if (current && (!current.url || playbackUrlExpired(current))) {
       if (current.url) { const clearUrl = (track) => track.songId === current.songId ? { ...track, url: undefined } : track; setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl)); }
-      failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(current.songId); setPlaybackTrackId(current.songId); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1); return;
+      failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(current.songId); setPlaybackTrackId(current.songId); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1); return;
     }
     setPlaybackTrackId(currentId); setPlaybackState('loading'); beginMediaDeadline(currentId);
     if (audio.current && current?.url && !audio.current.getAttribute('src')) { ignoreAudioErrorRef.current = false; audio.current.src = current.url; audio.current.load(); }
@@ -508,12 +508,12 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (error?.name === 'NotAllowedError') { setPlaying(false); setPlaybackState('paused'); return; }
     ignoreAudioErrorRef.current = true;
     window.setTimeout(() => { ignoreAudioErrorRef.current = false; }, 1000);
-    handlePlaybackFailure('播放地址无法加载，已尝试刷新音源');
+    handlePlaybackFailure('播放地址无法加载，已尝试刷新音源', error?.name === 'NotSupportedError' ? 'decode' : 'url');
   }
   playRejectionRef.current = handlePlayRejection;
-  const retryWithRefresh = () => {
-    if (!current || playbackRefreshIdsRef.current.has(current.songId)) return false;
-    playbackRefreshIdsRef.current.add(current.songId);
+  const retryWithRefresh = (mode = 'url') => {
+    if (!current || playbackRefreshModesRef.current.has(current.songId)) return false;
+    playbackRefreshModesRef.current.set(current.songId, mode);
     const clearUrl = (track) => track.songId === current.songId ? { ...track, url: undefined } : track;
     setTracks((items) => items.map(clearUrl));
     setLikedTracks((items) => items.map(clearUrl));
@@ -539,9 +539,9 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!nextTrack) { setPlaybackState('error'); return; }
     showToast(message, 'warning'); selectTrack(nextTrack.songId, null, playMode.current, true);
   }
-  function handlePlaybackFailure(message) {
+  function handlePlaybackFailure(message, refreshMode = 'url') {
     setPlaying(false);
-    if (retryWithRefresh()) return;
+    if (retryWithRefresh(refreshMode)) return;
     discardCurrentUrl();
     if (playMode.current === 'random') { playNextRandom(); return; }
     skipFailedTrack(message);
@@ -692,7 +692,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       next: () => { pulseControl('next'); next(); },
     };
   });
-  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}${isSearching ? ' is-searching' : ''}${chartLoading ? ' is-chart-loading' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(currentId); setPlaybackState('playing'); }} onError={() => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); handlePlaybackFailure(); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={() => { clearMediaDeadline(); next(); }} /><Toast toast={toast} onClose={() => setToast(null)} />
+  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}${isSearching ? ' is-searching' : ''}${chartLoading ? ' is-chart-loading' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(currentId); setPlaybackState('playing'); }} onError={(event) => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); const mediaError = event.currentTarget.error?.code; handlePlaybackFailure(undefined, mediaError === 3 || mediaError === 4 ? 'decode' : 'url'); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={() => { clearMediaDeadline(); next(); }} /><Toast toast={toast} onClose={() => setToast(null)} />
   <section className="music-shell">
       <section className="music-content">
         <header className="music-header">
