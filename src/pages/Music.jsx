@@ -517,10 +517,14 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!current) return false;
     const previous = playbackRefreshModesRef.current.get(current.songId);
     const failedQuality = current.quality || playbackQuality;
-    if (previous?.mode === mode && previous?.quality === failedQuality) return false;
+    // Some malformed or unsupported media URLs stay HTTP-reachable and only
+    // surface as a loading timeout. After one URL refresh at the same tier,
+    // promote the next recovery to decode so the quality chain can continue.
+    const recoveryMode = mode === 'url' && previous?.mode === 'url' && previous?.quality === failedQuality ? 'decode' : mode;
+    if (previous?.mode === recoveryMode && previous?.quality === failedQuality) return false;
     const attempts = Number(previous?.attempts || 0) + 1;
     if (attempts > 5) return false;
-    playbackRefreshModesRef.current.set(current.songId, { mode, quality: failedQuality, attempts });
+    playbackRefreshModesRef.current.set(current.songId, { mode: recoveryMode, quality: failedQuality, attempts });
     const clearUrl = (track) => track.songId === current.songId ? { ...track, url: undefined } : track;
     setTracks((items) => items.map(clearUrl));
     setLikedTracks((items) => items.map(clearUrl));
