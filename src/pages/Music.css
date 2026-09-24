@@ -3921,7 +3921,7 @@ body.has-global-music-player #root > main:not(.music-page) {
   height: 2rem;
   padding: 0 !important;
   border-color: transparent !important;
-  color: #cf3f4f !important;
+  color: #f01836 !important;
   font-size: 0 !important;
 }
 
@@ -3963,19 +3963,23 @@ body.has-global-music-player #root > main:not(.music-page) {
 }
 
 @media (min-width: 761px) {
-  .music-list-head {
-    height: 1.15rem !important;
-    min-height: 1.15rem !important;
-    padding: 0 0 0.2rem !important;
+  .music-search {
+    border-bottom-color: var(--color-text) !important;
+  }
+
+  .music-list-head:not(.music-list-head--charts) {
+    height: 0.75rem !important;
+    min-height: 0.75rem !important;
+    padding: 0 !important;
   }
 }
 
-/* Patch: darken download and like buttons */
+/* Keep downloads neutral while favourites stay vivid in both states. */
 .music-download-button {
   color: var(--color-text) !important;
 }
 .like-button {
-  color: var(--color-text) !important;
+  color: #f01836 !important;
 }
 
 /* Patch: header supports chart controls as second row */
