@@ -38,6 +38,7 @@ export default function App() {
   const isDocsPage = location.pathname === '/docs';
   const isBlogPage = location.pathname === '/' || location.pathname === '/about' || location.pathname === '/blog' || location.pathname.startsWith('/blog/');
   const showBlogNavbar = musicConfig.blogEnabled && (!isMusicPage || musicConfig.blogNavigationEnabled);
+  const showMusicPlayer = musicConfig.enabled && !isDocsPage && (isMusicPage || musicConfig.navigationEnabled);
   if (isLegacyMusicPage) return <Navigate to="/music" replace />;
   if (!musicConfig.blogEnabled && isBlogPage) return musicConfig.enabled ? <Navigate to="/music" replace /> : <Routes><Route path="*" element={<main className="ui-loading-screen"><p>页面暂不可用</p></main>} /></Routes>;
   if (!musicConfig.postsEnabled && (location.pathname === '/blog' || location.pathname.startsWith('/blog/'))) return <Navigate to="/" replace />;
@@ -68,8 +69,8 @@ export default function App() {
           }
         />
       </Routes>
-      {musicConfig.enabled && !isDocsPage && <LuriMusic active={isMusicPage} accessRequired={musicConfig.accessRequired} standalone={isMusicPage && !showBlogNavbar} docsEnabled={musicConfig.docsEnabled} />}
-      {musicConfig.enabled && !isDocsPage && <GlobalMusicCollapse />}
+      {showMusicPlayer && <LuriMusic active={isMusicPage} accessRequired={musicConfig.accessRequired} standalone={isMusicPage && !showBlogNavbar} docsEnabled={musicConfig.docsEnabled} />}
+      {showMusicPlayer && <GlobalMusicCollapse />}
       {musicConfig.blogEnabled && !isMusicPage && <Footer />}
     </>
   );

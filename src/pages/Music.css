@@ -3986,6 +3986,7 @@ body.has-global-music-player #root > main:not(.music-page) {
 .music-list-head.music-list-head--charts {
   display: block;
   box-sizing: border-box;
+  flex: 0 0 auto;
   height: auto;
   min-height: 0;
   padding: 0 0 10px !important;
@@ -3993,6 +3994,7 @@ body.has-global-music-player #root > main:not(.music-page) {
   border-bottom: 1px solid var(--color-text);
 }
 .music-list-head--charts .music-chart-controls {
+  flex: 0 0 auto;
   width: 100%;
   margin: 0;
   padding: 0;
@@ -4043,6 +4045,17 @@ body.has-global-music-player #root > main:not(.music-page) {
     flex-direction: column !important;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .music-results > .music-list {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* Keep the progress rail fixed while lifting only the music-page details. */
+  body:not(.has-global-music-player) .music-player__song,
+  body:not(.has-global-music-player) .music-player .music-controls {
+    transform: translateY(-8px);
   }
 
   /* Span all three rows so the lyrics track aligns with the search box. */
