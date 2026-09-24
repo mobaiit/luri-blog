@@ -368,7 +368,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     };
   }, [favoriteSyncEnabled, favoriteBackupUpdatedAt, favoriteDirtyKey, favoriteNamespace, favoriteSyncedKey]);
   useEffect(() => { if (listView === 'likes') void favoriteSyncRef.current.pull?.(); }, [favoriteSyncEnabled, listView]);
-  useEffect(() => { if (!audio.current) return; audio.current.volume = volume; audio.current.muted = muted; }, [volume, muted]);
+  useEffect(() => { if (!audio.current) return; audio.current.volume = volume ** 2; audio.current.muted = muted; }, [volume, muted]);
   useEffect(() => { document.documentElement.style.setProperty('--music-progress', `${duration ? Math.min(100, Math.max(0, progress / duration * 100)) : 0}%`); }, [duration, progress]);
   useEffect(() => { const title = document.querySelector('.music-row.current .track-title'); setTitleOverflows(Boolean(title && title.scrollWidth > title.clientWidth)); }, [currentId, results, tracks, chartData]);
   useEffect(() => {
@@ -636,9 +636,9 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   };
   const search = async (event) => {
     event.preventDefault(); const keyword = query.trim(); if (!keyword) return;
-    setQuery(''); setSearchFocused(false); setActiveSingerSuggestion(-1); await runSearch(keyword);
+    setSearchFocused(false); setActiveSingerSuggestion(-1); await runSearch(keyword);
   };
-  const chooseSearchSuggestion = (keyword) => { setQuery(''); setSearchFocused(false); setActiveSingerSuggestion(-1); runSearch(keyword); };
+  const chooseSearchSuggestion = (keyword) => { setQuery(keyword); setSearchFocused(false); setActiveSingerSuggestion(-1); runSearch(keyword); };
   const clearSearchInput = () => { setQuery(''); setActiveSingerSuggestion(-1); setSearchFocused(true); searchInputRef.current?.focus(); };
   const handleSearchKeyDown = (event) => {
     if (event.key === 'Escape') { setSearchFocused(false); setActiveSingerSuggestion(-1); event.currentTarget.blur(); return; }
@@ -692,7 +692,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   <section className="music-shell">
       <section className="music-content">
         <header className="music-header">
-          <div><p className="music-kicker">LURI MUSIC</p><h1>{pageTitle}</h1>{headerNotice}</div>
+          {!isMusicPage && <div><p className="music-kicker">LURI MUSIC</p><h1>{pageTitle}</h1>{headerNotice}</div>}
           <form className="music-search" onSubmit={search}><input ref={searchInputRef} value={query} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} onChange={(event) => { setQuery(event.target.value); setActiveSingerSuggestion(-1); }} onKeyDown={handleSearchKeyDown} placeholder={TEXT.searchHint} autoComplete="off" aria-autocomplete="list" aria-expanded={searchFocused && singerSuggestions.length > 0} />{query && <button className="music-search-clear" type="button" onMouseDown={(event) => event.preventDefault()} onClick={clearSearchInput} aria-label="清空搜索内容" title="清空"><MusicIcon name="close" /></button>}<button className="music-icon-button" type="submit" onMouseDown={(event) => event.preventDefault()} disabled={isSearching} aria-label={isSearching ? '正在搜索' : TEXT.search} title={isSearching ? '正在搜索' : TEXT.search}>{isSearching ? <span className="music-spinner" aria-hidden="true" /> : <MusicIcon name="search" />}</button><button className="music-random-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={startRandom} disabled={randomLoading} aria-label="随机搜索并播放音乐" title="随机发现">{randomLoading ? <span className="music-spinner" aria-hidden="true" /> : <><MusicIcon name="random" /><span>随机发现</span></>}</button>{searchFocused && (singerSuggestions.length > 0 || (!singerQuery && recentSearches.length > 0)) && <div className="music-search-history" ref={searchSuggestionsRef} onMouseDown={(event) => event.preventDefault()}>{singerSuggestions.length > 0 ? <><div className="music-search-history__head"><span>歌手</span></div>{singerSuggestions.map((singer, index) => <button className={`music-search-history__item${index === activeSingerSuggestion ? ' active' : ''}`} type="button" key={singer} onClick={() => chooseSearchSuggestion(singer)}>{singer}</button>)}</> : <><div className="music-search-history__head"><span>最近搜索</span><button type="button" onClick={() => setRecentSearches([])}>清除</button></div>{recentSearches.map((item) => <button className="music-search-history__item" type="button" key={item} onClick={() => chooseSearchSuggestion(item)}>{item}</button>)}</>}</div>}</form>
         </header>
         <aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className={`music-nav${listView === 'queue' || listView === 'search' ? ' active' : ''}`} onClick={() => { setListView('queue'); }}>播放列表<span>{tracks.length}</span></button><button className={`music-nav${listView === 'likes' ? ' active' : ''}`} onClick={() => { setListView('likes'); }}>我喜欢<span>{likedTracks.length}</span></button><button className={`music-nav${listView === 'netease' ? ' active' : ''}`} onClick={openNetease}>网易<span>{listView === 'netease' ? chartData.tracks.length || '' : ''}</span></button><button className={`music-nav${listView === 'qq' ? ' active' : ''}`} onClick={openQQ}>QQ<span>{listView === 'qq' ? chartData.tracks.length || '' : ''}</span></button><div className="music-divider" /></aside>

@@ -3855,9 +3855,10 @@ body.has-global-music-player #root > main:not(.music-page) {
 }
 
 .music-search {
-  padding: 5px 7px 5px 12px !important;
-  border: 1px solid var(--color-border) !important;
-  border-radius: 12px;
+  padding: 6px 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  border-radius: 0;
 }
 
 .music-search-clear {
@@ -3923,6 +3924,14 @@ body.has-global-music-player #root > main:not(.music-page) {
   }
 }
 
+@media (min-width: 761px) {
+  .music-list-head {
+    height: 1.15rem !important;
+    min-height: 1.15rem !important;
+    padding: 0 0 0.2rem !important;
+  }
+}
+
 /* Patch: darken download and like buttons */
 .music-download-button {
   color: var(--color-text) !important;
@@ -3980,7 +3989,7 @@ body.has-global-music-player #root > main:not(.music-page) {
     grid-column: 1 !important;
     grid-row: 2 !important;
     align-self: start;
-    padding-bottom: 0.35rem !important;
+    padding-bottom: 0 !important;
   }
 
   /* Dissolve the workspace box; children join the content grid directly. */
