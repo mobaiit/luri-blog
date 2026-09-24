@@ -18,6 +18,6 @@ Provider 在 `authentication.types` 中声明 `api_key`。用户可以选择 API
 - 已使用激活码配合新的 `idempotencyKey` 返回 `409 activation_code_used`。
 - `clientAccount` 仅供 Provider 后台展示和审计，不是可验证的用户身份凭证。
 
-`POST /v1/auth/refresh` 使用 refresh token 获取短期 access token。`POST /v1/auth/revoke` 撤销当前账号级凭证。`GET /v1/account` 返回权限状态、有效期与额度。
+`POST /v1/auth/refresh` 使用 refresh token 获取短期 access token。`POST /v1/auth/revoke` 撤销当前账号级凭证。`GET /v1/account` 返回权限状态与有效期。
 
 Access token 建议 15 分钟内有效；refresh token 必须使用高熵随机值，Provider 只保存摘要。LURI MUSIC 服务端使用 AES-GCM 加密保存长期凭证并关联当前登录用户，浏览器只取得完成当前 Provider 请求所需的短期凭证。激活码明文不得持久化。

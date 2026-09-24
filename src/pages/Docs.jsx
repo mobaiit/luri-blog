@@ -3,8 +3,7 @@ import './Docs.css';
 
 const manifestExample = `{
   "protocol": "music-provider",
-  "protocolVersion": "2.0",
-  "identity": "md5-json-title-artist",
+  "protocolVersion": "1.0",
   "provider": {
     "id": "example-library",
     "name": "Example Library",
@@ -15,9 +14,11 @@ const manifestExample = `{
     "apiKey": { "header": "X-API-Key", "prefix": "" },
     "accessTokenSeconds": 900
   },
-  "capabilities": ["search", "random", "charts", "lyrics", "artwork", "playback", "binding_refresh"],
+  "capabilities": ["search", "random", "charts", "lyrics", "artwork", "playback"],
   "playback": { "mode": "direct", "qualities": ["128k", "192k", "320k", "flac", "flac24bit"] },
   "endpoints": {
+    "terms": "https://provider.example.com/terms",
+    "privacy": "https://provider.example.com/privacy",
     "activate": "https://provider.example.com/v1/auth/activate",
     "refresh": "https://provider.example.com/v1/auth/refresh",
     "account": "https://provider.example.com/v1/account",
@@ -32,7 +33,7 @@ const manifestExample = `{
 
 const trackExample = `{
   "tracks": [{
-    "id": "7617b78a3ccfab68a9b9914a327ca27e",
+    "id": "track-001",
     "title": "Track title",
     "artist": "Artist",
     "album": "Album",
@@ -45,13 +46,13 @@ const trackExample = `{
 }`;
 
 const chartExample = `{
-  "platform": "netease",
-  "chart": "hot",
-  "title": "网易云音乐热歌榜",
+  "platform": "example",
+  "chart": "popular",
+  "title": "Popular Tracks",
   "updatedAt": "2026-09-23T10:30:00Z",
   "tracks": [{
     "rank": 1,
-    "id": "7617b78a3ccfab68a9b9914a327ca27e",
+    "id": "track-001",
     "title": "Track title",
     "artist": "Artist",
     "album": "Album",
@@ -115,7 +116,7 @@ export default function Docs() {
 
         <section id="provider-types"><h2>连接方式</h2><p>同一账号可保存多个 Provider，但同一时间只启用一个。官方源和 HTTPS 私有源可选择无认证、API Key 或 Authorization，激活码放在最后作为独立授权入口。</p><div className="docs-cards"><article><i>01</i><h3>官方源</h3><p>连接符合协议的正式 Provider 服务，可按其声明选择认证参数。</p><code>none / api_key</code></article><article><i>02</i><h3>HTTPS 私有源</h3><p>连接自建或私有 HTTPS Provider，可自定义认证请求头和前缀。</p><code>none / api_key</code></article><article><i>03</i><h3>激活码</h3><p>使用 Provider 签发的一次性凭证领取独立授权。</p><code>activation_code</code></article></div><div className="docs-note"><b>凭证安全</b><span>API Key、Authorization 凭证和 refresh token 均由 LURI MUSIC 服务端加密保存，不会写入浏览器存储或 URL。</span></div></section>
 
-        <section id="usage"><h2>使用说明</h2><h3>添加、编辑与切换</h3><p>Provider 地址应填写服务根地址，例如 <code>https://provider.example.com</code>。客户端会读取标准发现文件并核对协议版本、认证能力及接口地址。编辑配置时会先验证新地址和凭证，验证失败不会覆盖原配置。</p><h3>搜索与播放</h3><p>搜索、随机发现、歌曲详情、播放地址、歌词和封面均由当前 Provider 按其能力声明返回。播放列表和播放状态保存在浏览器中；切换 Provider 后，客户端会使用独立的存储命名空间，避免不同服务的数据混淆。</p><h3>音乐榜单与缓存</h3><p>音乐榜单支持网易和 QQ 音乐的飙升榜、新歌榜、原创榜及热歌榜。每个平台和榜单使用独立的浏览器持久缓存；首次进入时向 Provider 请求，之后直接读取缓存，不自动过期或后台刷新。只有点击“刷新”才会重新请求；刷新失败时继续展示上次缓存。点击榜单歌曲后，当前完整榜单成为上一首、下一首的播放队列。</p><h3>删除配置</h3><p>删除操作会移除 LURI MUSIC 加密保存的连接凭证。已使用的激活码不能再次兑换，删除后无法通过原激活码恢复。</p></section>
+        <section id="usage"><h2>使用说明</h2><h3>添加、编辑与切换</h3><p>Provider 地址应填写服务根地址，例如 <code>https://provider.example.com</code>。客户端会读取标准发现文件并核对协议版本、认证能力及接口地址。编辑配置时会先验证新地址和凭证，验证失败不会覆盖原配置。</p><h3>搜索与播放</h3><p>搜索、随机发现、榜单、播放地址、歌词和封面均由当前 Provider 按其能力声明返回。客户端不关心 Provider 使用的数据源、解析脚本、缓存服务或内部存储结构，只按协议请求并展示结果。</p><h3>本地数据</h3><p>播放队列、播放状态和短期资源缓存保存在浏览器中；切换 Provider 后使用独立的存储命名空间。登录用户的收藏以账户服务中的数据为准，并同步到浏览器作为本地缓存。</p><h3>删除配置</h3><p>删除操作会移除 LURI MUSIC 加密保存的连接凭证。已使用的激活码不能再次兑换，删除后无法通过原激活码恢复。</p></section>
 
         <section id="protocol"><h2>协议概览</h2><p>Music Provider Protocol 是基于 HTTPS 与 JSON 的开放接口约定。客户端不会下载或执行 Provider 提供的远程 JavaScript，所有能力通过声明式清单和固定 HTTP 接口完成。</p><ul><li>协议标识固定为 <code>music-provider</code>。</li><li>1.x 客户端忽略未知字段，兼容新增的可选能力。</li><li>发现文件和所有接口必须使用 HTTPS 且保持同源。</li><li>Provider 应仅声明自己确实实现的能力与端点。</li></ul></section>
 
@@ -137,12 +138,12 @@ export default function Docs() {
           ['endpoints.search', 'HTTPS URL', '是', '搜索接口地址。'],
           ['endpoints.resolve', 'HTTPS URL', '是', '播放地址解析接口。'],
           ['endpoints.random', 'HTTPS URL', '否', '随机发现接口；声明 random 能力时应提供。'],
-          ['endpoints.charts', 'HTTPS URL', '否', '音乐榜单接口；声明 charts 能力时应提供。旧版清单可使用默认路径 /v1/catalog/charts。'],
+          ['endpoints.charts', 'HTTPS URL', '否', '榜单接口；声明 charts 能力时应提供。'],
           ['endpoints.lyrics', 'URL template', '否', '歌词接口，以 {id} 表示曲目标识。'],
           ['endpoints.artwork', 'URL template', '否', '封面接口，以 {id} 表示曲目标识。'],
           ['endpoints.activate', 'HTTPS URL', '条件', '使用 activation_code 时必填的激活码兑换接口。'],
           ['endpoints.refresh', 'HTTPS URL', '条件', '使用 activation_code 时必填的访问令牌刷新接口。'],
-          ['endpoints.account', 'HTTPS URL', '否', '授权状态、有效期与额度查询接口。'],
+          ['endpoints.account', 'HTTPS URL', '否', '授权状态与有效期查询接口。'],
         ]} /><div className="docs-note"><b>地址校验规则</b><span>发现文件及所有端点必须使用 HTTPS、与填写的 Provider 地址保持同源，并直接返回最终响应。端点模板中仅使用文档约定的占位符。</span></div></section>
 
         <section id="authentication"><h2>认证协议</h2><p>Provider 可声明无认证、API Key 或激活码。API Key 模式支持自定义安全请求头和前缀；Authorization 使用 <code>Authorization</code> 请求头，默认前缀为 <code>Bearer </code>。凭证不得放入 URL。</p><h3>激活码模式</h3><Endpoint method="POST" path="/v1/auth/activate">使用一次性激活码领取独立授权，并换取短期访问令牌和长期刷新令牌。</Endpoint><SchemaTable title="请求体 · application/json" rows={[
@@ -164,7 +165,6 @@ export default function Docs() {
         ]} /><Endpoint method="GET" path="/v1/account">使用当前访问令牌查询 Provider 账号状态。</Endpoint><SchemaTable title="账号响应" rows={[
           ['status', 'string', '建议', '账号状态，推荐 active、inactive、suspended。'],
           ['expiresAt', 'ISO 8601 string | null', '否', '服务有效期的 UTC 时间；永久有效可返回 null 或省略。'],
-          ['plan', 'string', '否', '套餐或服务等级的展示名称。'],
         ]} /><div className="docs-note"><b>幂等规则</b><span>同一激活码与同一 idempotencyKey 重试时，Provider 应视为同一次操作并重新签发凭证；已使用激活码配合新的 idempotencyKey 必须返回 409 activation_code_used。</span></div><p><code>clientAccount</code> 是客户端声明的信息，不构成 Provider 对用户身份的独立证明。Provider 负责激活码和 Token，客户端负责将加密 refresh token 绑定到自己的登录用户。</p></section>
 
         <section id="api"><h2>接口文档</h2><p>以下内容接口由浏览器直接请求。JSON 响应应使用 UTF-8 编码及 <code>application/json</code> 内容类型。</p><h3>分页搜索</h3><Endpoint method="GET" path="/v1/catalog/search?q={keyword}&page={page}&limit={limit}">按关键词返回分页曲目列表。播放器接近列表底部时，会递增 page 自动加载下一页。</Endpoint><SchemaTable title="查询参数" rows={[
@@ -181,8 +181,8 @@ export default function Docs() {
           ['tracks', 'Track[]', '响应必填', '可随机选择并播放的候选曲目。'],
           ['singer', 'string', '响应可选', '本次推荐使用的艺人标识，客户端会用于后续去重。'],
         ]} /><Code>{trackExample}</Code><h3>音乐榜单</h3><Endpoint method="GET" path="/v1/catalog/charts?platform={platform}&chart={chart}&refresh={refresh}">返回指定平台和类型的完整榜单。客户端持久缓存成功响应，只有用户主动刷新时才传入 refresh=1。</Endpoint><SchemaTable title="榜单查询参数" rows={[
-          ['platform', 'string', '是', '平台标识：netease 或 qq。'],
-          ['chart', 'string', '是', '榜单类型：rising、new、original 或 hot。'],
+          ['platform', 'string', '是', 'Provider 定义的平台或目录标识。'],
+          ['chart', 'string', '是', 'Provider 定义的榜单标识。'],
           ['refresh', '0 | 1', '否', '值为 1 时请求 Provider 跳过普通榜单缓存；Provider 应限制强制刷新频率。'],
         ]} /><SchemaTable title="榜单响应字段" rows={[
           ['platform', 'string', '是', '实际返回的平台标识。'],
@@ -192,26 +192,26 @@ export default function Docs() {
           ['tracks', 'Track[]', '是', '按排名顺序返回的完整曲目数组。'],
           ['tracks[].rank', 'integer', '是', '从 1 开始的榜单排名。'],
         ]} /><Code>{chartExample}</Code><SchemaTable title="Track 对象" rows={[
-          ['id', 'string', '是', 'MD5(JSON.stringify([title, artist]))；标题与歌手不做任何格式归一化。'],
+          ['id', 'string', '是', 'Provider 返回的稳定曲目标识；客户端原样保存和回传，不规定生成算法。'],
           ['title', 'string', '是', '歌曲或音频标题。'],
           ['artist', 'string', '是', '艺人、作者或节目名称。'],
           ['album', 'string', '否', '专辑、节目系列或作品集名称。'],
           ['duration', 'number', '否', '音频时长，单位为秒。'],
           ['artwork', 'HTTPS URL', '否', '通用封面地址；建议同时返回 art 以兼容当前播放器。'],
           ['art', 'HTTPS URL', '否', '当前播放器直接使用的封面字段。'],
-          ['binding', 'object', '是', '当前可用音源绑定，包含 source、sourceId、meta 和可选 art；它不是歌曲身份。'],
+          ['binding', 'object', '是', '标准资源绑定；包含 source、sourceId 和可选 meta、art，其中 meta 由 Provider 自行定义。'],
           ['year', 'string | number', '否', '发行或发布年份。'],
         ]} /><h3>获取播放资源</h3><Endpoint method="POST" path="/v1/tracks/resolve">根据 Provider 自身的合法内容授权返回当前条目的短期播放地址。请求和响应均为 JSON。</Endpoint><SchemaTable title="请求体" rows={[
-          ['songId', 'string', '是', 'Track.id，即歌曲稳定内部 ID。'],
-          ['title', 'string', '是', '原始曲目标题，必须与 songId 对应。'],
-          ['artist', 'string', '是', '原始艺人名称，必须与 songId 对应。'],
+          ['songId', 'string', '是', 'Track.id；客户端不会推断其生成规则。'],
+          ['title', 'string', '是', 'Track.title，供 Provider 定位或校验条目。'],
+          ['artist', 'string', '是', 'Track.artist，供 Provider 定位或校验条目。'],
           ['quality', 'string', '否', '请求的音质标识，应来自 playback.qualities。'],
-          ['binding', 'object', '是', 'Track.binding；Provider 优先用它刷新原平台资源。'],
+          ['binding', 'object', '是', 'Track.binding；客户端保留标准字段，并将 Provider 自定义的 meta 原样回传。'],
           ['refresh', 'boolean', '否', '音频地址失效时为 true，跳过播放结果缓存并重新解析。'],
         ]} /><SchemaTable title="成功响应" rows={[
           ['url', 'HTTPS URL', '是', '浏览器可直接播放的音频地址，应支持媒体流或 Range 请求。'],
           ['songId', 'string', '是', '对应的稳定歌曲 ID。'],
-          ['binding', 'object', '是', '本次成功解析所使用的音源绑定。'],
+          ['binding', 'object', '建议', 'Provider 更新后的资源上下文；返回时客户端会替换旧值。'],
           ['expiresIn', 'integer', '是', '建议客户端缓存该播放地址的秒数。'],
           ['bitrate', 'integer', '否', '实际码率，单位 kbps。'],
           ['quality', 'string', '否', '实际返回的音质标识。'],
@@ -245,7 +245,7 @@ export default function Docs() {
   }
 }`}</Code><div className="docs-table"><div><b>400</b><span>请求参数或协议格式错误</span></div><div><b>401</b><span>凭证无效或已经过期</span></div><div><b>403</b><span>激活码无效或权限不可用</span></div><div><b>404</b><span>曲目或资源不存在</span></div><div><b>409</b><span>激活码已经被其他操作使用</span></div><div><b>429</b><span>请求频率超限</span></div><div><b>5xx</b><span>Provider 内部或上游服务异常</span></div></div></section>
 
-        <footer className="docs-footer"><span>Music Provider Protocol 2.0</span><a href="mailto:luri@luri.cc.cd">问题反馈：luri@luri.cc.cd</a></footer>
+        <footer className="docs-footer"><span>Music Provider Protocol 1.0</span><a href="mailto:luri@luri.cc.cd">问题反馈：luri@luri.cc.cd</a></footer>
       </article>
       <aside className="docs-outline"><p>本页目录</p>{nav.slice(3).map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}</aside>
     </div>

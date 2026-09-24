@@ -60,7 +60,7 @@ export default class ProviderClient {
     const cached = this.cachedResponse(cacheKey, params.refresh === true || params.refresh === 1 || params.refresh === '1');
     if (cached) return cached;
     const access = await this.authorization(); const endpoints = access.endpoints || {}; let target; const headers = { accept: 'application/json' };
-    const endpoint = endpoints[kind] || (kind === 'charts' ? new URL('/v1/catalog/charts', this.config.providerUrl).href : '');
+    const endpoint = endpoints[kind] || '';
     if (!endpoint) return new Response(JSON.stringify({ error: `当前 Provider 不支持 ${kind} 能力` }), { status: 501, headers: { 'content-type': 'application/json' } });
     if (access.authorization?.header) headers[access.authorization.header] = `${access.authorization.prefix || ''}${access.token}`;
     else if (access.token) headers.authorization = `Bearer ${access.token}`;
