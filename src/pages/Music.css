@@ -3649,7 +3649,11 @@ body.has-global-music-player #root > main:not(.music-page) {
   padding: 0;
   appearance: none;
   -webkit-appearance: none;
-  background: var(--color-border);
+  background: linear-gradient(
+    to right,
+    var(--color-text) 0 var(--music-progress),
+    var(--color-border) var(--music-progress) 100%
+  );
   accent-color: var(--color-text);
   border-radius: 999px;
   cursor: pointer;
@@ -3670,6 +3674,12 @@ body.has-global-music-player #root > main:not(.music-page) {
   border-radius: 50%;
   background: var(--color-text);
   cursor: pointer;
+}
+
+.music-player__progress input[type="range"]::-moz-range-progress {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--color-text);
 }
 
 /* Time display next to transport controls */
@@ -3874,6 +3884,25 @@ body.has-global-music-player #root > main:not(.music-page) {
 .music-search-clear .music-icon {
   width: 0.9rem;
   height: 0.9rem;
+}
+
+.music-nav {
+  font-size: 0.7rem !important;
+}
+
+.music-page.is-searching .music-empty strong {
+  font-size: 0;
+}
+
+.music-page.is-searching .music-empty strong::after {
+  content: "正在搜索…";
+  font-size: var(--font-size-base);
+}
+
+.music-page.is-searching .music-empty span,
+.music-page.is-chart-loading .music-empty span,
+.music-page.is-chart-loading .music-search-status {
+  display: none;
 }
 
 .like-button {
