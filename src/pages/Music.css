@@ -3686,11 +3686,17 @@ body.has-global-music-player #root > main:not(.music-page) {
 
 /* Time display next to transport controls */
 .music-player__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
   font-size: 0.68rem;
   color: var(--color-text-muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   margin-right: 0.3rem;
+}
+.music-player__time i {
+  font-style: normal;
 }
 
 /* Chart controls placed inside music-results (above the list) */
@@ -4006,6 +4012,14 @@ body.has-global-music-player #root > main:not(.music-page) {
   padding-top: 3px;
   padding-bottom: 3px;
 }
+.music-list-head--charts .music-chart-switch button {
+  box-sizing: border-box;
+  height: 1.5rem;
+  min-height: 1.5rem;
+  padding: 0.25rem 0.45rem;
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
 
 /* ─── Desktop: lyrics panel starts at the search box, not the workspace ───
    .music-content becomes a 2-column grid; .music-workspace is dissolved with
@@ -4087,5 +4101,38 @@ body.has-global-music-player #root > main:not(.music-page) {
 @media (min-width: 961px) {
   .music-content {
     grid-template-columns: 480px 390px !important;
+  }
+}
+
+/* Mobile transport controls match the lyrics button without moving progress. */
+@media (max-width: 760px) {
+  body:not(.has-global-music-player) .music-player .music-player__time {
+    display: inline-flex !important;
+    flex-direction: column;
+    gap: 0;
+    min-width: 2.2rem;
+    margin-right: 0 !important;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  body:not(.has-global-music-player) .music-player .music-player__time i {
+    display: none;
+  }
+
+  body:not(.has-global-music-player) .music-player .music-controls .music-icon-button,
+  body:not(.has-global-music-player) .music-player .music-controls .play-button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  body:not(.has-global-music-player) .music-player .music-controls .music-icon-button,
+  body:not(.has-global-music-player) .music-player .music-controls .play-button {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
   }
 }
