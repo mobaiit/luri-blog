@@ -3826,6 +3826,103 @@ body.has-global-music-player #root > main:not(.music-page) {
 /* Patch: remove player border */
 .music-player { border-top: 0 !important; }
 
+/* Interaction polish: vertical-only lyrics, rounded controls and visible media-key feedback. */
+.music-lyrics,
+.lyrics-body,
+.music-page.mobile-view-now {
+  max-width: 100%;
+  overflow-x: hidden !important;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+}
+
+.lyrics-body {
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+}
+
+.music-header h1 {
+  display: inline-block;
+  padding: 0.12em 0.3em;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.music-page button,
+.music-player button,
+.music-page .music-download-button {
+  border-radius: 10px;
+}
+
+.music-search {
+  padding: 5px 7px 5px 12px !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 12px;
+}
+
+.music-search-clear {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 !important;
+  color: var(--color-text-muted) !important;
+}
+
+.music-search-clear .music-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.like-button {
+  display: inline-grid !important;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0 !important;
+  border-color: transparent !important;
+  color: #cf3f4f !important;
+  font-size: 0 !important;
+}
+
+.like-button::before {
+  content: none !important;
+}
+
+.like-button .music-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: transparent;
+  stroke: currentColor;
+  transition: transform 0.16s ease, fill 0.16s ease;
+}
+
+.like-button.liked .music-icon {
+  fill: currentColor;
+  transform: scale(1.08);
+}
+
+.music-player .music-controls .music-icon-button:active {
+  transform: scale(0.9) !important;
+}
+
+.music-player .music-controls .music-icon-button.is-control-feedback {
+  animation: music-control-feedback 0.26s ease-out;
+}
+
+@keyframes music-control-feedback {
+  0% { transform: scale(1); background: var(--color-surface); }
+  42% { transform: scale(0.86); background: #e9e7e1; }
+  100% { transform: scale(1); background: var(--color-surface); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .music-player .music-controls .music-icon-button.is-control-feedback {
+    animation-duration: 0.01ms;
+  }
+}
+
 /* Patch: darken download and like buttons */
 .music-download-button {
   color: var(--color-text) !important;

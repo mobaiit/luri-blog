@@ -85,12 +85,19 @@
 .lm-site-bar > strong {
   display: block;
   margin-right: auto;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
   color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   font-family: var(--font-serif);
   white-space: nowrap;
+}
+
+.luri-music-clone :where(button, .lm-docs-button) {
+  border-radius: 10px;
 }
 .lm-site-bar.public-access .lm-account-wrap {
   display: none;
