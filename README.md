@@ -159,11 +159,12 @@ wrangler.toml                 Cloudflare 部署配置
 
 ## License
 
-本项目采用 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) 协议开源。
+本项目采用 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 协议开源。
 
 **简单来说：**
 - ✅ 个人使用、学习、研究：完全免费
 - ✅ 修改和分发：允许，但需要署名
+- ✅ 衍生作品：必须使用相同协议
 - ❌ 商业使用：需要单独授权
 
 **商业授权：**
