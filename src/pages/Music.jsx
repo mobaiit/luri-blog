@@ -96,7 +96,7 @@ function QualityBadge({ track }) {
   const detail = track.qualityVerified ? '实际音质' : 'Provider 解析档位';
   const requested = track.requestedQuality === 'auto' ? '320k' : track.requestedQuality;
   const degraded = QUALITY_RANK[track.quality] && QUALITY_RANK[requested] ? QUALITY_RANK[track.quality] < QUALITY_RANK[requested] : Boolean(track.degraded);
-  return <i className={`music-quality music-quality--${meta.icon}${degraded ? ' is-degraded' : ''}`} title={`${detail}：${meta.label}${degraded ? '（已降级）' : ''}`} aria-label={`${detail} ${meta.label}${degraded ? '，已降级' : ''}`}><span className="music-quality__mark" aria-hidden="true">{meta.mark}</span>{degraded && <b aria-hidden="true">↓</b>}</i>;
+  return <i className={`music-quality music-quality--${meta.icon}${degraded ? ' is-degraded' : ''}`} title={`${detail}：${meta.label}${degraded ? '（已降级）' : ''}`} aria-label={`${detail} ${meta.label}${degraded ? '，已降级' : ''}`}><span className="music-quality__mark" aria-hidden="true">{meta.mark}</span>{degraded && <svg className="music-quality__degrade" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v7M3.25 6.25 6 9l2.75-2.75" /></svg>}</i>;
 }
 
 function DownloadButton({ track }) {

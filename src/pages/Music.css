@@ -3334,10 +3334,13 @@ body.has-global-music-player #root > main:not(.music-page) {
   font-size: 0.43rem;
   letter-spacing: -0.03em;
 }
-.music-quality.is-degraded b {
-  margin-left: 0.02rem;
-  font-size: 0.52rem;
-  line-height: 1;
+.music-quality .music-quality__degrade {
+  display: block;
+  width: 0.62rem;
+  height: 0.62rem;
+  flex: 0 0 0.62rem;
+  overflow: visible;
+  stroke-width: 1.35;
 }
 .track-title > b,
 .lyrics-track h2 > b,
@@ -3441,8 +3444,7 @@ body.has-global-music-player #root > main:not(.music-page) {
 }
 
 .music-quality,
-.music-quality--hires,
-.music-quality.is-degraded b {
+.music-quality--hires {
   min-height: 1.1rem;
   font-size: 0.625rem;
 }
