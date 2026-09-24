@@ -8,9 +8,8 @@ const EMPTY_ART = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" 
 const TEXT = { title: '\u97f3\u4e50', discover: '\u53d1\u73b0\u97f3\u4e50', likes: '\u6211\u7684\u559c\u6b22', search: '\u641c\u7d22', searchHint: '\u641c\u7d22\u6b4c\u66f2\u3001\u827a\u4eba\u6216\u4e13\u8f91', searching: '\u6b63\u5728\u641c\u7d22\u2026', queue: '\u64ad\u653e\u961f\u5217', tracks: '\u9996\u6b4c\u66f2', noResult: '\u6682\u65e0\u641c\u7d22\u7ed3\u679c', noTrack: '\u6682\u65e0\u6b4c\u66f2', choose: '\u8bf7\u641c\u7d22\u540e\u9009\u62e9\u6b4c\u66f2', now: '\u6b63\u5728\u64ad\u653e', play: '\u64ad\u653e', pause: '\u6682\u505c', prev: '\u4e0a\u4e00\u9996', next: '\u4e0b\u4e00\u9996', load: '\u6b63\u5728\u83b7\u53d6\u53ef\u64ad\u653e\u6587\u4ef6\u2026', unavailable: '\u6ca1\u6709\u627e\u5230\u53ef\u76f4\u64ad\u7684\u97f3\u9891\u6587\u4ef6', source: '\u516c\u5f00\u97f3\u9891\u76ee\u5f55', disclaimer: '\u672c\u9875\u4ec5\u63d0\u4f9b\u641c\u7d22\u4e0e\u64ad\u653e\u754c\u9762\uff0c\u4e0d\u6258\u7ba1\u3001\u4e0d\u590d\u5236\u3001\u4e0d\u4ee3\u7406\u4efb\u4f55\u97f3\u9891\u6587\u4ef6\u3002\u8bf7\u4ec5\u4f7f\u7528\u5df2\u83b7\u6388\u6743\u7684\u97f3\u6e90\uff0c\u5e76\u9075\u5b88\u5176\u670d\u52a1\u6761\u6b3e\u4e0e\u9002\u7528\u6cd5\u5f8b\u3002' };
 const time = (value = 0) => Number.isFinite(value) ? `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}` : '0:00';
 const lyricLine = (line) => { const match = /^\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\](.*)$/.exec(line); return match ? { time: Number(match[1]) * 60 + Number(match[2]), text: match[3].trim() } : { time: -1, text: line }; };
-const STORE_QUEUE = 'luri.music.queue.v1'; const STORE_LIKES = 'luri.music.likes.v1'; const STORE_SEARCH = 'luri.music.search.v1'; const STORE_QUERY = 'luri.music.query.v1'; const STORE_RECENT_SEARCHES = 'luri.music.recent-searches.v1';
-const STORE_CHART = 'luri.music.chart.v1';
-const CHART_PLATFORMS = [{ value: 'netease', label: '网易' }, { value: 'qq', label: 'QQ 音乐' }];
+const STORE_QUEUE = 'luri.music.queue.v3'; const STORE_LIKES = 'luri.music.likes.v3'; const STORE_SEARCH = 'luri.music.search.v3'; const STORE_QUERY = 'luri.music.query.v3'; const STORE_RECENT_SEARCHES = 'luri.music.recent-searches.v3';
+const STORE_CHART = 'luri.music.chart.v3';
 const CHART_TYPES = [{ value: 'rising', label: '飙升榜' }, { value: 'new', label: '新歌榜' }, { value: 'original', label: '原创榜' }, { value: 'hot', label: '热歌榜' }];
 const MEDIA_LOAD_TIMEOUT_MS = 15000;
 const FAVORITES_SYNC_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -20,25 +19,15 @@ const writeSession = (key, value) => { try { sessionStorage.setItem(key, JSON.st
 const randomTextKey = (value) => String(value || '').normalize('NFKC').toLocaleLowerCase().replace(/[\s()（）.·_-]/g, '');
 const randomTrackKey = (track) => `${randomTextKey(track?.title)}:${randomTextKey(track?.artist)}`;
 const trackArtists = (track) => String(track?.artist || '').split(/\s*(?:,|，|、|\/|&|feat\.?|ft\.?)\s*/i).filter(Boolean);
-const trackTitleKey = (track) => String(track?.title || '').normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
-const matchesTrackIdentity = (candidate, target) => {
-  if (!trackTitleKey(candidate) || trackTitleKey(candidate) !== trackTitleKey(target)) return false;
-  const expectedArtists = trackArtists(target).map(randomTextKey).filter(Boolean);
-  const candidateArtists = trackArtists(candidate).map(randomTextKey).filter(Boolean);
-  return expectedArtists.length > 0 && expectedArtists.some((expected) => candidateArtists.some((artist) => artist === expected || artist.includes(expected) || expected.includes(artist)));
-};
-const sameFavorite = (left, right) => Boolean(left && right && (left.id === right.id || (trackTitleKey(left) && trackTitleKey(left) === trackTitleKey(right))));
-const trackKey = (track, providerId = '') => { const id = String(track?.id || ''); if (id.startsWith('provider:') || id.startsWith('track:')) return id; const base = `track:${track?.source || 'default'}:${id}`; return providerId ? `provider:${providerId}:${base}` : base; };
-const sourceTrackId = (track) => track?.sourceId ?? String(track?.id || '').replace(/^(?:provider:[^:]+:)?track:[^:]+:/, '');
+const sameFavorite = (left, right) => Boolean(left?.id && left.id === right?.id);
 const chartStoreKey = (providerId, platform, chart) => `${STORE_CHART}.${providerId || 'guest'}.${platform}.${chart}`;
 const readChartStore = (providerId, platform, chart) => { try { return JSON.parse(localStorage.getItem(chartStoreKey(providerId, platform, chart)) || 'null'); } catch { return null; } };
-const hydrateChart = (payload, providerId) => ({ ...payload, tracks: (Array.isArray(payload?.tracks) ? payload.tracks : []).map((track, index) => ({ ...track, rank: Number(track.rank) || index + 1, sourceId: track.sourceId ?? track.id, id: trackKey(track, providerId) })) });
+const hydrateChart = (payload) => ({ ...payload, tracks: (Array.isArray(payload?.tracks) ? payload.tracks : []).map((track, index) => ({ ...track, rank: Number(track.rank) || index + 1 })) });
 const chartUpdatedLabel = (value) => { const timestamp = Date.parse(value || ''); return Number.isFinite(timestamp) ? new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(timestamp) : '暂无缓存'; };
-const minimalFavorites = (items) => (Array.isArray(items) ? items : []).map((track) => ({ title: track.title || '', artist: track.artist || '', source: track.source || '', sourceId: sourceTrackId(track) }));
+const minimalFavorites = (items) => (Array.isArray(items) ? items : []).map((track) => ({ id: track.id, title: track.title || '', artist: track.artist || '', binding: track.binding || null }));
 const resolvedExpiry = (payload) => { const explicit = Date.parse(payload?.expiresAt || ''); if (Number.isFinite(explicit)) return new Date(explicit).toISOString(); const seconds = Number(payload?.expiresIn); return Number.isFinite(seconds) && seconds > 0 ? new Date(Date.now() + seconds * 1000).toISOString() : null; };
 const playbackUrlExpired = (track) => { const expires = Date.parse(track?.expiresAt || ''); return Boolean(track?.url && Number.isFinite(expires) && expires <= Date.now() + 5000); };
 const singerSearchKey = (value) => String(value || '').normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
-const handleArtworkError = (event) => { if (event.currentTarget.getAttribute('src') !== EMPTY_ART) event.currentTarget.src = EMPTY_ART; };
 // The source status is shown only while an operation is in progress.
 TEXT.source = '';
 TEXT.unavailable = '加载失败，请重新播放';
@@ -96,35 +85,34 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     return Promise.reject(error);
   }, [providerClient]);
   const storeKey = (key) => storageNamespace ? `${key}.${storageNamespace}` : key;
-  const likedStoreKey = `${STORE_LIKES.replace('.v1', '.v2')}.${favoriteNamespace || 'guest'}`; const favoriteDirtyKey = `luri.music.likes-sync-dirty.v2.${favoriteNamespace || 'guest'}`; const favoriteSyncedKey = `luri.music.likes-sync-last.v2.${favoriteNamespace || 'guest'}`;
-  const legacyLikedStoreKey = storeKey(STORE_LIKES);
+  const likedStoreKey = `${STORE_LIKES}.${favoriteNamespace || 'guest'}`; const favoriteDirtyKey = `luri.music.likes-sync-dirty.v3.${favoriteNamespace || 'guest'}`; const favoriteSyncedKey = `luri.music.likes-sync-last.v3.${favoriteNamespace || 'guest'}`;
   const favoriteInitialRef = useRef(null);
   if (!favoriteInitialRef.current) {
-    let accountItems = []; let accountPresent = false; let dirty = false; let legacyItems = []; let lastSynced = 0;
-    try { const value = localStorage.getItem(likedStoreKey); accountPresent = value !== null; accountItems = value === null ? [] : JSON.parse(value); dirty = Boolean(Number(localStorage.getItem(favoriteDirtyKey))); lastSynced = Number(localStorage.getItem(favoriteSyncedKey)) || 0; legacyItems = readStore(legacyLikedStoreKey); } catch { /* Use the server backup when storage is unavailable. */ }
+    let accountItems = []; let accountPresent = false; let dirty = false; let lastSynced = 0;
+    try { const value = localStorage.getItem(likedStoreKey); accountPresent = value !== null; accountItems = value === null ? [] : JSON.parse(value); dirty = Boolean(Number(localStorage.getItem(favoriteDirtyKey))); lastSynced = Number(localStorage.getItem(favoriteSyncedKey)) || 0; } catch { /* Use the server backup when storage is unavailable. */ }
     const backupItems = Array.isArray(favoriteBackup) ? favoriteBackup : [];
     const backupUpdated = Date.parse(favoriteBackupUpdatedAt || '') || 0;
-    const source = dirty ? 'account' : !accountPresent && legacyItems.length ? 'legacy' : backupUpdated > lastSynced || (!accountItems.length && backupItems.length) ? 'backup' : 'account';
-    const items = source === 'account' ? accountItems : source === 'legacy' ? legacyItems : backupItems;
-    favoriteInitialRef.current = { source, items: (Array.isArray(items) ? items : []).map((track) => { const sourceId = String(track?.sourceId || ''); return { ...track, sourceId, id: trackKey({ ...track, id: sourceId || `favorite-${trackTitleKey(track)}` }, storageNamespace) }; }) };
+    const source = dirty ? 'account' : backupUpdated > lastSynced || (!accountPresent && backupItems.length) ? 'backup' : 'account';
+    const items = source === 'account' ? accountItems : backupItems;
+    favoriteInitialRef.current = { source, items: (Array.isArray(items) ? items : []).filter((track) => track?.id && track?.binding) };
   }
-  const restoreResults = () => readStore(storeKey(STORE_SEARCH)).map((track) => ({ ...track, sourceId: sourceTrackId(track), id: trackKey(track, storageNamespace) }));
+  const restoreResults = () => readStore(storeKey(STORE_SEARCH)).filter((track) => track?.id && track?.binding);
   const [query, setQuery] = useState(() => localStorage.getItem(storeKey(STORE_QUERY)) || ''); const [results, setResults] = useState(restoreResults); const [cachedResults, setCachedResults] = useState(restoreResults); const [recentSearches, setRecentSearches] = useState(() => readStore(storeKey(STORE_RECENT_SEARCHES)).filter((item) => typeof item === 'string').slice(0, 10)); const [searchFocused, setSearchFocused] = useState(false); const [activeSingerSuggestion, setActiveSingerSuggestion] = useState(-1); const [searchState, setSearchState] = useState('');
   const [listView, setListView] = useState('search');
-  const [chartPlatform, setChartPlatform] = useState('netease'); const [chartType, setChartType] = useState('rising'); const [chartData, setChartData] = useState(() => hydrateChart(readChartStore(storageNamespace, 'netease', 'rising'), storageNamespace)); const [chartLoading, setChartLoading] = useState(false); const [chartState, setChartState] = useState('');
+  const [chartPlatform, setChartPlatform] = useState('netease'); const [chartType, setChartType] = useState('rising'); const [chartData, setChartData] = useState(() => hydrateChart(readChartStore(storageNamespace, 'netease', 'rising'))); const [chartLoading, setChartLoading] = useState(false); const [chartState, setChartState] = useState('');
   const [mobileView, setMobileView] = useState('playlist');
   const [activeQueue, setActiveQueue] = useState('normal');
   const [resultPage, setResultPage] = useState(0); const [hasMoreResults, setHasMoreResults] = useState(false); const [loadingMore, setLoadingMore] = useState(false);
-  const [tracks, setTracks] = useState(() => readStore(storeKey(STORE_QUEUE))); const [likedTracks, setLikedTracks] = useState(() => favoriteInitialRef.current.items); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [forceLocalFallbackFor, setForceLocalFallbackFor] = useState(null); const [titleOverflows, setTitleOverflows] = useState(false);
+  const [tracks, setTracks] = useState(() => readStore(storeKey(STORE_QUEUE)).filter((track) => track?.id && track?.binding)); const [likedTracks, setLikedTracks] = useState(() => favoriteInitialRef.current.items); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
   const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8); const [muted, setMuted] = useState(false);
   const [lyrics, setLyrics] = useState(''); const [lyricsState, setLyricsState] = useState('');
   const lyricsRef = useRef(null); const musicListRef = useRef(null); const currentRowRef = useRef(null); const searchSuggestionsRef = useRef(null); const locatedTrackRef = useRef('');
-  const resolveRequestRef = useRef(null); const recoveryRequestRef = useRef(null); const chartRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set()); const primaryResolveAttemptsRef = useRef(new Set()); const blockedResolveIdsRef = useRef(new Set()); const searchRecoveryAttemptsRef = useRef(new Set()); const pendingFavoriteRecoveryRef = useRef(null);
+  const resolveRequestRef = useRef(null); const chartRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set()); const playbackRefreshIdsRef = useRef(new Set()); const artworkRefreshIdsRef = useRef(new Set());
   const likedTracksRef = useRef(likedTracks); const favoriteMutationRef = useRef(0); const favoriteSyncRef = useRef({ syncing: false, dirtySince: (() => { try { return Number(localStorage.getItem(favoriteDirtyKey)) || 0; } catch { return 0; } })() });
   const loadingMoreRef = useRef(false); const activeSearchRef = useRef(query.trim());
   const randomHistoryKey = `luri.music.random-history.v1${storageNamespace ? `.${storageNamespace}` : ''}`; const storedRandomHistory = useRef(readSession(randomHistoryKey));
-  const randomRequest = useRef(null); const randomSession = useRef(0); const playMode = useRef('manual'); const localFallbackAttempts = useRef(new Set()); const playbackListRef = useRef('');
+  const randomRequest = useRef(null); const randomSession = useRef(0); const playMode = useRef('manual'); const playbackListRef = useRef('');
   const randomFallbackTracks = useRef([]); const randomSingers = useRef(Array.isArray(storedRandomHistory.current.singers) ? storedRandomHistory.current.singers : []); const randomTrackKeys = useRef(Array.isArray(storedRandomHistory.current.tracks) ? storedRandomHistory.current.tracks : []);
   const [randomLoading, setRandomLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -141,13 +129,13 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       if (mediaDeadlineTrackRef.current !== id) return;
       ignoreAudioErrorRef.current = true; audio.current?.pause(); audio.current?.removeAttribute('src'); audio.current?.load();
       setPlaying(false); clearMediaDeadline();
-      if (!retryWithPrimaryResolve()) handlePlaybackFailure(false, '重新解析后仍无法播放，已自动播放下一首');
+      handlePlaybackFailure('重新解析后仍无法播放，已自动播放下一首');
     }, MEDIA_LOAD_TIMEOUT_MS);
   };
 
   useEffect(() => {
     document.body.classList.toggle('has-global-music-player', !isMusicPage);
-    return () => { document.body.classList.remove('has-global-music-player'); resolveRequestRef.current?.abort(); recoveryRequestRef.current?.controller.abort(); chartRequestRef.current?.abort(); if (mediaDeadlineRef.current) window.clearTimeout(mediaDeadlineRef.current); };
+    return () => { document.body.classList.remove('has-global-music-player'); resolveRequestRef.current?.abort(); chartRequestRef.current?.abort(); if (mediaDeadlineRef.current) window.clearTimeout(mediaDeadlineRef.current); };
   }, [isMusicPage]);
   useEffect(() => {
     if (activeSingerSuggestion >= 0) searchSuggestionsRef.current?.querySelector('.music-search-history__item.active')?.scrollIntoView({ block: 'nearest' });
@@ -168,30 +156,28 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_SEARCH), JSON.stringify(cachedResults)); localStorage.setItem(storeKey(STORE_QUERY), query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_RECENT_SEARCHES), JSON.stringify(recentSearches)); } catch { /* Storage is unavailable in private browsing. */ } }, [recentSearches]);
   useEffect(() => {
-    if (!current || current.url || blockedResolveIdsRef.current.has(current.id)) return undefined;
+    if (!current || current.url) return undefined;
     setPlaybackTrackId(current.id); setPlaybackState('resolving');
     const controller = new AbortController();
     resolveRequestRef.current = controller;
-    if (forceLocalFallbackFor !== current.id) primaryResolveAttemptsRef.current.add(current.id);
-    musicRequest('resolve', { id: sourceTrackId(current), source: current.source || '', title: current.title || '', artist: current.artist || '', quality: playbackQuality, meta: current.meta || undefined, fallbackOnly: forceLocalFallbackFor === current.id ? '1' : '' }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
+    const refresh = playbackRefreshIdsRef.current.has(current.id);
+    musicRequest('resolve', { songId: current.id, title: current.title || '', artist: current.artist || '', quality: playbackQuality, binding: current.binding, refresh }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
       if (!payload.url) throw Error();
       if (!controller.signal.aborted) {
-        const resolveLayer = forceLocalFallbackFor === current.id ? 'local-fallback' : 'primary';
         const attemptedSources = Array.isArray(payload.attemptedSources) ? payload.attemptedSources : [];
-        if (attemptedSources.length > 0) console.debug(`[Resolve] ${resolveLayer} success, attempted sources: ${attemptedSources.join(' → ')}`);
-        const resolved = { ...current, url: payload.url, expiresAt: resolvedExpiry(payload), art: payload.art || current.art, requestedQuality: payload.requestedQuality || playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
+        const resolved = { ...current, url: payload.url, binding: payload.binding || current.binding, expiresAt: resolvedExpiry(payload), requestedQuality: payload.requestedQuality || playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
         const update = (track) => track.id === current.id ? { ...track, ...resolved } : track;
         setTracks((items) => items.map(update));
-        if (pendingFavoriteRecoveryRef.current?.recoveredId !== current.id) setLikedTracks((items) => { let replaced = false; return items.flatMap((track) => { if (!sameFavorite(track, current)) return [track]; if (replaced) return []; replaced = true; return [resolved]; }); });
+        setLikedTracks((items) => items.map((track) => sameFavorite(track, current) ? { ...track, binding: resolved.binding } : track));
         setPlaybackQueue((items) => items.map(update));
       }
     }).catch((error) => {
       if (controller.signal.aborted) return;
       if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) { playMode.current = 'manual'; setPlaying(false); showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); return; }
-      handlePlaybackFailure(false);
+      handlePlaybackFailure();
     }).finally(() => { if (resolveRequestRef.current === controller) resolveRequestRef.current = null; });
     return () => { controller.abort(); if (resolveRequestRef.current === controller) resolveRequestRef.current = null; };
-  }, [activeQueue, current, playbackAttempt, forceLocalFallbackFor, playbackQuality]);
+  }, [activeQueue, current, playbackAttempt, playbackQuality]);
   useEffect(() => {
     if ('mediaSession' in navigator && current) {
       navigator.mediaSession.metadata = new MediaMetadata({
@@ -248,9 +234,9 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     }
   }, [playing]);
   useEffect(() => {
-    if (!current || (current.art && current.art !== EMPTY_ART) || !current.source) return undefined;
+    if (!current || (current.art && current.art !== EMPTY_ART) || !current.binding) return undefined;
     const controller = new AbortController();
-    musicRequest('artwork', { source: current.source, id: sourceTrackId(current), title: current.title || '', artist: current.artist || '', meta: current.meta || undefined }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
+    musicRequest('artwork', { id: current.id, songId: current.id, title: current.title || '', artist: current.artist || '', binding: current.binding }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
       if (payload.url && !controller.signal.aborted) {
         const update = (track) => track.id === current.id ? { ...track, art: payload.url } : track;
         (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map(update));
@@ -259,8 +245,18 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     }).catch(() => {});
     return () => controller.abort();
   }, [activeQueue, current]);
+  const refreshArtwork = (event) => {
+    const image = event.currentTarget;
+    if (!current || current.art === EMPTY_ART || artworkRefreshIdsRef.current.has(current.id)) { image.src = EMPTY_ART; return; }
+    artworkRefreshIdsRef.current.add(current.id);
+    void musicRequest('artwork', { id: current.id, songId: current.id, title: current.title || '', artist: current.artist || '', binding: current.binding, refresh: 1 }).then((response) => response.ok ? response.json() : {}).then((payload) => {
+      if (!payload.url) throw new Error('No artwork');
+      const update = (track) => track.id === current.id ? { ...track, art: payload.url, binding: payload.binding || track.binding } : track;
+      setTracks((items) => items.map(update)); setLikedTracks((items) => items.map(update)); setPlaybackQueue((items) => items.map(update));
+    }).catch(() => { image.src = EMPTY_ART; });
+  };
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_QUEUE), JSON.stringify(tracks.slice(0, 50).map(({ url: _url, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [tracks]);
-  useEffect(() => { likedTracksRef.current = likedTracks; try { localStorage.setItem(likedStoreKey, JSON.stringify(likedTracks)); } catch { /* Storage is unavailable in private browsing. */ } }, [likedTracks, likedStoreKey]);
+  useEffect(() => { likedTracksRef.current = likedTracks; try { localStorage.setItem(likedStoreKey, JSON.stringify(minimalFavorites(likedTracks))); } catch { /* Storage is unavailable in private browsing. */ } }, [likedTracks, likedStoreKey]);
   useEffect(() => {
     if (!favoriteSyncEnabled || !favoriteNamespace) return undefined;
     const rememberDirtySince = (value) => { favoriteSyncRef.current.dirtySince = value; try { if (value) localStorage.setItem(favoriteDirtyKey, String(value)); else localStorage.removeItem(favoriteDirtyKey); } catch { /* Storage is unavailable in private browsing. */ } };
@@ -346,8 +342,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   useEffect(() => {
     if (!current) { setLyrics(''); setLyricsState(''); return undefined; }
     const controller = new AbortController(); setLyrics(''); setLyricsState('正在加载歌词…');
-    const params = new URLSearchParams({ title: current.title, artist: current.artist || '', album: current.album || '', source: current.source || '', id: sourceTrackId(current), meta: current.meta ? JSON.stringify(current.meta) : '' });
-    musicRequest('lyrics', Object.fromEntries(params), controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => { if (!controller.signal.aborted) { setLyrics(payload.lyrics || ''); setLyricsState(payload.lyrics ? '' : '暂无匹配歌词'); } }).catch((error) => { if (!controller.signal.aborted) { setLyricsState('暂无匹配歌词'); if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); } });
+    musicRequest('lyrics', { id: current.id, songId: current.id, title: current.title || '', artist: current.artist || '', album: current.album || '', binding: current.binding }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => { if (!controller.signal.aborted) { setLyrics(payload.lyrics || ''); setLyricsState(payload.lyrics ? '' : '暂无匹配歌词'); } }).catch((error) => { if (!controller.signal.aborted) { setLyricsState('暂无匹配歌词'); if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); } });
     return () => controller.abort();
   }, [current]);
   const stopRandom = () => {
@@ -365,11 +360,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const hasAccess = () => !onRequireAccess || onRequireAccess() !== false;
   const selectTrack = (id, queue = null, mode = 'manual', preserveFailures = false) => {
     if (!hasAccess()) return;
-    if (recoveryRequestRef.current?.trackId !== id) { recoveryRequestRef.current?.controller.abort(); recoveryRequestRef.current = null; }
-    if (pendingFavoriteRecoveryRef.current?.recoveredId !== id) pendingFavoriteRecoveryRef.current = null;
-    const selectedTrack = queue?.find((track) => track.id === id) || playbackQueue.find((track) => track.id === id) || activeTracks.find((track) => track.id === id);
-    if (!preserveFailures && selectedTrack) searchRecoveryAttemptsRef.current.delete(randomTrackKey(selectedTrack));
-    if (!preserveFailures) { failedPlaybackIdsRef.current.clear(); primaryResolveAttemptsRef.current.delete(id); blockedResolveIdsRef.current.delete(id); }
+    if (!preserveFailures) { failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(id); }
     if (mode === 'manual') stopRandom();
     const sourceQueue = queue?.length ? queue : playbackQueue.some((track) => track.id === id) ? null : activeTracks;
     const forSelectedQuality = (track) => track.id === id && track.url && (track.requestedQuality !== playbackQuality || playbackUrlExpired(track)) ? { ...track, url: undefined } : track;
@@ -378,12 +369,11 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     clearMediaDeadline(); setPlaybackTrackId(id); setPlaybackState('loading');
     if (id === currentId) {
       if (current?.url) { beginMediaDeadline(id); audio.current?.play().catch(() => { clearMediaDeadline(); setPlaying(false); setPlaybackState('error'); }); }
-      else { localFallbackAttempts.current.delete(id); setForceLocalFallbackFor(null); setPlaybackAttempt((attempt) => attempt + 1); }
+      else setPlaybackAttempt((attempt) => attempt + 1);
       return;
     }
     if (audio.current) { ignoreAudioErrorRef.current = true; audio.current.pause(); audio.current.removeAttribute('src'); audio.current.load(); }
     setPlaying(false); setProgress(0); setDuration(0);
-    localFallbackAttempts.current.delete(id); setForceLocalFallbackFor(null);
     setCurrentId(id);
   };
   const next = () => {
@@ -404,7 +394,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (playing) { audio.current?.pause(); return; }
     if (current && (!current.url || playbackUrlExpired(current))) {
       if (current.url) { const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track; setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl)); }
-      failedPlaybackIdsRef.current.clear(); primaryResolveAttemptsRef.current.delete(current.id); blockedResolveIdsRef.current.delete(current.id); localFallbackAttempts.current.delete(current.id); setForceLocalFallbackFor(null); setPlaybackTrackId(current.id); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1); return;
+      failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(current.id); setPlaybackTrackId(current.id); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1); return;
     }
     setPlaybackTrackId(currentId); setPlaybackState('loading'); beginMediaDeadline(currentId);
     if (audio.current && current?.url && !audio.current.getAttribute('src')) { ignoreAudioErrorRef.current = false; audio.current.src = current.url; audio.current.load(); }
@@ -417,72 +407,26 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const like = (id) => {
     const song = current || tracks.find((track) => track.id === id) || results.find((track) => track.id === id); if (!song) return;
     markFavoritesDirty();
-    setLikedTracks((saved) => saved.some((track) => sameFavorite(track, song)) ? saved.filter((track) => !sameFavorite(track, song)) : [...saved.filter((track) => !sameFavorite(track, song)), song]);
+    const favorite = { id: song.id, title: song.title || '', artist: song.artist || '', binding: song.binding || null };
+    setLikedTracks((saved) => saved.some((track) => sameFavorite(track, song)) ? saved.filter((track) => !sameFavorite(track, song)) : [...saved.filter((track) => !sameFavorite(track, song)), favorite]);
   };
   function showToast(message, type = 'error') { setToast({ title: type === 'warning' ? '需要处理' : '播放服务异常', message, type }); }
-  const retryWithLocalFallback = () => {
-    if (!current || localFallbackAttempts.current.has(current.id)) return false;
-
-    // 🆕 智能降级：如果服务端已经尝试过跨音源降级，跳过本地降级
-    const serverAttemptedSources = Array.isArray(current.attemptedSources) ? current.attemptedSources : [];
-    if (serverAttemptedSources.length > 1) {
-      console.debug(`[Resolve] Server already tried ${serverAttemptedSources.length} sources (${serverAttemptedSources.join(', ')}), skipping local fallback`);
-      return false;
-    }
-
-    console.debug(`[Resolve] Triggering local fallback for track: ${current.title}`);
-    localFallbackAttempts.current.add(current.id); setForceLocalFallbackFor(current.id);
+  const retryWithRefresh = () => {
+    if (!current || playbackRefreshIdsRef.current.has(current.id)) return false;
+    playbackRefreshIdsRef.current.add(current.id);
     const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track;
-    setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl));
-    clearMediaDeadline(); setPlaybackState('resolving');
-    return true;
-  };
-  const retryWithPrimaryResolve = () => {
-    if (!current || primaryResolveAttemptsRef.current.has(current.id)) return false;
-    primaryResolveAttemptsRef.current.add(current.id); blockedResolveIdsRef.current.delete(current.id); localFallbackAttempts.current.delete(current.id); setForceLocalFallbackFor(null);
-    const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track;
+    setTracks((items) => items.map(clearUrl));
+    setLikedTracks((items) => items.map(clearUrl));
     setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl));
     setPlaybackTrackId(current.id); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1);
     return true;
   };
   const discardCurrentUrl = () => {
     if (!current) return;
-    blockedResolveIdsRef.current.add(current.id);
     const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track;
     setLikedTracks((items) => items.map((track) => sameFavorite(track, current) ? { ...track, url: undefined } : track));
     setTracks((items) => items.map(clearUrl));
     setPlaybackQueue((items) => items.map(clearUrl));
-  };
-  const retryWithSearchRecovery = () => {
-    if (!current?.title || !current?.artist || playMode.current === 'random') return false;
-    const failedTrack = current; const recoveryKey = randomTrackKey(failedTrack);
-    if (!recoveryKey || searchRecoveryAttemptsRef.current.has(recoveryKey)) return false;
-    searchRecoveryAttemptsRef.current.add(recoveryKey);
-    const controller = new AbortController(); recoveryRequestRef.current = { controller, trackId: failedTrack.id };
-    setPlaybackTrackId(failedTrack.id); setPlaybackState('resolving');
-    void (async () => {
-      try {
-        const response = await musicRequest('search', { q: failedTrack.title, page: 1 }, controller.signal);
-        if (!response.ok) throw Error();
-        const payload = await response.json();
-        const match = (payload.tracks || []).find((track) => matchesTrackIdentity(track, failedTrack));
-        if (!match) throw Error();
-        const recovered = { ...match, url: undefined, sourceId: match.sourceId ?? match.id, id: trackKey(match, storageNamespace) };
-        if (controller.signal.aborted || recoveryRequestRef.current?.controller !== controller) return;
-        const isFavorite = likedTracksRef.current.some((track) => sameFavorite(track, failedTrack));
-        pendingFavoriteRecoveryRef.current = isFavorite ? { original: failedTrack, recoveredId: recovered.id } : null;
-        recoveryRequestRef.current = null; blockedResolveIdsRef.current.delete(recovered.id); primaryResolveAttemptsRef.current.delete(recovered.id); localFallbackAttempts.current.delete(recovered.id); setForceLocalFallbackFor(null);
-        setPlaybackQueue((items) => (items.length ? items : activeTracks).map((track) => track.id === failedTrack.id ? recovered : track));
-        setCurrentId(recovered.id); setPlaybackTrackId(recovered.id); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1);
-      } catch (error) {
-        if (controller.signal.aborted || recoveryRequestRef.current?.controller !== controller) return;
-        recoveryRequestRef.current = null; discardCurrentUrl();
-        const accessDenied = error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403;
-        if (accessDenied) { setPlaybackState('error'); showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); }
-        else skipFailedTrack();
-      }
-    })();
-    return true;
   };
   function skipFailedTrack(message = '歌曲播放失败，已自动播放下一首') {
     const queue = playbackQueue.length ? playbackQueue : activeTracks;
@@ -495,16 +439,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!nextTrack) { setPlaybackState('error'); return; }
     showToast(message, 'warning'); selectTrack(nextTrack.id, null, playMode.current, true);
   }
-  function handlePlaybackFailure(allowLocalFallback = true, message) {
+  function handlePlaybackFailure(message) {
     setPlaying(false);
-    if (current && primaryResolveAttemptsRef.current.has(current.id) && retryWithLocalFallback()) return;
-    if (current && (primaryResolveAttemptsRef.current.has(current.id) || localFallbackAttempts.current.has(current.id))) {
-      if (retryWithSearchRecovery()) return;
-      discardCurrentUrl();
-      if (playMode.current === 'random') { playNextRandom(); return; }
-      skipFailedTrack(message); return;
-    }
-    if (allowLocalFallback && retryWithLocalFallback()) return;
+    if (retryWithRefresh()) return;
+    discardCurrentUrl();
     if (playMode.current === 'random') { playNextRandom(); return; }
     skipFailedTrack(message);
   }
@@ -520,7 +458,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       const response = await musicRequest('random', { exclude: excluded }, controller.signal);
       if (!response.ok) throw Error();
       const payload = await response.json();
-      const seen = new Set(); const tracks = (payload.tracks || []).map((track) => ({ ...track, sourceId: track.sourceId ?? track.id, id: trackKey(track, storageNamespace) })).filter((track) => { const key = randomTrackKey(track); if (!key || seen.has(key)) return false; seen.add(key); return true; });
+      const seen = new Set(); const tracks = (payload.tracks || []).filter((track) => { const key = track.id; if (!key || !track.binding || seen.has(key)) return false; seen.add(key); return true; });
       if (!tracks.length) throw Error();
       if (controller.signal.aborted || session !== randomSession.current) return;
       const freshTracks = tracks.filter((track) => !randomTrackKeys.current.includes(randomTrackKey(track))); const candidates = freshTracks.length ? freshTracks : tracks;
@@ -550,8 +488,8 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const loadChart = async (platform = chartPlatform, type = chartType, refresh = false) => {
     chartRequestRef.current?.abort(); chartRequestRef.current = null;
     const stored = readChartStore(storageNamespace, platform, type); const cached = Array.isArray(stored?.tracks) ? stored : null;
-    if (cached && !refresh) { setChartData(hydrateChart(cached, storageNamespace)); setChartLoading(false); setChartState(''); return; }
-    if (!refresh) setChartData(hydrateChart(null, storageNamespace));
+    if (cached && !refresh) { setChartData(hydrateChart(cached)); setChartLoading(false); setChartState(''); return; }
+    if (!refresh) setChartData(hydrateChart(null));
     if (!hasAccess()) { setChartLoading(false); setChartState(''); return; }
     const controller = new AbortController(); chartRequestRef.current = controller; setChartLoading(true); setChartState(refresh ? '正在刷新榜单…' : '正在加载榜单…');
     try {
@@ -560,10 +498,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       if (!response.ok || !Array.isArray(payload.tracks)) throw new Error(payload.error?.message || payload.error || '榜单服务暂时不可用');
       if (controller.signal.aborted) return;
       try { localStorage.setItem(chartStoreKey(storageNamespace, platform, type), JSON.stringify(payload)); } catch { /* Storage is unavailable in private browsing. */ }
-      setChartData(hydrateChart(payload, storageNamespace)); setChartState('');
+      setChartData(hydrateChart(payload)); setChartState('');
     } catch {
       if (controller.signal.aborted) return;
-      if (cached) { setChartData(hydrateChart(cached, storageNamespace)); setChartState('刷新失败，正在展示上次缓存'); }
+      if (cached) { setChartData(hydrateChart(cached)); setChartState('刷新失败，正在展示上次缓存'); }
       else { setChartState('榜单暂时不可用，请稍后重试'); }
     } finally {
       if (chartRequestRef.current === controller) { chartRequestRef.current = null; setChartLoading(false); }
@@ -577,9 +515,9 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (append) { loadingMoreRef.current = true; setLoadingMore(true); } else setSearchState(TEXT.searching);
     try {
       const response = await musicRequest('search', { q: keyword, page }); if (!response.ok) throw Error();
-      const payload = await response.json(); const incoming = (payload.tracks || []).map((track) => ({ ...track, sourceId: track.sourceId ?? track.id, id: trackKey(track, storageNamespace) }));
+      const payload = await response.json(); const incoming = (payload.tracks || []).filter((track) => track?.id && track?.binding);
       setTracks((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.id === track.id))] : incoming.map((track) => ({ ...track, url: undefined })));
-      setResults((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.source === track.source && item.id === track.id))] : incoming);
+      setResults((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.id === track.id))] : incoming);
       if (append && playbackListRef.current === `search:${activeSearchRef.current}`) setPlaybackQueue((items) => [...items, ...incoming.filter((track) => !items.some((item) => item.id === track.id))]);
       setResultPage(page); setHasMoreResults(Boolean(payload.hasMore && incoming.length)); setSearchState('');
     } catch (error) { const accessDenied = error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403; setHasMoreResults(false); setSearchState(''); showToast(accessDenied ? 'Provider 没有访问权限，请重新配置或联系服务提供方' : '搜索服务暂时不可用', accessDenied ? 'warning' : 'error'); }
@@ -637,16 +575,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const isSearching = searchState === TEXT.searching;
   const isPlaybackBusy = randomLoading || playbackState === 'resolving' || playbackState === 'loading';
   const rowPlaybackState = (id) => id === playbackTrackId ? playbackState : 'idle';
-  const commitRecoveredFavorite = () => {
-    const pending = pendingFavoriteRecoveryRef.current;
-    if (!pending || pending.recoveredId !== currentId || !current) return;
-    pendingFavoriteRecoveryRef.current = null;
-    const { url: _url, expiresAt: _expiresAt, ...favorite } = current;
-    markFavoritesDirty();
-    setLikedTracks((items) => { let replaced = false; return items.flatMap((track) => { if (!sameFavorite(track, pending.original)) return [track]; if (replaced) return []; replaced = true; return [favorite]; }); });
-  };
-
-  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); primaryResolveAttemptsRef.current.delete(currentId); localFallbackAttempts.current.delete(currentId); blockedResolveIdsRef.current.delete(currentId); commitRecoveredFavorite(); setPlaybackState('playing'); }} onError={() => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); if (!retryWithPrimaryResolve()) handlePlaybackFailure(); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={() => { clearMediaDeadline(); next(); }} /><Toast toast={toast} onClose={() => setToast(null)} />
+  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(currentId); setPlaybackState('playing'); }} onError={() => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); handlePlaybackFailure(); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={() => { clearMediaDeadline(); next(); }} /><Toast toast={toast} onClose={() => setToast(null)} />
   <section className="music-shell">
       <section className="music-content">
         <header className="music-header">
@@ -654,6 +583,11 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
           <form className="music-search" onSubmit={search}><input value={query} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} onChange={(event) => { setQuery(event.target.value); setActiveSingerSuggestion(-1); }} onKeyDown={handleSearchKeyDown} placeholder={TEXT.searchHint} autoComplete="off" aria-autocomplete="list" aria-expanded={searchFocused && singerSuggestions.length > 0} /><button className="music-icon-button" type="submit" onMouseDown={(event) => event.preventDefault()} disabled={isSearching} aria-label={isSearching ? '正在搜索' : TEXT.search} title={isSearching ? '正在搜索' : TEXT.search}>{isSearching ? <span className="music-spinner" aria-hidden="true" /> : <MusicIcon name="search" />}</button><button className="music-random-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={startRandom} disabled={randomLoading} aria-label="随机搜索并播放音乐" title="随机发现">{randomLoading ? <span className="music-spinner" aria-hidden="true" /> : <><MusicIcon name="random" /><span>随机发现</span></>}</button>{searchFocused && (singerSuggestions.length > 0 || (!singerQuery && recentSearches.length > 0)) && <div className="music-search-history" ref={searchSuggestionsRef} onMouseDown={(event) => event.preventDefault()}>{singerSuggestions.length > 0 ? <><div className="music-search-history__head"><span>歌手</span></div>{singerSuggestions.map((singer, index) => <button className={`music-search-history__item${index === activeSingerSuggestion ? ' active' : ''}`} type="button" key={singer} onClick={() => chooseSearchSuggestion(singer)}>{singer}</button>)}</> : <><div className="music-search-history__head"><span>最近搜索</span><button type="button" onClick={() => setRecentSearches([])}>清除</button></div>{recentSearches.map((item) => <button className="music-search-history__item" type="button" key={item} onClick={() => chooseSearchSuggestion(item)}>{item}</button>)}</>}</div>}</form>
         </header>
         <aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className={`music-nav${listView === 'queue' || listView === 'search' ? ' active' : ''}`} onClick={() => { setListView('queue'); }}>播放列表<span>{tracks.length}</span></button><button className={`music-nav${listView === 'likes' ? ' active' : ''}`} onClick={() => { setListView('likes'); }}>我喜欢<span>{likedTracks.length}</span></button><button className={`music-nav${listView === 'netease' ? ' active' : ''}`} onClick={openNetease}>网易<span>{listView === 'netease' ? chartData.tracks.length || '' : ''}</span></button><button className={`music-nav${listView === 'qq' ? ' active' : ''}`} onClick={openQQ}>QQ<span>{listView === 'qq' ? chartData.tracks.length || '' : ''}</span></button><div className="music-divider" /></aside>
-        <div className="music-workspace"><section className="music-results">{isChartView && <div className="music-chart-controls"><div className="music-chart-switch music-chart-switch--types" aria-label="榜单类型">{CHART_TYPES.map((chart) => <button type="button" className={chartType === chart.value ? 'active' : ''} onClick={() => selectChartType(chart.value)} key={chart.value}>{chart.label}</button>)}</div><div className="music-chart-meta"><span>{chartData.title || '音乐榜单'} · 更新于 {chartUpdatedLabel(chartData.updatedAt)} · 共 {chartData.tracks.length} 首歌曲</span><button type="button" onClick={() => loadChart(chartPlatform, chartType, true)} disabled={chartLoading}>{chartLoading ? <span className="music-spinner" aria-hidden="true" /> : '刷新'}</button></div></div>}<div className="music-list-head"><span>{listView === 'search' ? TEXT.search : listView === 'likes' ? TEXT.likes : isChartView ? '' : TEXT.queue}</span></div><div className="music-list" ref={musicListRef} onScroll={handleListScroll}>{visibleTracks.map((track, index) => { const state = rowPlaybackState(track.id); const isCurrent = track.id === currentId; const isCurrentBusy = isCurrent && isPlaybackBusy; return <button ref={isCurrent ? currentRowRef : null} key={`${track.source || 'queue'}:${track.id}`} className={`music-row${isCurrent ? ' current' : ''}`} onClick={() => handleTrackAction(track)} disabled={isCurrentBusy} aria-label={`${track.title}，${isCurrentBusy ? '正在加载' : state === 'error' ? '播放失败，点击重试' : state === 'playing' ? TEXT.pause : TEXT.play}`}><span className="track-index">{String(isChartView ? track.rank || index + 1 : index + 1).padStart(2, '0')}</span><span className="track-copy"><span className="track-title"><b>{track.title}</b>{isCurrent && <QualityBadge track={current} />}</span><span className="track-artist">{track.artist}{track.year ? ` · ${track.year}` : ''}</span></span><span className={`track-action track-action--${state}`} aria-hidden="true">{state === 'error' ? '播放失败' : state === 'loading' || state === 'resolving' ? <span className="music-spinner" /> : <MusicIcon name={state === 'playing' ? 'pause' : 'play'} />}</span></button>; })}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!visibleTracks.length && <div className="music-empty"><strong>{isChartView ? chartLoading ? '正在加载榜单…' : '暂无榜单数据' : TEXT.noResult}</strong><span>{isChartView ? '请选择榜单或点击刷新' : TEXT.choose}</span></div>}</div><p className="music-search-status" aria-live="polite">{isChartView ? chartState : isSearching ? '' : searchState}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" onError={handleArtworkError} /><div><h2><b>{current?.title || TEXT.noTrack}</b></h2><span>{current?.artist || TEXT.choose}</span></div><div className="lyrics-track__actions"><QualityBadge track={current} /><DownloadButton track={current} /><button className={`like-button${current && likedTracks.some((track) => sameFavorite(track, current)) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.id)}>{TEXT.likes}</button></div></div><div ref={lyricsRef} className="lyrics-body" onClick={seekLyric}>{lyrics ? lyricLines.map((line, index) => <p key={`${line.time}:${line.text}:${index}`}>{line.text}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
-    <footer className="music-player"><div className="music-player__progress"><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /></div><div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" onError={handleArtworkError} /><span className="music-player__copy"><b className="music-player__title">{current?.title || TEXT.noTrack}</b><small>{current?.artist || 'LURI MUSIC'}</small></span></div><div className="music-controls"><span className="music-player__time">{time(progress)} / {time(duration)}</span><button className="music-icon-button" onClick={previous} aria-label={TEXT.prev} title={TEXT.prev}><MusicIcon name="previous" /></button><button className="music-icon-button play-button" onClick={toggle} disabled={isPlaybackBusy} aria-label={isPlaybackBusy ? '正在加载' : playing ? TEXT.pause : TEXT.play} title={isPlaybackBusy ? '正在加载' : playing ? TEXT.pause : TEXT.play}>{isPlaybackBusy ? <span className="music-spinner" aria-hidden="true" /> : <MusicIcon name={playing ? 'pause' : 'play'} />}</button><button className="music-icon-button" onClick={next} aria-label={TEXT.next} title={TEXT.next}><MusicIcon name="next" /></button><QualityBadge track={current} /><DownloadButton track={current} /><div className="music-volume"><button className="music-icon-button" onClick={() => setMuted((value) => !value)} aria-label={muted || volume === 0 ? '取消静音' : '静音'} title={muted || volume === 0 ? '取消静音' : '静音'}><MusicIcon name={muted || volume === 0 ? 'mute' : 'volume'} /></button><input type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} aria-label="音量" onChange={(event) => { const value = Number(event.target.value); setVolume(value); setMuted(value === 0); }} /></div></div><button className={`music-player__lyrics-button${mobileView === 'now' ? ' active' : ''}`} type="button" disabled={!current} aria-label={mobileView === 'now' ? '返回歌曲列表' : '查看歌词'} aria-pressed={mobileView === 'now'} onClick={() => setMobileView((view) => view === 'now' ? 'playlist' : 'now')}>词</button>{legalLinks === false ? null : legalLinks ? <div className="music-global-disclaimer music-legal-links">{legalLinks}</div> : <p className="music-global-disclaimer">请仅播放您依法有权访问的内容。</p>}</footer></main>;
+        <div className="music-workspace"><section className="music-results">{isChartView && <div className="music-chart-controls"><div className="music-chart-switch music-chart-switch--types" aria-label="榜单类型">{CHART_TYPES.map((chart) => <button type="button" className={chartType === chart.value ? 'active' : ''} onClick={() => selectChartType(chart.value)} key={chart.value}>{chart.label}</button>)}</div><div className="music-chart-meta"><span>{chartData.title || '音乐榜单'} · 更新于 {chartUpdatedLabel(chartData.updatedAt)} · 共 {chartData.tracks.length} 首歌曲</span><button type="button" onClick={() => loadChart(chartPlatform, chartType, true)} disabled={chartLoading}>{chartLoading ? <span className="music-spinner" aria-hidden="true" /> : '刷新'}</button></div></div>}<div className="music-list-head"><span>{listView === 'search' ? TEXT.search : listView === 'likes' ? TEXT.likes : isChartView ? '' : TEXT.queue}</span></div><div className="music-list" ref={musicListRef} onScroll={handleListScroll}>{visibleTracks.map((track, index) => { const state = rowPlaybackState(track.id); const isCurrent = track.id === currentId; const isCurrentBusy = isCurrent && isPlaybackBusy; return <button ref={isCurrent ? currentRowRef : null} key={track.id} className={`music-row${isCurrent ? ' current' : ''}`} onClick={() => handleTrackAction(track)} disabled={isCurrentBusy} aria-label={`${track.title}，${isCurrentBusy ? '正在加载' : state === 'error' ? '播放失败，点击重试' : state === 'playing' ? TEXT.pause : TEXT.play}`}><span className="track-index">{String(isChartView ? track.rank || index + 1 : index + 1).padStart(2, '0')}</span><span className="track-copy"><span className="track-title"><b>{track.title}</b>{isCurrent && <QualityBadge track={current} />}</span><span className="track-artist">{track.artist}{track.year ? ` · ${track.year}` : ''}</span></span><span className={`track-action track-action--${state}`} aria-hidden="true">{state === 'error' ? '播放失败' : state === 'loading' || state === 'resolving' ? <span className="music-spinner" /> : <MusicIcon name={state === 'playing' ? 'pause' : 'play'} />}</span></button>; })}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!visibleTracks.length && <div className="music-empty"><strong>{isChartView ? chartLoading ? '正在加载榜单…' : '暂无榜单数据' : TEXT.noResult}</strong><span>{isChartView ? '请选择榜单或点击刷新' : TEXT.choose}</span></div>}</div><p className="music-search-status" aria-live="polite">{isChartView ? chartState : isSearching ? '' : searchState}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" onError={refreshArtwork} /><div><h2><b>{current?.title || TEXT.noTrack}</b></h2><span>{current?.artist || TEXT.choose}</span></div><div className="lyrics-track__actions"><QualityBadge track={current} /><DownloadButton track={current} /><button className={`like-button${current && likedTracks.some((track) => sameFavorite(track, current)) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.id)}>{TEXT.likes}</button></div></div><div ref={lyricsRef} className="lyrics-body" onClick={seekLyric}>{lyrics ? lyricLines.map((line, index) => <p key={`${line.time}:${line.text}:${index}`}>{line.text}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
+    <footer className="music-player">
+      <div className="music-player__progress"><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /></div>
+      <div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" onError={refreshArtwork} /><span className="music-player__copy"><b className="music-player__title">{current?.title || TEXT.noTrack}</b><small>{current?.artist || 'LURI MUSIC'}</small></span></div>
+      <div className="music-controls"><span className="music-player__time">{time(progress)} / {time(duration)}</span><button className="music-icon-button" onClick={previous} aria-label={TEXT.prev} title={TEXT.prev}><MusicIcon name="previous" /></button><button className="music-icon-button play-button" onClick={toggle} disabled={isPlaybackBusy} aria-label={isPlaybackBusy ? '正在加载' : playing ? TEXT.pause : TEXT.play} title={isPlaybackBusy ? '正在加载' : playing ? TEXT.pause : TEXT.play}>{isPlaybackBusy ? <span className="music-spinner" aria-hidden="true" /> : <MusicIcon name={playing ? 'pause' : 'play'} />}</button><button className="music-icon-button" onClick={next} aria-label={TEXT.next} title={TEXT.next}><MusicIcon name="next" /></button><QualityBadge track={current} /><DownloadButton track={current} /><div className="music-volume"><button className="music-icon-button" onClick={() => setMuted((value) => !value)} aria-label={muted || volume === 0 ? '取消静音' : '静音'} title={muted || volume === 0 ? '取消静音' : '静音'}><MusicIcon name={muted || volume === 0 ? 'mute' : 'volume'} /></button><input type="range" min="0" max="1" step="0.01" value={muted ? 0 : volume} aria-label="音量" onChange={(event) => { const value = Number(event.target.value); setVolume(value); setMuted(value === 0); }} /></div></div>
+      <button className={`music-player__lyrics-button${mobileView === 'now' ? ' active' : ''}`} type="button" disabled={!current} aria-label={mobileView === 'now' ? '返回歌曲列表' : '查看歌词'} aria-pressed={mobileView === 'now'} onClick={() => setMobileView((view) => view === 'now' ? 'playlist' : 'now')}>词</button>{legalLinks === false ? null : legalLinks ? <div className="music-global-disclaimer music-legal-links">{legalLinks}</div> : <p className="music-global-disclaimer">请仅播放您依法有权访问的内容。</p>}
+    </footer></main>;
 }

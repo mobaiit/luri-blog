@@ -2,16 +2,25 @@ import { json, now } from './shared.js';
 
 const MAX_FAVORITES = 1000;
 const MAX_SNAPSHOT_BYTES = 128 * 1024;
-const text = (value, limit) => String(value || '').trim().slice(0, limit);
-const titleKey = (value) => text(value, 300).normalize('NFKC').toLocaleLowerCase().replace(/\s+/g, ' ');
+const text = (value, limit) => String(value || '').slice(0, limit);
+
+const binding = (value) => {
+  if (!value?.source || !value?.sourceId) return null;
+  return {
+    source: text(value.source, 100),
+    sourceId: text(value.sourceId, 500),
+    meta: value.meta && typeof value.meta === 'object' && !Array.isArray(value.meta) ? value.meta : {},
+    art: text(value.art, 2000)
+  };
+};
 
 const sanitizeFavorites = (items) => {
   const seen = new Set();
   return (Array.isArray(items) ? items : []).slice(0, MAX_FAVORITES).flatMap((item) => {
-    const title = text(item?.title, 300); const key = titleKey(title);
-    if (!key || seen.has(key)) return [];
-    seen.add(key);
-    return [{ title, artist: text(item?.artist, 300), source: text(item?.source, 100), sourceId: text(item?.sourceId, 500) }];
+    const id = text(item?.id, 64); const sourceBinding = binding(item?.binding);
+    if (!id || !sourceBinding || seen.has(id)) return [];
+    seen.add(id);
+    return [{ id, title: text(item?.title, 300), artist: text(item?.artist, 300), binding: sourceBinding }];
   });
 };
 

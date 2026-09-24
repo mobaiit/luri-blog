@@ -47,7 +47,7 @@ async function discover(providerUrl) {
   const response = await providerFetch(`${providerUrl}/.well-known/music-provider.json`, { headers: { accept: 'application/json' } });
   if (!response.ok) throw new Error('无法读取 Provider 协议声明');
   const manifest = await response.json();
-  if (manifest.protocol !== 'music-provider' || !String(manifest.protocolVersion || '').startsWith('1.')) throw new Error('Provider 不支持 Music Provider Protocol 1.x');
+  if (manifest.protocol !== 'music-provider' || !String(manifest.protocolVersion || '').startsWith('2.')) throw new Error('Provider 不支持 Music Provider Protocol 2.x');
   if (!manifest.provider?.id || !manifest.endpoints?.search || !manifest.endpoints?.resolve) throw new Error('Provider 协议声明不完整');
   if (!manifest.endpoints?.terms || !manifest.endpoints?.privacy) throw new Error('Provider 必须公开服务条款和隐私政策');
   const authTypes = Array.isArray(manifest.authentication?.types) ? manifest.authentication.types : [];
