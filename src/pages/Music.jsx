@@ -13,7 +13,7 @@ const STORE_CHART = 'luri.music.chart.v3';
 const CHART_TYPES = [{ value: 'rising', label: '飙升榜' }, { value: 'new', label: '新歌榜' }, { value: 'original', label: '原创榜' }, { value: 'hot', label: '热歌榜' }];
 const MEDIA_LOAD_TIMEOUT_MS = 15000;
 const FAVORITES_SYNC_DEBOUNCE_MS = 30 * 1000;
-const FAVORITES_SYNC_MAX_DELAY_MS = 60 * 1000;
+const FAVORITES_WRITE_INTERVAL_MS = 60 * 60 * 1000;
 const FAVORITES_SYNC_RETRY_MS = 30 * 1000;
 const readStore = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
 const readSession = (key) => { try { return JSON.parse(sessionStorage.getItem(key) || '{}'); } catch { return {}; } };
@@ -265,30 +265,32 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const readDirtySince = () => { try { const stored = Number(localStorage.getItem(favoriteDirtyKey)) || 0; if (stored) state.dirtySince = stored; } catch { /* Use the in-memory value when storage is unavailable. */ } return state.dirtySince; };
     const rememberDirtySince = (value) => { state.dirtySince = value; try { if (value) localStorage.setItem(favoriteDirtyKey, String(value)); else localStorage.removeItem(favoriteDirtyKey); } catch { /* Storage is unavailable in private browsing. */ } };
     const rememberSyncedAt = (value) => { const timestamp = Date.parse(value || '') || Date.now(); try { localStorage.setItem(favoriteSyncedKey, String(timestamp)); } catch { /* Storage is unavailable in private browsing. */ } };
-    const scheduleSync = (delay = FAVORITES_SYNC_DEBOUNCE_MS, enforceMaxDelay = true) => {
+    const scheduleSync = (delay = FAVORITES_SYNC_DEBOUNCE_MS) => {
       if (stopped) return;
       if (state.timer) window.clearTimeout(state.timer);
-      const remaining = state.dirtySince ? Math.max(0, FAVORITES_SYNC_MAX_DELAY_MS - (Date.now() - state.dirtySince)) : delay;
-      state.timer = window.setTimeout(() => { state.timer = null; void syncBackup(); }, enforceMaxDelay ? Math.min(delay, remaining) : delay);
+      let lastSyncedAt = 0; try { lastSyncedAt = Number(localStorage.getItem(favoriteSyncedKey)) || 0; } catch { /* Sync after the debounce when storage is unavailable. */ }
+      const intervalRemaining = Math.max(0, FAVORITES_WRITE_INTERVAL_MS - (Date.now() - lastSyncedAt));
+      state.timer = window.setTimeout(() => { state.timer = null; void syncBackup(); }, Math.max(delay, intervalRemaining));
     };
     const syncBackup = async (keepalive = false) => {
       if (state.syncing || !readDirtySince()) return;
       state.syncing = true;
       const mutation = favoriteMutationRef.current; const items = minimalFavorites(likedTracksRef.current); const snapshot = JSON.stringify(items);
-      let synced = false;
+      let wrote = false; let synced = false;
       try {
         const response = await fetch('/api/luri-music/favorites', { method: 'PUT', credentials: 'same-origin', keepalive, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items }) });
         const payload = response.ok ? await response.json() : null;
+        if (response.ok) { rememberSyncedAt(payload?.updatedAt); wrote = true; }
         const latestSnapshot = JSON.stringify(minimalFavorites(likedTracksRef.current));
         if (response.ok && mutation === favoriteMutationRef.current && snapshot === latestSnapshot) {
           const canonical = Array.isArray(payload?.items) ? payload.items : items;
-          likedTracksRef.current = canonical; setLikedTracks(canonical); rememberDirtySince(0); rememberSyncedAt(payload?.updatedAt); synced = true;
+          likedTracksRef.current = canonical; setLikedTracks(canonical); rememberDirtySince(0); synced = true;
         }
       } catch { /* Keep the dirty marker and retry shortly. */ }
       finally {
         state.syncing = false;
         const changedDuringSync = mutation !== favoriteMutationRef.current || snapshot !== JSON.stringify(minimalFavorites(likedTracksRef.current));
-        if (!stopped && readDirtySince()) scheduleSync(synced || changedDuringSync ? FAVORITES_SYNC_DEBOUNCE_MS : FAVORITES_SYNC_RETRY_MS, synced || changedDuringSync);
+        if (!stopped && readDirtySince()) scheduleSync(wrote || synced || changedDuringSync ? FAVORITES_SYNC_DEBOUNCE_MS : FAVORITES_SYNC_RETRY_MS);
       }
     };
     const pullBackup = async () => {
