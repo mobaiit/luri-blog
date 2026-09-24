@@ -3,6 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "license": "CC-BY-NC-4.0",
+  "author": "LURI",
+  "description": "Personal blog and independent music player client built with React, Vite and Cloudflare Workers",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mobaiit/luri-blog.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
