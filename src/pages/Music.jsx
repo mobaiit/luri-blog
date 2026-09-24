@@ -12,7 +12,9 @@ const STORE_QUEUE = 'luri.music.queue.v3'; const STORE_LIKES = 'luri.music.likes
 const STORE_CHART = 'luri.music.chart.v3';
 const CHART_TYPES = [{ value: 'rising', label: '飙升榜' }, { value: 'new', label: '新歌榜' }, { value: 'original', label: '原创榜' }, { value: 'hot', label: '热歌榜' }];
 const MEDIA_LOAD_TIMEOUT_MS = 15000;
-const FAVORITES_SYNC_INTERVAL_MS = 4 * 60 * 60 * 1000;
+const FAVORITES_SYNC_DEBOUNCE_MS = 30 * 1000;
+const FAVORITES_SYNC_MAX_DELAY_MS = 60 * 1000;
+const FAVORITES_SYNC_RETRY_MS = 30 * 1000;
 const readStore = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
 const readSession = (key) => { try { return JSON.parse(sessionStorage.getItem(key) || '{}'); } catch { return {}; } };
 const writeSession = (key, value) => { try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { /* Session storage may be unavailable. */ } };
@@ -88,11 +90,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const likedStoreKey = `${STORE_LIKES}.${favoriteNamespace || 'guest'}`; const favoriteDirtyKey = `luri.music.likes-sync-dirty.v3.${favoriteNamespace || 'guest'}`; const favoriteSyncedKey = `luri.music.likes-sync-last.v3.${favoriteNamespace || 'guest'}`;
   const favoriteInitialRef = useRef(null);
   if (!favoriteInitialRef.current) {
-    let accountItems = []; let accountPresent = false; let dirty = false; let lastSynced = 0;
-    try { const value = localStorage.getItem(likedStoreKey); accountPresent = value !== null; accountItems = value === null ? [] : JSON.parse(value); dirty = Boolean(Number(localStorage.getItem(favoriteDirtyKey))); lastSynced = Number(localStorage.getItem(favoriteSyncedKey)) || 0; } catch { /* Use the server backup when storage is unavailable. */ }
+    let accountItems = []; let dirty = false;
+    try { accountItems = JSON.parse(localStorage.getItem(likedStoreKey) || '[]'); dirty = Boolean(Number(localStorage.getItem(favoriteDirtyKey))); } catch { /* Use the server backup when storage is unavailable. */ }
     const backupItems = Array.isArray(favoriteBackup) ? favoriteBackup : [];
-    const backupUpdated = Date.parse(favoriteBackupUpdatedAt || '') || 0;
-    const source = dirty ? 'account' : backupUpdated > lastSynced || (!accountPresent && backupItems.length) ? 'backup' : 'account';
+    const source = favoriteSyncEnabled && !dirty ? 'backup' : 'account';
     const items = source === 'account' ? accountItems : backupItems;
     favoriteInitialRef.current = { source, items: (Array.isArray(items) ? items : []).filter((track) => track?.id && track?.binding) };
   }
@@ -109,7 +110,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const [lyrics, setLyrics] = useState(''); const [lyricsState, setLyricsState] = useState('');
   const lyricsRef = useRef(null); const musicListRef = useRef(null); const currentRowRef = useRef(null); const searchSuggestionsRef = useRef(null); const locatedTrackRef = useRef('');
   const resolveRequestRef = useRef(null); const chartRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set()); const playbackRefreshIdsRef = useRef(new Set()); const artworkRefreshIdsRef = useRef(new Set());
-  const likedTracksRef = useRef(likedTracks); const favoriteMutationRef = useRef(0); const favoriteSyncRef = useRef({ syncing: false, dirtySince: (() => { try { return Number(localStorage.getItem(favoriteDirtyKey)) || 0; } catch { return 0; } })() });
+  const likedTracksRef = useRef(likedTracks); const favoriteMutationRef = useRef(0); const favoriteSyncRef = useRef({ syncing: false, pulling: false, timer: null, schedule: null, pull: null, dirtySince: (() => { try { return Number(localStorage.getItem(favoriteDirtyKey)) || 0; } catch { return 0; } })() });
   const loadingMoreRef = useRef(false); const activeSearchRef = useRef(query.trim());
   const randomHistoryKey = `luri.music.random-history.v1${storageNamespace ? `.${storageNamespace}` : ''}`; const storedRandomHistory = useRef(readSession(randomHistoryKey));
   const randomRequest = useRef(null); const randomSession = useRef(0); const playMode = useRef('manual'); const playbackListRef = useRef('');
@@ -260,29 +261,61 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   useEffect(() => { likedTracksRef.current = likedTracks; try { localStorage.setItem(likedStoreKey, JSON.stringify(minimalFavorites(likedTracks))); } catch { /* Storage is unavailable in private browsing. */ } }, [likedTracks, likedStoreKey]);
   useEffect(() => {
     if (!favoriteSyncEnabled || !favoriteNamespace) return undefined;
-    const rememberDirtySince = (value) => { favoriteSyncRef.current.dirtySince = value; try { if (value) localStorage.setItem(favoriteDirtyKey, String(value)); else localStorage.removeItem(favoriteDirtyKey); } catch { /* Storage is unavailable in private browsing. */ } };
-    const syncBackup = async () => {
-      const state = favoriteSyncRef.current;
-      try { state.dirtySince = Number(localStorage.getItem(favoriteDirtyKey)) || 0; } catch { /* Use the in-memory value when storage is unavailable. */ }
-      if (state.syncing || !state.dirtySince || Date.now() - state.dirtySince < FAVORITES_SYNC_INTERVAL_MS) return;
-      state.syncing = true; const mutation = favoriteMutationRef.current;
-      let sourceItems = likedTracksRef.current; try { sourceItems = JSON.parse(localStorage.getItem(likedStoreKey) || '[]'); } catch { /* Fall back to the current React state. */ }
-      const items = minimalFavorites(sourceItems); const snapshot = JSON.stringify(items);
-      try {
-        const response = await fetch('/api/luri-music/favorites', { method: 'PUT', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items }) });
-        let latestSnapshot = snapshot; try { latestSnapshot = JSON.stringify(minimalFavorites(JSON.parse(localStorage.getItem(likedStoreKey) || '[]'))); } catch { /* The submitted snapshot remains the comparison baseline. */ }
-        if (response.ok && mutation === favoriteMutationRef.current && snapshot === latestSnapshot) { rememberDirtySince(0); try { localStorage.setItem(favoriteSyncedKey, String(Date.now())); } catch { /* Storage is unavailable in private browsing. */ } }
-      } catch { /* Retry on a later interval while the dirty marker remains. */ }
-      finally { state.syncing = false; }
+    const state = favoriteSyncRef.current; let stopped = false;
+    const readDirtySince = () => { try { const stored = Number(localStorage.getItem(favoriteDirtyKey)) || 0; if (stored) state.dirtySince = stored; } catch { /* Use the in-memory value when storage is unavailable. */ } return state.dirtySince; };
+    const rememberDirtySince = (value) => { state.dirtySince = value; try { if (value) localStorage.setItem(favoriteDirtyKey, String(value)); else localStorage.removeItem(favoriteDirtyKey); } catch { /* Storage is unavailable in private browsing. */ } };
+    const rememberSyncedAt = (value) => { const timestamp = Date.parse(value || '') || Date.now(); try { localStorage.setItem(favoriteSyncedKey, String(timestamp)); } catch { /* Storage is unavailable in private browsing. */ } };
+    const scheduleSync = (delay = FAVORITES_SYNC_DEBOUNCE_MS, enforceMaxDelay = true) => {
+      if (stopped) return;
+      if (state.timer) window.clearTimeout(state.timer);
+      const remaining = state.dirtySince ? Math.max(0, FAVORITES_SYNC_MAX_DELAY_MS - (Date.now() - state.dirtySince)) : delay;
+      state.timer = window.setTimeout(() => { state.timer = null; void syncBackup(); }, enforceMaxDelay ? Math.min(delay, remaining) : delay);
     };
-    try {
-      if (favoriteInitialRef.current.source === 'backup') localStorage.setItem(favoriteSyncedKey, String(Date.now()));
-      else if (likedTracksRef.current.length && !favoriteSyncRef.current.dirtySince && !localStorage.getItem(favoriteSyncedKey)) rememberDirtySince(Date.now());
-    } catch { /* Storage is unavailable in private browsing. */ }
-    syncBackup();
-    const timer = window.setInterval(syncBackup, 60000);
-    return () => window.clearInterval(timer);
-  }, [favoriteSyncEnabled, favoriteDirtyKey, favoriteNamespace, favoriteSyncedKey, likedStoreKey]);
+    const syncBackup = async (keepalive = false) => {
+      if (state.syncing || !readDirtySince()) return;
+      state.syncing = true;
+      const mutation = favoriteMutationRef.current; const items = minimalFavorites(likedTracksRef.current); const snapshot = JSON.stringify(items);
+      let synced = false;
+      try {
+        const response = await fetch('/api/luri-music/favorites', { method: 'PUT', credentials: 'same-origin', keepalive, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items }) });
+        const payload = response.ok ? await response.json() : null;
+        const latestSnapshot = JSON.stringify(minimalFavorites(likedTracksRef.current));
+        if (response.ok && mutation === favoriteMutationRef.current && snapshot === latestSnapshot) {
+          const canonical = Array.isArray(payload?.items) ? payload.items : items;
+          likedTracksRef.current = canonical; setLikedTracks(canonical); rememberDirtySince(0); rememberSyncedAt(payload?.updatedAt); synced = true;
+        }
+      } catch { /* Keep the dirty marker and retry shortly. */ }
+      finally {
+        state.syncing = false;
+        const changedDuringSync = mutation !== favoriteMutationRef.current || snapshot !== JSON.stringify(minimalFavorites(likedTracksRef.current));
+        if (!stopped && readDirtySince()) scheduleSync(synced || changedDuringSync ? FAVORITES_SYNC_DEBOUNCE_MS : FAVORITES_SYNC_RETRY_MS, synced || changedDuringSync);
+      }
+    };
+    const pullBackup = async () => {
+      if (stopped || state.pulling || state.syncing || readDirtySince()) return;
+      state.pulling = true; const mutation = favoriteMutationRef.current;
+      try {
+        const response = await fetch('/api/luri-music/favorites', { credentials: 'same-origin', cache: 'no-store' });
+        const payload = response.ok ? await response.json() : null;
+        if (!stopped && response.ok && mutation === favoriteMutationRef.current && !readDirtySince()) {
+          const items = minimalFavorites(payload?.items);
+          likedTracksRef.current = items; setLikedTracks(items); rememberSyncedAt(payload?.updatedAt);
+        }
+      } catch { /* The local snapshot remains available while offline. */ }
+      finally { state.pulling = false; }
+    };
+    const refreshWhenActive = () => { if (document.visibilityState === 'visible') void pullBackup(); };
+    const flushBeforeExit = () => { if (readDirtySince()) void syncBackup(true); };
+    state.schedule = scheduleSync; state.pull = pullBackup;
+    if (favoriteInitialRef.current.source === 'backup') rememberSyncedAt(favoriteBackupUpdatedAt);
+    if (readDirtySince()) scheduleSync();
+    window.addEventListener('focus', refreshWhenActive); document.addEventListener('visibilitychange', refreshWhenActive); window.addEventListener('pagehide', flushBeforeExit);
+    return () => {
+      stopped = true; state.schedule = null; state.pull = null; if (state.timer) window.clearTimeout(state.timer); state.timer = null;
+      window.removeEventListener('focus', refreshWhenActive); document.removeEventListener('visibilitychange', refreshWhenActive); window.removeEventListener('pagehide', flushBeforeExit);
+    };
+  }, [favoriteSyncEnabled, favoriteBackupUpdatedAt, favoriteDirtyKey, favoriteNamespace, favoriteSyncedKey]);
+  useEffect(() => { if (listView === 'likes') void favoriteSyncRef.current.pull?.(); }, [favoriteSyncEnabled, listView]);
   useEffect(() => { if (!audio.current) return; audio.current.volume = volume; audio.current.muted = muted; }, [volume, muted]);
   useEffect(() => { document.documentElement.style.setProperty('--music-progress', `${duration ? Math.min(100, Math.max(0, progress / duration * 100)) : 0}%`); }, [duration, progress]);
   useEffect(() => { const title = document.querySelector('.music-row.current .track-title'); setTitleOverflows(Boolean(title && title.scrollWidth > title.clientWidth)); }, [currentId, results, tracks, chartData]);
@@ -404,12 +437,13 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const markFavoritesDirty = () => {
     favoriteMutationRef.current += 1;
     if (!favoriteSyncRef.current.dirtySince) { let dirtySince = Date.now(); try { dirtySince = Number(localStorage.getItem(favoriteDirtyKey)) || dirtySince; localStorage.setItem(favoriteDirtyKey, String(dirtySince)); } catch { /* Storage is unavailable in private browsing. */ } favoriteSyncRef.current.dirtySince = dirtySince; }
+    favoriteSyncRef.current.schedule?.();
   };
   const like = (id) => {
     const song = current || tracks.find((track) => track.id === id) || results.find((track) => track.id === id); if (!song) return;
-    markFavoritesDirty();
     const favorite = { id: song.id, title: song.title || '', artist: song.artist || '', binding: song.binding || null };
-    setLikedTracks((saved) => saved.some((track) => sameFavorite(track, song)) ? saved.filter((track) => !sameFavorite(track, song)) : [...saved.filter((track) => !sameFavorite(track, song)), favorite]);
+    const saved = likedTracksRef.current; const next = saved.some((track) => sameFavorite(track, song)) ? saved.filter((track) => !sameFavorite(track, song)) : [...saved.filter((track) => !sameFavorite(track, song)), favorite];
+    likedTracksRef.current = next; setLikedTracks(next); markFavoritesDirty();
   };
   function showToast(message, type = 'error') { setToast({ title: type === 'warning' ? '需要处理' : '播放服务异常', message, type }); }
   const retryWithRefresh = () => {

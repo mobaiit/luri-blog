@@ -37,7 +37,7 @@ export async function handleFavoriteRequest(request, env, user) {
     if (new TextEncoder().encode(snapshot).byteLength > MAX_SNAPSHOT_BYTES) return json({ error: '收藏数据过大' }, 413);
     const timestamp = now();
     await env.LURI_MUSIC_DB.prepare('UPDATE luri_music_users SET favorites_json=?,favorites_updated_at=?,updated_at=? WHERE id=?').bind(snapshot, timestamp, timestamp, user.id).run();
-    return json({ ok: true, updatedAt: timestamp, count: items.length });
+    return json({ ok: true, items, updatedAt: timestamp, count: items.length }, 200, { 'cache-control': 'no-store' });
   }
   return json({ error: 'Method not allowed' }, 405);
 }
