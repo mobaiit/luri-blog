@@ -1,6 +1,6 @@
 # Provider 认证
 
-LURI MUSIC 1.x 支持 `none`、`api_key` 和 `activation_code`。官方源与 HTTPS 私有源可以不使用认证，也可以配置 API Key 或 Authorization；激活码用于一次性领取独立授权。
+LURI MUSIC 1.x 支持 `none`、`api_key`、`activation_code` 和 `bearer_token`。`none` 与 `api_key` 是直接连接方式，Authorization 是 `api_key` 模式下的标准请求头配置；`activation_code` 用于首次领取独立授权，领取后内容接口使用短期 `bearer_token`。Bearer token 不是用户需要再次填写的连接凭证。
 
 ## 无认证
 
@@ -18,6 +18,6 @@ Provider 在 `authentication.types` 中声明 `api_key`。用户可以选择 API
 - 已使用激活码配合新的 `idempotencyKey` 返回 `409 activation_code_used`。
 - `clientAccount` 仅供 Provider 后台展示和审计，不是可验证的用户身份凭证。
 
-`POST /v1/auth/refresh` 使用 refresh token 获取短期 access token。`POST /v1/auth/revoke` 撤销当前账号级凭证。`GET /v1/account` 返回权限状态与有效期。
+`POST /v1/auth/refresh` 使用 refresh token 获取短期 access token。`POST /v1/auth/revoke` 撤销当前账号级凭证。`GET /v1/account` 返回权限状态与有效期。Provider 声明激活码认证时，应在发现文件中同时声明实际支持的 `activate`、`refresh`、`revoke` 和 `account` 端点。
 
 Access token 建议 15 分钟内有效；refresh token 必须使用高熵随机值，Provider 只保存摘要。LURI MUSIC 服务端使用 AES-GCM 加密保存长期凭证并关联当前登录用户，浏览器只取得完成当前 Provider 请求所需的短期凭证。激活码明文不得持久化。

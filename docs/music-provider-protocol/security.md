@@ -8,7 +8,7 @@
 
 常用状态码：400 参数错误，401 令牌无效，403 权限不可用，404 资源不存在，405 HTTP 方法不允许，409 状态冲突，429 触发限流，502 上游不可用，504 Provider 超时。
 
-Provider 必须严格限制每个端点的 HTTP 方法：目录、歌词、封面和账户接口使用 `GET`，播放解析和认证写操作使用 `POST`。CORS 预检可以使用 `OPTIONS`，但不得执行端点业务逻辑。已知端点收到错误方法时必须返回 HTTP 405、`Allow` 响应头以及稳定错误结构，例如：
+Provider 必须严格限制每个端点的 HTTP 方法：发现、health、terms、privacy、目录、歌词、封面和账户接口使用 `GET`；activate、refresh、revoke 和播放解析使用 `POST`。CORS 预检可以使用 `OPTIONS`，但不得执行端点业务逻辑。已知端点收到错误方法时必须返回 HTTP 405、`Allow` 响应头以及稳定错误结构，例如：
 
 ```json
 { "error": { "code": "method_not_allowed", "message": "Method not allowed" } }
