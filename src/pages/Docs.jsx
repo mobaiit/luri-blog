@@ -83,11 +83,27 @@ function SchemaTable({ title, rows }) {
   return <div className="docs-schema-wrap">{title && <h4>{title}</h4>}<div className="docs-schema"><div className="docs-schema-head"><b>参数</b><b>类型</b><b>必填</b><b>说明</b></div>{rows.map(([name, type, required, description]) => <div key={`${title}:${name}:${required}`}><code>{name}</code><span>{type}</span><span>{required}</span><span>{description}</span></div>)}</div></div>;
 }
 
+function Icon({ id }) {
+  return (
+    <svg className="docs-icon" aria-hidden="true">
+      <use href={`/icons.svg#${id}`} />
+    </svg>
+  );
+}
+
 export default function Docs() {
   return <main className="docs-page">
     <header className="docs-hero">
       <div><span>LURI MUSIC</span><strong>开发者文档</strong></div>
-      <nav><a href="#start">使用文档</a><a href="#protocol">协议文档</a><a href="#api">接口文档</a><Link to="/music">打开播放器</Link></nav>
+      <nav>
+        <a href="#start">使用文档</a>
+        <a href="#protocol">协议文档</a>
+        <a href="#api">接口文档</a>
+        <a href="https://github.com/mobaiit/luri-blog" target="_blank" rel="noreferrer" className="docs-github-link">
+          <Icon id="github-icon" />
+        </a>
+        <Link to="/music">打开播放器</Link>
+      </nav>
     </header>
     <div className="docs-layout">
       <aside className="docs-sidebar"><p>文档导航</p>{nav.map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}</aside>

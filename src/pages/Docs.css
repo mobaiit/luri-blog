@@ -57,6 +57,24 @@
   background: var(--color-text);
   color: var(--color-bg);
 }
+.docs-icon {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+.docs-github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0 !important;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+.docs-github-link:hover {
+  background-color: var(--color-bg-alt);
+}
 .docs-layout {
   display: grid;
   grid-template-columns: 190px minmax(0, 820px) 150px;
