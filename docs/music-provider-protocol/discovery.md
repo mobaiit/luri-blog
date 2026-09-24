@@ -42,3 +42,5 @@
 标准能力为 `search`、`random`、`charts`、`lyrics`、`artwork`、`playback` 和 `qualities`。声明可选能力时必须同时提供对应端点；声明 `playback` 时必须提供 `playback.mode: "direct"` 和 resolve 端点。歌词和封面 URL 模板必须使用 `{songId}` 占位符。
 
 所有端点必须使用 HTTPS、与发现地址同源并直接返回最终响应。Provider 必须声明服务条款与隐私政策端点，公开运营主体、内容授权范围、联系方式和权利投诉渠道。客户端拒绝跳转、包含账号密码的 URL、远程脚本及不受支持的主版本。
+
+客户端服务端在签发短期 Provider 访问凭证时应重新读取发现文件，并校验 `provider.id` 与已绑定 Provider 一致。发现成功后使用并保存最新端点和能力；临时发现失败时可以回退已验证的本地快照，避免短暂网络故障中断已有能力。

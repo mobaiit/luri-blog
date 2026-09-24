@@ -77,7 +77,7 @@ export default class ProviderClient {
     if (!this.pending) {
       const deadline = requestDeadline();
       this.pending = api(`providers/${this.config.id}/token`, { method: 'POST', body: '{}', signal: deadline.signal })
-        .then((data) => { if (this.config.status !== (data.account?.status || 'active')) this.onStatusChange?.(); const access = { token: data.accessToken || '', authorization: data.authorization || null, endpoints: data.endpoints, expiresAt: Date.now() + Math.max(30, Number(data.expiresIn) || 900) * 1000 }; this.access = access; return access; })
+        .then((data) => { if (this.config.status !== (data.account?.status || 'active')) this.onStatusChange?.(); const access = { token: data.accessToken || '', authorization: data.authorization || null, endpoints: data.endpoints, capabilities: Array.isArray(data.capabilities) ? data.capabilities : [], expiresAt: Date.now() + Math.max(30, Number(data.expiresIn) || 900) * 1000 }; this.access = access; return access; })
         .catch((error) => { if (!deadline.timedOut()) throw error; const timeout = new Error('Provider 授权请求超时（30 秒）'); timeout.code = 'provider_timeout'; timeout.status = 504; throw timeout; })
         .finally(() => { deadline.clear(); this.pending = null; });
     }
