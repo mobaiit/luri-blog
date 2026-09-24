@@ -3987,8 +3987,8 @@ body.has-global-music-player #root > main:not(.music-page) {
   display: block;
   box-sizing: border-box;
   flex: 0 0 auto;
-  height: auto;
-  min-height: 0;
+  height: auto !important;
+  min-height: 0 !important;
   padding: 0 0 10px !important;
   transform: none !important;
   border-bottom: 1px solid var(--color-text);
@@ -4055,7 +4055,7 @@ body.has-global-music-player #root > main:not(.music-page) {
   /* Keep the progress rail fixed while lifting only the music-page details. */
   body:not(.has-global-music-player) .music-player__song,
   body:not(.has-global-music-player) .music-player .music-controls {
-    transform: translateY(-8px);
+    transform: translateY(-14px);
   }
 
   /* Span all three rows so the lyrics track aligns with the search box. */
