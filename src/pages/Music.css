@@ -3989,16 +3989,22 @@ body.has-global-music-player #root > main:not(.music-page) {
   flex: 0 0 auto;
   height: auto !important;
   min-height: 0 !important;
-  padding: 0 0 10px !important;
+  padding: 0 0 6px !important;
   transform: none !important;
   border-bottom: 1px solid var(--color-text);
 }
 .music-list-head--charts .music-chart-controls {
   flex: 0 0 auto;
+  gap: 4px;
   width: 100%;
   margin: 0;
   padding: 0;
   order: initial;
+}
+.music-list-head--charts .music-chart-meta button {
+  min-height: 26px;
+  padding-top: 3px;
+  padding-bottom: 3px;
 }
 
 /* ─── Desktop: lyrics panel starts at the search box, not the workspace ───
@@ -4048,7 +4054,7 @@ body.has-global-music-player #root > main:not(.music-page) {
   }
 
   .music-list-head.music-list-head--charts {
-    margin-top: 8px;
+    margin-top: 12px;
   }
 
   .music-results > .music-list {
