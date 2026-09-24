@@ -33,7 +33,9 @@ export default class ProviderClient {
       if (refresh) { sessionStorage.removeItem(key); return null; }
       const entry = JSON.parse(sessionStorage.getItem(key) || 'null');
       if (!entry || entry.expiresAt <= Date.now()) { sessionStorage.removeItem(key); return null; }
-      return new Response(JSON.stringify(entry.body), { status: 200, headers: { 'content-type': 'application/json', 'x-luri-cache': 'session' } });
+      const body = { ...entry.body };
+      if (body.url && body.expiresIn) body.expiresIn = Math.max(1, Math.floor((entry.expiresAt - Date.now()) / 1000));
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json', 'x-luri-cache': 'session' } });
     } catch { return null; }
   }
 

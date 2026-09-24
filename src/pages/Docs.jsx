@@ -243,7 +243,7 @@ export default function Docs() {
     "code": "activation_code_used",
     "message": "Activation code has already been used"
   }
-}`}</Code><div className="docs-table"><div><b>400</b><span>请求参数或协议格式错误</span></div><div><b>401</b><span>凭证无效或已经过期</span></div><div><b>403</b><span>激活码无效或权限不可用</span></div><div><b>404</b><span>曲目或资源不存在</span></div><div><b>409</b><span>激活码已经被其他操作使用</span></div><div><b>429</b><span>请求频率或额度超限</span></div><div><b>5xx</b><span>Provider 内部或上游服务异常</span></div></div></section>
+}`}</Code><div className="docs-table"><div><b>400</b><span>请求参数或协议格式错误</span></div><div><b>401</b><span>凭证无效或已经过期</span></div><div><b>403</b><span>激活码无效或权限不可用</span></div><div><b>404</b><span>曲目或资源不存在</span></div><div><b>409</b><span>激活码已经被其他操作使用</span></div><div><b>429</b><span>请求频率超限</span></div><div><b>5xx</b><span>Provider 内部或上游服务异常</span></div></div></section>
 
         <footer className="docs-footer"><span>Music Provider Protocol 2.0</span><a href="mailto:luri@luri.cc.cd">问题反馈：luri@luri.cc.cd</a></footer>
       </article>
