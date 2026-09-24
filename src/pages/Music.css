@@ -3982,15 +3982,21 @@ body.has-global-music-player #root > main:not(.music-page) {
   order: 99;
 }
 
-/* Hide list-head title when empty (chart views) */
-.music-list-head > span:empty {
-  display: none;
-}
-.music-list-head:has(> span:empty) {
+/* Chart filters are part of the list header; its divider belongs below them. */
+.music-list-head.music-list-head--charts {
+  display: block;
+  box-sizing: border-box;
+  height: auto;
   min-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-bottom: 0;
+  padding: 0 0 10px !important;
+  transform: none !important;
+  border-bottom: 1px solid var(--color-text);
+}
+.music-list-head--charts .music-chart-controls {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  order: initial;
 }
 
 /* ─── Desktop: lyrics panel starts at the search box, not the workspace ───
