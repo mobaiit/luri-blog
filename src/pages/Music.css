@@ -4021,6 +4021,7 @@ body.has-global-music-player #root > main:not(.music-page) {
     grid-row: 2 !important;
     align-self: start;
     padding-bottom: 0 !important;
+    transform: translateY(6px);
   }
 
   /* Dissolve the workspace box; children join the content grid directly. */
