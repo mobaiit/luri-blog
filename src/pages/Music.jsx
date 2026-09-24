@@ -321,15 +321,14 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       } catch { /* The local snapshot remains available while offline. */ }
       finally { state.pulling = false; }
     };
-    const refreshWhenActive = () => { if (document.visibilityState === 'visible') void pullBackup(); };
     const flushBeforeExit = () => { if (readDirtySince()) void syncBackup(true); };
     state.schedule = scheduleSync; state.pull = pullBackup;
     if (favoriteInitialRef.current.source === 'backup') rememberSyncedAt(favoriteBackupUpdatedAt);
     if (readDirtySince()) scheduleSync();
-    window.addEventListener('focus', refreshWhenActive); document.addEventListener('visibilitychange', refreshWhenActive); window.addEventListener('pagehide', flushBeforeExit);
+    window.addEventListener('pagehide', flushBeforeExit);
     return () => {
       stopped = true; state.schedule = null; state.pull = null; if (state.timer) window.clearTimeout(state.timer); state.timer = null;
-      window.removeEventListener('focus', refreshWhenActive); document.removeEventListener('visibilitychange', refreshWhenActive); window.removeEventListener('pagehide', flushBeforeExit);
+      window.removeEventListener('pagehide', flushBeforeExit);
     };
   }, [favoriteSyncEnabled, favoriteBackupUpdatedAt, favoriteDirtyKey, favoriteNamespace, favoriteSyncedKey]);
   useEffect(() => { if (listView === 'likes') void favoriteSyncRef.current.pull?.(); }, [favoriteSyncEnabled, listView]);
