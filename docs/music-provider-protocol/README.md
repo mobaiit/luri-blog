@@ -11,6 +11,7 @@ Provider 可以用于连接私有音乐库、机构授权曲库、开放许可�
 - [发现与校验](discovery.md)
 - [Provider 认证](authentication.md)
 - [能力与播放](capabilities.md)
+- [歌曲身份规则](identity.md)
 - [目录接口](catalog.md)
 - [错误、CORS 与安全](security.md)
 - [隐私与版本](privacy.md)

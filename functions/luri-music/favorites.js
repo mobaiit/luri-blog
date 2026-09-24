@@ -1,15 +1,16 @@
 import { json, now } from './shared.js';
+import { songIdFor } from '../../shared/song-identity.js';
 
 const MAX_FAVORITES = 1000;
 const MAX_SNAPSHOT_BYTES = 128 * 1024;
 const text = (value, limit) => String(value || '').slice(0, limit);
 
 const binding = (value) => {
-  if (!value?.source || !value?.sourceId) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.source !== 'string' || !value.source || typeof value.sourceId !== 'string' || !value.sourceId || !value.meta || typeof value.meta !== 'object' || Array.isArray(value.meta) || typeof value.art !== 'string') return null;
   return {
     source: text(value.source, 100),
     sourceId: text(value.sourceId, 500),
-    meta: value.meta && typeof value.meta === 'object' && !Array.isArray(value.meta) ? value.meta : {},
+    meta: value.meta,
     art: text(value.art, 2000)
   };
 };
@@ -17,10 +18,10 @@ const binding = (value) => {
 const sanitizeFavorites = (items) => {
   const seen = new Set();
   return (Array.isArray(items) ? items : []).slice(0, MAX_FAVORITES).flatMap((item) => {
-    const id = text(item?.id, 64); const sourceBinding = binding(item?.binding);
-    if (!id || !sourceBinding || seen.has(id)) return [];
-    seen.add(id);
-    return [{ id, title: text(item?.title, 300), artist: text(item?.artist, 300), binding: sourceBinding }];
+    const title = String(item?.title || ''); const artist = String(item?.artist || ''); const songId = title && artist ? songIdFor(title, artist) : ''; const sourceBinding = binding(item?.binding);
+    if (!songId || !sourceBinding || seen.has(songId)) return [];
+    seen.add(songId);
+    return [{ songId, title, artist, album: String(item?.album || ''), binding: sourceBinding }];
   });
 };
 

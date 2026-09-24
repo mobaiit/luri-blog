@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Toast } from '../luri-music/UiFeedback';
 import { SINGERS } from '../data/singers';
+import { songIdFor } from '../../shared/song-identity';
 import './Music.css';
 
 const EMPTY_ART = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect width="400" height="400" fill="%23ece9e1"/%3E%3Ccircle cx="200" cy="200" r="106" fill="%23c8c2b7"/%3E%3Ccircle cx="200" cy="200" r="22" fill="%23111111"/%3E%3C/svg%3E';
@@ -15,18 +16,29 @@ const MEDIA_LOAD_TIMEOUT_MS = 15000;
 const FAVORITES_SYNC_DEBOUNCE_MS = 30 * 1000;
 const FAVORITES_WRITE_INTERVAL_MS = 60 * 60 * 1000;
 const FAVORITES_SYNC_RETRY_MS = 30 * 1000;
-const readStore = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } };
+const canonicalBinding = (value) => value && typeof value === 'object' && !Array.isArray(value) && typeof value.source === 'string' && value.source && typeof value.sourceId === 'string' && value.sourceId && value.meta && typeof value.meta === 'object' && !Array.isArray(value.meta) && typeof value.art === 'string'
+  ? { source: String(value.source), sourceId: String(value.sourceId), meta: value.meta, art: String(value.art || '') }
+  : null;
+const canonicalTrack = (track) => {
+  const title = String(track?.title || ''); const artist = String(track?.artist || ''); const binding = canonicalBinding(track?.binding);
+  if (!title || !artist || !binding) return null;
+  const { id: _legacyId, source: _legacySource, sourceId: _legacySourceId, ...fields } = track;
+  return { ...fields, songId: songIdFor(title, artist), title, artist, album: String(track?.album || ''), binding };
+};
+const canonicalTracks = (items) => { const seen = new Set(); return (Array.isArray(items) ? items : []).flatMap((item) => { const track = canonicalTrack(item); if (!track || seen.has(track.songId)) return []; seen.add(track.songId); return [track]; }); };
+const readStore = (key) => { try { const value = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } };
+const readTrackStore = (key) => canonicalTracks(readStore(key));
 const readSession = (key) => { try { return JSON.parse(sessionStorage.getItem(key) || '{}'); } catch { return {}; } };
 const writeSession = (key, value) => { try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { /* Session storage may be unavailable. */ } };
 const randomTextKey = (value) => String(value || '').normalize('NFKC').toLocaleLowerCase().replace(/[\s()（）.·_-]/g, '');
 const randomTrackKey = (track) => `${randomTextKey(track?.title)}:${randomTextKey(track?.artist)}`;
 const trackArtists = (track) => String(track?.artist || '').split(/\s*(?:,|，|、|\/|&|feat\.?|ft\.?)\s*/i).filter(Boolean);
-const sameFavorite = (left, right) => Boolean(left?.id && left.id === right?.id);
+const sameFavorite = (left, right) => Boolean(left?.songId && right?.songId && left.songId === right.songId);
 const chartStoreKey = (providerId, platform, chart) => `${STORE_CHART}.${providerId || 'guest'}.${platform}.${chart}`;
 const readChartStore = (providerId, platform, chart) => { try { return JSON.parse(localStorage.getItem(chartStoreKey(providerId, platform, chart)) || 'null'); } catch { return null; } };
-const hydrateChart = (payload) => ({ ...payload, tracks: (Array.isArray(payload?.tracks) ? payload.tracks : []).map((track, index) => ({ ...track, rank: Number(track.rank) || index + 1 })) });
+const hydrateChart = (payload) => ({ ...payload, tracks: canonicalTracks(payload?.tracks).map((track, index) => ({ ...track, rank: Number(track.rank) || index + 1 })) });
 const chartUpdatedLabel = (value) => { const timestamp = Date.parse(value || ''); return Number.isFinite(timestamp) ? new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(timestamp) : '暂无缓存'; };
-const minimalFavorites = (items) => (Array.isArray(items) ? items : []).map((track) => ({ id: track.id, title: track.title || '', artist: track.artist || '', binding: track.binding || null }));
+const minimalFavorites = (items) => canonicalTracks(items).map((track) => ({ songId: track.songId, title: track.title, artist: track.artist, album: track.album, binding: track.binding }));
 const resolvedExpiry = (payload) => { const explicit = Date.parse(payload?.expiresAt || ''); if (Number.isFinite(explicit)) return new Date(explicit).toISOString(); const seconds = Number(payload?.expiresIn); return Number.isFinite(seconds) && seconds > 0 ? new Date(Date.now() + seconds * 1000).toISOString() : null; };
 const playbackUrlExpired = (track) => { const expires = Date.parse(track?.expiresAt || ''); return Boolean(track?.url && Number.isFinite(expires) && expires <= Date.now() + 5000); };
 const singerSearchKey = (value) => String(value || '').normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
@@ -95,30 +107,31 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const backupItems = Array.isArray(favoriteBackup) ? favoriteBackup : [];
     const source = favoriteSyncEnabled && !dirty ? 'backup' : 'account';
     const items = source === 'account' ? accountItems : backupItems;
-    favoriteInitialRef.current = { source, items: (Array.isArray(items) ? items : []).filter((track) => track?.id && track?.binding) };
+    favoriteInitialRef.current = { source, items: canonicalTracks(items).filter((track) => track.binding) };
   }
-  const restoreResults = () => readStore(storeKey(STORE_SEARCH)).filter((track) => track?.id && track?.binding);
+  const restoreResults = () => readTrackStore(storeKey(STORE_SEARCH)).filter((track) => track.binding);
   const [query, setQuery] = useState(() => localStorage.getItem(storeKey(STORE_QUERY)) || ''); const [results, setResults] = useState(restoreResults); const [cachedResults, setCachedResults] = useState(restoreResults); const [recentSearches, setRecentSearches] = useState(() => readStore(storeKey(STORE_RECENT_SEARCHES)).filter((item) => typeof item === 'string').slice(0, 10)); const [searchFocused, setSearchFocused] = useState(false); const [activeSingerSuggestion, setActiveSingerSuggestion] = useState(-1); const [searchState, setSearchState] = useState('');
   const [listView, setListView] = useState('search');
   const [chartPlatform, setChartPlatform] = useState('netease'); const [chartType, setChartType] = useState('rising'); const [chartData, setChartData] = useState(() => hydrateChart(readChartStore(storageNamespace, 'netease', 'rising'))); const [chartLoading, setChartLoading] = useState(false); const [chartState, setChartState] = useState('');
   const [mobileView, setMobileView] = useState('playlist');
   const [activeQueue, setActiveQueue] = useState('normal');
   const [resultPage, setResultPage] = useState(0); const [hasMoreResults, setHasMoreResults] = useState(false); const [loadingMore, setLoadingMore] = useState(false);
-  const [tracks, setTracks] = useState(() => readStore(storeKey(STORE_QUEUE)).filter((track) => track?.id && track?.binding)); const [likedTracks, setLikedTracks] = useState(() => favoriteInitialRef.current.items); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
+  const [tracks, setTracks] = useState(() => readTrackStore(storeKey(STORE_QUEUE)).filter((track) => track.binding)); const [likedTracks, setLikedTracks] = useState(() => favoriteInitialRef.current.items); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
   const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8); const [muted, setMuted] = useState(false);
   const [lyrics, setLyrics] = useState(''); const [lyricsState, setLyricsState] = useState('');
   const lyricsRef = useRef(null); const musicListRef = useRef(null); const currentRowRef = useRef(null); const searchSuggestionsRef = useRef(null); const locatedTrackRef = useRef('');
   const resolveRequestRef = useRef(null); const chartRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set()); const playbackRefreshIdsRef = useRef(new Set()); const artworkRefreshIdsRef = useRef(new Set());
   const likedTracksRef = useRef(likedTracks); const favoriteMutationRef = useRef(0); const favoriteSyncRef = useRef({ syncing: false, pulling: false, timer: null, schedule: null, pull: null, dirtySince: (() => { try { return Number(localStorage.getItem(favoriteDirtyKey)) || 0; } catch { return 0; } })() });
-  const loadingMoreRef = useRef(false); const activeSearchRef = useRef(query.trim());
+  const loadingMoreRef = useRef(false); const activeSearchRef = useRef(query.trim()); const searchRequestRef = useRef(null);
+  const mediaActionsRef = useRef({ play: () => {}, pause: () => {}, previous: () => {}, next: () => {} });
   const randomHistoryKey = `luri.music.random-history.v1${storageNamespace ? `.${storageNamespace}` : ''}`; const storedRandomHistory = useRef(readSession(randomHistoryKey));
   const randomRequest = useRef(null); const randomSession = useRef(0); const playMode = useRef('manual'); const playbackListRef = useRef('');
   const randomFallbackTracks = useRef([]); const randomSingers = useRef(Array.isArray(storedRandomHistory.current.singers) ? storedRandomHistory.current.singers : []); const randomTrackKeys = useRef(Array.isArray(storedRandomHistory.current.tracks) ? storedRandomHistory.current.tracks : []);
   const [randomLoading, setRandomLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const activeTracks = activeQueue === 'favorites' ? likedTracks : tracks;
-  const current = playbackQueue.find((track) => track.id === currentId) || activeTracks.find((track) => track.id === currentId);
+  const current = playbackQueue.find((track) => track.songId === currentId) || activeTracks.find((track) => track.songId === currentId);
   const singerQuery = singerSearchKey(query);
   const singerSuggestions = singerQuery ? SINGERS.filter((singer) => singerSearchKey(singer).startsWith(singerQuery)) : [];
   const lyricLines = lyrics.split(/\r?\n/).filter(Boolean).map(lyricLine).filter((line) => line.text);
@@ -136,38 +149,38 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
 
   useEffect(() => {
     document.body.classList.toggle('has-global-music-player', !isMusicPage);
-    return () => { document.body.classList.remove('has-global-music-player'); resolveRequestRef.current?.abort(); chartRequestRef.current?.abort(); if (mediaDeadlineRef.current) window.clearTimeout(mediaDeadlineRef.current); };
+    return () => { document.body.classList.remove('has-global-music-player'); resolveRequestRef.current?.abort(); chartRequestRef.current?.abort(); searchRequestRef.current?.abort(); if (mediaDeadlineRef.current) window.clearTimeout(mediaDeadlineRef.current); };
   }, [isMusicPage]);
   useEffect(() => {
     if (activeSingerSuggestion >= 0) searchSuggestionsRef.current?.querySelector('.music-search-history__item.active')?.scrollIntoView({ block: 'nearest' });
   }, [activeSingerSuggestion]);
   useEffect(() => {
     if (!currentId) return;
-    if (activeQueue === 'favorites' && !likedTracks.some((track) => track.id === currentId) && tracks.some((track) => track.id === currentId)) setActiveQueue('normal');
-    if (activeQueue === 'normal' && !tracks.some((track) => track.id === currentId) && likedTracks.some((track) => track.id === currentId)) setActiveQueue('favorites');
+    if (activeQueue === 'favorites' && !likedTracks.some((track) => track.songId === currentId) && tracks.some((track) => track.songId === currentId)) setActiveQueue('normal');
+    if (activeQueue === 'normal' && !tracks.some((track) => track.songId === currentId) && likedTracks.some((track) => track.songId === currentId)) setActiveQueue('favorites');
   }, [currentId, activeQueue, tracks, likedTracks]);
 
   useEffect(() => {
     if (!audio.current || !current?.url) return;
-    setPlaybackTrackId(current.id); setPlaybackState('loading'); setProgress(0); setDuration(0);
-    ignoreAudioErrorRef.current = false; audio.current.src = current.url; audio.current.load(); beginMediaDeadline(current.id);
+    setPlaybackTrackId(current.songId); setPlaybackState('loading'); setProgress(0); setDuration(0);
+    ignoreAudioErrorRef.current = false; audio.current.src = current.url; audio.current.load(); beginMediaDeadline(current.songId);
     audio.current.play().catch(() => { clearMediaDeadline(); setPlaying(false); setPlaybackState('error'); });
-  }, [currentId, current?.id, current?.url]);
+  }, [currentId, current?.songId, current?.url]);
   useEffect(() => { if (listView === 'search') setCachedResults(results); }, [listView, results]);
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_SEARCH), JSON.stringify(cachedResults)); localStorage.setItem(storeKey(STORE_QUERY), query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_RECENT_SEARCHES), JSON.stringify(recentSearches)); } catch { /* Storage is unavailable in private browsing. */ } }, [recentSearches]);
   useEffect(() => {
     if (!current || current.url) return undefined;
-    setPlaybackTrackId(current.id); setPlaybackState('resolving');
+    setPlaybackTrackId(current.songId); setPlaybackState('resolving');
     const controller = new AbortController();
     resolveRequestRef.current = controller;
-    const refresh = playbackRefreshIdsRef.current.has(current.id);
-    musicRequest('resolve', { songId: current.id, title: current.title || '', artist: current.artist || '', quality: playbackQuality, binding: current.binding, refresh }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
+    const refresh = playbackRefreshIdsRef.current.has(current.songId);
+    musicRequest('resolve', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, quality: playbackQuality, binding: current.binding, refresh }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
       if (!payload.url) throw Error();
       if (!controller.signal.aborted) {
         const attemptedSources = Array.isArray(payload.attemptedSources) ? payload.attemptedSources : [];
-        const resolved = { ...current, url: payload.url, binding: payload.binding || current.binding, expiresAt: resolvedExpiry(payload), requestedQuality: payload.requestedQuality || playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
-        const update = (track) => track.id === current.id ? { ...track, ...resolved } : track;
+        const resolved = { ...current, url: payload.url, binding: canonicalBinding(payload.binding) || current.binding, expiresAt: resolvedExpiry(payload), requestedQuality: payload.requestedQuality || playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
+        const update = (track) => track.songId === current.songId ? { ...track, ...resolved } : track;
         setTracks((items) => items.map(update));
         setLikedTracks((items) => items.map((track) => sameFavorite(track, current) ? { ...track, binding: resolved.binding } : track));
         setPlaybackQueue((items) => items.map(update));
@@ -194,10 +207,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
           { src: current.art, sizes: '512x512', type: 'image/jpeg' },
         ] : []
       });
-      navigator.mediaSession.setActionHandler('play', toggle);
-      navigator.mediaSession.setActionHandler('pause', toggle);
-      navigator.mediaSession.setActionHandler('previoustrack', previous);
-      navigator.mediaSession.setActionHandler('nexttrack', next);
+      navigator.mediaSession.setActionHandler('play', () => mediaActionsRef.current.play());
+      navigator.mediaSession.setActionHandler('pause', () => mediaActionsRef.current.pause());
+      navigator.mediaSession.setActionHandler('previoustrack', () => mediaActionsRef.current.previous());
+      navigator.mediaSession.setActionHandler('nexttrack', () => mediaActionsRef.current.next());
       navigator.mediaSession.setActionHandler('seekbackward', (details) => {
         if (audio.current) {
           const skipTime = details.seekOffset || 10;
@@ -228,7 +241,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
         navigator.mediaSession.setActionHandler('seekto', null);
       }
     };
-  }, [current?.id, current?.title, current?.artist, current?.album, current?.art]);
+  }, [current]);
   useEffect(() => {
     if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
@@ -237,9 +250,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   useEffect(() => {
     if (!current || (current.art && current.art !== EMPTY_ART) || !current.binding) return undefined;
     const controller = new AbortController();
-    musicRequest('artwork', { id: current.id, songId: current.id, title: current.title || '', artist: current.artist || '', binding: current.binding }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
+    musicRequest('artwork', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
       if (payload.url && !controller.signal.aborted) {
-        const update = (track) => track.id === current.id ? { ...track, art: payload.url } : track;
+        const returnedBinding = canonicalBinding(payload.binding);
+        const update = (track) => track.songId === current.songId ? { ...track, art: payload.url, binding: returnedBinding || track.binding } : track;
         (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map(update));
         setPlaybackQueue((items) => items.map(update));
       }
@@ -248,15 +262,16 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   }, [activeQueue, current]);
   const refreshArtwork = (event) => {
     const image = event.currentTarget;
-    if (!current || current.art === EMPTY_ART || artworkRefreshIdsRef.current.has(current.id)) { image.src = EMPTY_ART; return; }
-    artworkRefreshIdsRef.current.add(current.id);
-    void musicRequest('artwork', { id: current.id, songId: current.id, title: current.title || '', artist: current.artist || '', binding: current.binding, refresh: 1 }).then((response) => response.ok ? response.json() : {}).then((payload) => {
+    if (!current || current.art === EMPTY_ART || artworkRefreshIdsRef.current.has(current.songId)) { image.src = EMPTY_ART; return; }
+    artworkRefreshIdsRef.current.add(current.songId);
+    void musicRequest('artwork', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding, refresh: 1 }).then((response) => response.ok ? response.json() : {}).then((payload) => {
       if (!payload.url) throw new Error('No artwork');
-      const update = (track) => track.id === current.id ? { ...track, art: payload.url, binding: payload.binding || track.binding } : track;
+      const returnedBinding = canonicalBinding(payload.binding);
+      const update = (track) => track.songId === current.songId ? { ...track, art: payload.url, binding: returnedBinding || track.binding } : track;
       setTracks((items) => items.map(update)); setLikedTracks((items) => items.map(update)); setPlaybackQueue((items) => items.map(update));
     }).catch(() => { image.src = EMPTY_ART; });
   };
-  const artworkLoaded = () => { if (current) artworkRefreshIdsRef.current.delete(current.id); };
+  const artworkLoaded = () => { if (current) artworkRefreshIdsRef.current.delete(current.songId); };
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_QUEUE), JSON.stringify(tracks.slice(0, 50).map(({ url: _url, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [tracks]);
   useEffect(() => { likedTracksRef.current = likedTracks; try { localStorage.setItem(likedStoreKey, JSON.stringify(minimalFavorites(likedTracks))); } catch { /* Storage is unavailable in private browsing. */ } }, [likedTracks, likedStoreKey]);
   useEffect(() => {
@@ -346,7 +361,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const anchor = desktop ? body.clientHeight / 2 + active.offsetHeight : body.clientHeight / 2;
     body.scrollTo({ top: Math.max(0, active.offsetTop - anchor + active.offsetHeight / 2), behavior: 'smooth' });
   }, [activeLyric]);
-  useEffect(() => { if (lyricsRef.current) lyricsRef.current.scrollTop = 0; }, [current?.id, lyrics]);
+  useEffect(() => { if (lyricsRef.current) lyricsRef.current.scrollTop = 0; }, [current?.songId, lyrics]);
   useEffect(() => {
     const body = lyricsRef.current; if (!body) return undefined;
     let startedOnLyric = false;
@@ -378,7 +393,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   useEffect(() => {
     if (!current) { setLyrics(''); setLyricsState(''); return undefined; }
     const controller = new AbortController(); setLyrics(''); setLyricsState('正在加载歌词…');
-    musicRequest('lyrics', { id: current.id, songId: current.id, title: current.title || '', artist: current.artist || '', album: current.album || '', binding: current.binding }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => { if (!controller.signal.aborted) { setLyrics(payload.lyrics || ''); setLyricsState(payload.lyrics ? '' : '暂无匹配歌词'); } }).catch((error) => { if (!controller.signal.aborted) { setLyricsState('暂无匹配歌词'); if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); } });
+    musicRequest('lyrics', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => { if (!controller.signal.aborted) { setLyrics(payload.lyrics || ''); setLyricsState(payload.lyrics ? '' : '暂无匹配歌词'); } }).catch((error) => { if (!controller.signal.aborted) { setLyricsState('暂无匹配歌词'); if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); } });
     return () => controller.abort();
   }, [current]);
   const stopRandom = () => {
@@ -398,8 +413,8 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!hasAccess()) return;
     if (!preserveFailures) { failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(id); }
     if (mode === 'manual') stopRandom();
-    const sourceQueue = queue?.length ? queue : playbackQueue.some((track) => track.id === id) ? null : activeTracks;
-    const forSelectedQuality = (track) => track.id === id && track.url && (track.requestedQuality !== playbackQuality || playbackUrlExpired(track)) ? { ...track, url: undefined } : track;
+    const sourceQueue = queue?.length ? queue : playbackQueue.some((track) => track.songId === id) ? null : activeTracks;
+    const forSelectedQuality = (track) => track.songId === id && track.url && (track.requestedQuality !== playbackQuality || playbackUrlExpired(track)) ? { ...track, url: undefined } : track;
     if (sourceQueue?.length) setPlaybackQueue(sourceQueue.map(forSelectedQuality));
     else if (id !== currentId) setPlaybackQueue((items) => items.map(forSelectedQuality));
     clearMediaDeadline(); setPlaybackTrackId(id); setPlaybackState('loading');
@@ -415,22 +430,22 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const next = () => {
     const queue = playbackQueue.length ? playbackQueue : activeTracks; if (!queue.length) return;
     if (playMode.current === 'random') return startRandom();
-    const index = queue.findIndex((track) => track.id === currentId);
-    selectTrack(queue[index < 0 ? 0 : (index + 1) % queue.length].id, null, playMode.current);
+    const index = queue.findIndex((track) => track.songId === currentId);
+    selectTrack(queue[index < 0 ? 0 : (index + 1) % queue.length].songId, null, playMode.current);
   };
   const previous = () => {
     const queue = playbackQueue.length ? playbackQueue : activeTracks; if (!queue.length) return;
-    const index = queue.findIndex((track) => track.id === currentId);
-    selectTrack(queue[index <= 0 ? queue.length - 1 : index - 1].id, null, playMode.current);
+    const index = queue.findIndex((track) => track.songId === currentId);
+    selectTrack(queue[index <= 0 ? queue.length - 1 : index - 1].songId, null, playMode.current);
   };
   const toggle = () => {
     if (playbackState === 'resolving' || playbackState === 'loading') return;
     if (!playing && !hasAccess()) return;
-    if (!current && activeTracks[0]) return selectTrack(activeTracks[0].id, activeTracks);
+    if (!current && activeTracks[0]) return selectTrack(activeTracks[0].songId, activeTracks);
     if (playing) { audio.current?.pause(); return; }
     if (current && (!current.url || playbackUrlExpired(current))) {
-      if (current.url) { const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track; setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl)); }
-      failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(current.id); setPlaybackTrackId(current.id); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1); return;
+      if (current.url) { const clearUrl = (track) => track.songId === current.songId ? { ...track, url: undefined } : track; setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl)); }
+      failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(current.songId); setPlaybackTrackId(current.songId); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1); return;
     }
     setPlaybackTrackId(currentId); setPlaybackState('loading'); beginMediaDeadline(currentId);
     if (audio.current && current?.url && !audio.current.getAttribute('src')) { ignoreAudioErrorRef.current = false; audio.current.src = current.url; audio.current.load(); }
@@ -442,25 +457,25 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     favoriteSyncRef.current.schedule?.();
   };
   const like = (id) => {
-    const song = current || tracks.find((track) => track.id === id) || results.find((track) => track.id === id); if (!song) return;
-    const favorite = { id: song.id, title: song.title || '', artist: song.artist || '', binding: song.binding || null };
+    const song = current || tracks.find((track) => track.songId === id) || results.find((track) => track.songId === id); if (!song) return;
+    const favorite = { songId: song.songId, title: song.title, artist: song.artist, album: song.album, binding: song.binding };
     const saved = likedTracksRef.current; const next = saved.some((track) => sameFavorite(track, song)) ? saved.filter((track) => !sameFavorite(track, song)) : [...saved.filter((track) => !sameFavorite(track, song)), favorite];
     likedTracksRef.current = next; setLikedTracks(next); markFavoritesDirty();
   };
   function showToast(message, type = 'error') { setToast({ title: type === 'warning' ? '需要处理' : '播放服务异常', message, type }); }
   const retryWithRefresh = () => {
-    if (!current || playbackRefreshIdsRef.current.has(current.id)) return false;
-    playbackRefreshIdsRef.current.add(current.id);
-    const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track;
+    if (!current || playbackRefreshIdsRef.current.has(current.songId)) return false;
+    playbackRefreshIdsRef.current.add(current.songId);
+    const clearUrl = (track) => track.songId === current.songId ? { ...track, url: undefined } : track;
     setTracks((items) => items.map(clearUrl));
     setLikedTracks((items) => items.map(clearUrl));
     setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl));
-    setPlaybackTrackId(current.id); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1);
+    setPlaybackTrackId(current.songId); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1);
     return true;
   };
   const discardCurrentUrl = () => {
     if (!current) return;
-    const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track;
+    const clearUrl = (track) => track.songId === current.songId ? { ...track, url: undefined } : track;
     setLikedTracks((items) => items.map((track) => sameFavorite(track, current) ? { ...track, url: undefined } : track));
     setTracks((items) => items.map(clearUrl));
     setPlaybackQueue((items) => items.map(clearUrl));
@@ -471,10 +486,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (queue.length <= 1 || failedPlaybackIdsRef.current.size >= queue.length) {
       setPlaybackTrackId(currentId); setPlaybackState('error'); showToast('播放列表中的歌曲均无法播放，请稍后重试', 'error'); return;
     }
-    const currentIndex = queue.findIndex((track) => track.id === currentId); const startIndex = currentIndex < 0 ? -1 : currentIndex;
-    const nextTrack = Array.from({ length: queue.length - 1 }, (_, offset) => queue[(startIndex + offset + 1) % queue.length]).find((track) => !failedPlaybackIdsRef.current.has(track.id));
+    const currentIndex = queue.findIndex((track) => track.songId === currentId); const startIndex = currentIndex < 0 ? -1 : currentIndex;
+    const nextTrack = Array.from({ length: queue.length - 1 }, (_, offset) => queue[(startIndex + offset + 1) % queue.length]).find((track) => !failedPlaybackIdsRef.current.has(track.songId));
     if (!nextTrack) { setPlaybackState('error'); return; }
-    showToast(message, 'warning'); selectTrack(nextTrack.id, null, playMode.current, true);
+    showToast(message, 'warning'); selectTrack(nextTrack.songId, null, playMode.current, true);
   }
   function handlePlaybackFailure(message) {
     setPlaying(false);
@@ -495,15 +510,15 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       const response = await musicRequest('random', { exclude: excluded }, controller.signal);
       if (!response.ok) throw Error();
       const payload = await response.json();
-      const seen = new Set(); const tracks = (payload.tracks || []).filter((track) => { const key = track.id; if (!key || !track.binding || seen.has(key)) return false; seen.add(key); return true; });
+      const tracks = canonicalTracks(payload.tracks).filter((track) => track.binding);
       if (!tracks.length) throw Error();
       if (controller.signal.aborted || session !== randomSession.current) return;
       const freshTracks = tracks.filter((track) => !randomTrackKeys.current.includes(randomTrackKey(track))); const candidates = freshTracks.length ? freshTracks : tracks;
       const selected = candidates[Math.floor(Math.random() * candidates.length)];
-      const fallbackCandidates = tracks.filter((track) => track.id !== selected.id && randomTrackKey(track) !== randomTrackKey(selected) && !randomTrackKeys.current.includes(randomTrackKey(track)));
+      const fallbackCandidates = tracks.filter((track) => track.songId !== selected.songId && randomTrackKey(track) !== randomTrackKey(selected) && !randomTrackKeys.current.includes(randomTrackKey(track)));
       randomFallbackTracks.current = fallbackCandidates.length ? [fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)]] : [];
       rememberRandomTrack(selected, payload.singer || '');
-      playbackListRef.current = 'random'; clearMediaDeadline(); setPlaybackQueue(tracks); setCurrentId(selected.id); setPlaybackTrackId(selected.id); setPlaybackState('resolving');
+      playbackListRef.current = 'random'; clearMediaDeadline(); setPlaybackQueue(tracks); setCurrentId(selected.songId); setPlaybackTrackId(selected.songId); setPlaybackState('resolving');
     } catch (error) {
       if (!controller.signal.aborted && session === randomSession.current) {
         const accessDenied = error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403;
@@ -519,7 +534,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const index = Math.floor(Math.random() * candidates.length);
     const [track] = candidates.splice(index, 1);
     rememberRandomTrack(track);
-    selectTrack(track.id, null, 'random');
+    selectTrack(track.songId, null, 'random');
   }
 
   const loadChart = async (platform = chartPlatform, type = chartType, refresh = false) => {
@@ -549,16 +564,24 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const selectChartType = (type) => { setChartType(type); void loadChart(chartPlatform, type); };
 
   const loadResults = async (keyword, page, append = false) => {
-    if (append) { loadingMoreRef.current = true; setLoadingMore(true); } else setSearchState(TEXT.searching);
+    searchRequestRef.current?.abort();
+    const controller = new AbortController(); searchRequestRef.current = controller;
+    if (append) { loadingMoreRef.current = true; setLoadingMore(true); } else { loadingMoreRef.current = false; setLoadingMore(false); setSearchState(TEXT.searching); }
     try {
-      const response = await musicRequest('search', { q: keyword, page }); if (!response.ok) throw Error();
-      const payload = await response.json(); const incoming = (payload.tracks || []).filter((track) => track?.id && track?.binding);
-      setTracks((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.id === track.id))] : incoming.map((track) => ({ ...track, url: undefined })));
-      setResults((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.id === track.id))] : incoming);
-      if (append && playbackListRef.current === `search:${activeSearchRef.current}`) setPlaybackQueue((items) => [...items, ...incoming.filter((track) => !items.some((item) => item.id === track.id))]);
+      const response = await musicRequest('search', { q: keyword, page }, controller.signal); if (!response.ok) throw Error();
+      const payload = await response.json();
+      if (controller.signal.aborted || searchRequestRef.current !== controller || activeSearchRef.current !== keyword) return;
+      const incoming = canonicalTracks(payload.tracks).filter((track) => track.binding);
+      setTracks((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.songId === track.songId))] : incoming.map((track) => ({ ...track, url: undefined })));
+      setResults((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.songId === track.songId))] : incoming);
+      if (append && playbackListRef.current === `search:${activeSearchRef.current}`) setPlaybackQueue((items) => [...items, ...incoming.filter((track) => !items.some((item) => item.songId === track.songId))]);
       setResultPage(page); setHasMoreResults(Boolean(payload.hasMore && incoming.length)); setSearchState('');
-    } catch (error) { const accessDenied = error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403; setHasMoreResults(false); setSearchState(''); showToast(accessDenied ? 'Provider 没有访问权限，请重新配置或联系服务提供方' : '搜索服务暂时不可用', accessDenied ? 'warning' : 'error'); }
-    finally { loadingMoreRef.current = false; setLoadingMore(false); }
+    } catch (error) {
+      if (controller.signal.aborted || searchRequestRef.current !== controller || activeSearchRef.current !== keyword) return;
+      const accessDenied = error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403; setHasMoreResults(false); setSearchState(''); showToast(accessDenied ? 'Provider 没有访问权限，请重新配置或联系服务提供方' : '搜索服务暂时不可用', accessDenied ? 'warning' : 'error');
+    } finally {
+      if (searchRequestRef.current === controller) { searchRequestRef.current = null; loadingMoreRef.current = false; setLoadingMore(false); }
+    }
   };
   const runSearch = async (keyword) => {
     if (!hasAccess()) return;
@@ -590,12 +613,12 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   };
 
   const handleTrackAction = (track) => {
-    if (track.id === currentId) { toggle(); return; }
+    if (track.songId === currentId) { toggle(); return; }
     const isChartView = listView === 'netease' || listView === 'qq';
     const queue = listView === 'search' ? results : listView === 'likes' ? likedTracks : isChartView ? chartData.tracks : tracks;
     playbackListRef.current = listView === 'search' ? `search:${activeSearchRef.current}` : isChartView ? `charts:${listView}:${chartType}` : listView;
     setActiveQueue(listView === 'likes' ? 'favorites' : 'normal');
-    selectTrack(track.id, queue);
+    selectTrack(track.songId, queue);
   };
   const seekLyric = (event) => {
     const line = event.target.closest('p');
@@ -612,6 +635,14 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const isSearching = searchState === TEXT.searching;
   const isPlaybackBusy = randomLoading || playbackState === 'resolving' || playbackState === 'loading';
   const rowPlaybackState = (id) => id === playbackTrackId ? playbackState : 'idle';
+  useEffect(() => {
+    mediaActionsRef.current = {
+      play: () => { if (!playing) toggle(); },
+      pause: () => { if (playing) toggle(); },
+      previous,
+      next,
+    };
+  });
   return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshIdsRef.current.delete(currentId); setPlaybackState('playing'); }} onError={() => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); handlePlaybackFailure(); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={() => { clearMediaDeadline(); next(); }} /><Toast toast={toast} onClose={() => setToast(null)} />
   <section className="music-shell">
       <section className="music-content">
@@ -620,7 +651,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
           <form className="music-search" onSubmit={search}><input value={query} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} onChange={(event) => { setQuery(event.target.value); setActiveSingerSuggestion(-1); }} onKeyDown={handleSearchKeyDown} placeholder={TEXT.searchHint} autoComplete="off" aria-autocomplete="list" aria-expanded={searchFocused && singerSuggestions.length > 0} /><button className="music-icon-button" type="submit" onMouseDown={(event) => event.preventDefault()} disabled={isSearching} aria-label={isSearching ? '正在搜索' : TEXT.search} title={isSearching ? '正在搜索' : TEXT.search}>{isSearching ? <span className="music-spinner" aria-hidden="true" /> : <MusicIcon name="search" />}</button><button className="music-random-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={startRandom} disabled={randomLoading} aria-label="随机搜索并播放音乐" title="随机发现">{randomLoading ? <span className="music-spinner" aria-hidden="true" /> : <><MusicIcon name="random" /><span>随机发现</span></>}</button>{searchFocused && (singerSuggestions.length > 0 || (!singerQuery && recentSearches.length > 0)) && <div className="music-search-history" ref={searchSuggestionsRef} onMouseDown={(event) => event.preventDefault()}>{singerSuggestions.length > 0 ? <><div className="music-search-history__head"><span>歌手</span></div>{singerSuggestions.map((singer, index) => <button className={`music-search-history__item${index === activeSingerSuggestion ? ' active' : ''}`} type="button" key={singer} onClick={() => chooseSearchSuggestion(singer)}>{singer}</button>)}</> : <><div className="music-search-history__head"><span>最近搜索</span><button type="button" onClick={() => setRecentSearches([])}>清除</button></div>{recentSearches.map((item) => <button className="music-search-history__item" type="button" key={item} onClick={() => chooseSearchSuggestion(item)}>{item}</button>)}</>}</div>}</form>
         </header>
         <aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className={`music-nav${listView === 'queue' || listView === 'search' ? ' active' : ''}`} onClick={() => { setListView('queue'); }}>播放列表<span>{tracks.length}</span></button><button className={`music-nav${listView === 'likes' ? ' active' : ''}`} onClick={() => { setListView('likes'); }}>我喜欢<span>{likedTracks.length}</span></button><button className={`music-nav${listView === 'netease' ? ' active' : ''}`} onClick={openNetease}>网易<span>{listView === 'netease' ? chartData.tracks.length || '' : ''}</span></button><button className={`music-nav${listView === 'qq' ? ' active' : ''}`} onClick={openQQ}>QQ<span>{listView === 'qq' ? chartData.tracks.length || '' : ''}</span></button><div className="music-divider" /></aside>
-        <div className="music-workspace"><section className="music-results">{isChartView && <div className="music-chart-controls"><div className="music-chart-switch music-chart-switch--types" aria-label="榜单类型">{CHART_TYPES.map((chart) => <button type="button" className={chartType === chart.value ? 'active' : ''} onClick={() => selectChartType(chart.value)} key={chart.value}>{chart.label}</button>)}</div><div className="music-chart-meta"><span>{chartData.title || '音乐榜单'} · 更新于 {chartUpdatedLabel(chartData.updatedAt)} · 共 {chartData.tracks.length} 首歌曲</span><button type="button" onClick={() => loadChart(chartPlatform, chartType, true)} disabled={chartLoading}>{chartLoading ? <span className="music-spinner" aria-hidden="true" /> : '刷新'}</button></div></div>}<div className="music-list-head"><span>{listView === 'search' ? TEXT.search : listView === 'likes' ? TEXT.likes : isChartView ? '' : TEXT.queue}</span></div><div className="music-list" ref={musicListRef} onScroll={handleListScroll}>{visibleTracks.map((track, index) => { const state = rowPlaybackState(track.id); const isCurrent = track.id === currentId; const isCurrentBusy = isCurrent && isPlaybackBusy; return <button ref={isCurrent ? currentRowRef : null} key={track.id} className={`music-row${isCurrent ? ' current' : ''}`} onClick={() => handleTrackAction(track)} disabled={isCurrentBusy} aria-label={`${track.title}，${isCurrentBusy ? '正在加载' : state === 'error' ? '播放失败，点击重试' : state === 'playing' ? TEXT.pause : TEXT.play}`}><span className="track-index">{String(isChartView ? track.rank || index + 1 : index + 1).padStart(2, '0')}</span><span className="track-copy"><span className="track-title"><b>{track.title}</b>{isCurrent && <QualityBadge track={current} />}</span><span className="track-artist">{track.artist}{track.year ? ` · ${track.year}` : ''}</span></span><span className={`track-action track-action--${state}`} aria-hidden="true">{state === 'error' ? '播放失败' : state === 'loading' || state === 'resolving' ? <span className="music-spinner" /> : <MusicIcon name={state === 'playing' ? 'pause' : 'play'} />}</span></button>; })}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!visibleTracks.length && <div className="music-empty"><strong>{isChartView ? chartLoading ? '正在加载榜单…' : '暂无榜单数据' : TEXT.noResult}</strong><span>{isChartView ? '请选择榜单或点击刷新' : TEXT.choose}</span></div>}</div><p className="music-search-status" aria-live="polite">{isChartView ? chartState : isSearching ? '' : searchState}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" onLoad={artworkLoaded} onError={refreshArtwork} /><div><h2><b>{current?.title || TEXT.noTrack}</b></h2><span>{current?.artist || TEXT.choose}</span></div><div className="lyrics-track__actions"><QualityBadge track={current} /><DownloadButton track={current} /><button className={`like-button${current && likedTracks.some((track) => sameFavorite(track, current)) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.id)}>{TEXT.likes}</button></div></div><div ref={lyricsRef} className="lyrics-body" onClick={seekLyric}>{lyrics ? lyricLines.map((line, index) => <p key={`${line.time}:${line.text}:${index}`}>{line.text}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
+        <div className="music-workspace"><section className="music-results">{isChartView && <div className="music-chart-controls"><div className="music-chart-switch music-chart-switch--types" aria-label="榜单类型">{CHART_TYPES.map((chart) => <button type="button" className={chartType === chart.value ? 'active' : ''} onClick={() => selectChartType(chart.value)} key={chart.value}>{chart.label}</button>)}</div><div className="music-chart-meta"><span>{chartData.title || '音乐榜单'} · 更新于 {chartUpdatedLabel(chartData.updatedAt)} · 共 {chartData.tracks.length} 首歌曲</span><button type="button" onClick={() => loadChart(chartPlatform, chartType, true)} disabled={chartLoading}>{chartLoading ? <span className="music-spinner" aria-hidden="true" /> : '刷新'}</button></div></div>}<div className="music-list-head"><span>{listView === 'search' ? TEXT.search : listView === 'likes' ? TEXT.likes : isChartView ? '' : TEXT.queue}</span></div><div className="music-list" ref={musicListRef} onScroll={handleListScroll}>{visibleTracks.map((track, index) => { const state = rowPlaybackState(track.songId); const isCurrent = track.songId === currentId; const isCurrentBusy = isCurrent && isPlaybackBusy; return <button ref={isCurrent ? currentRowRef : null} key={track.songId} className={`music-row${isCurrent ? ' current' : ''}`} onClick={() => handleTrackAction(track)} disabled={isCurrentBusy} aria-label={`${track.title}，${isCurrentBusy ? '正在加载' : state === 'error' ? '播放失败，点击重试' : state === 'playing' ? TEXT.pause : TEXT.play}`}><span className="track-index">{String(isChartView ? track.rank || index + 1 : index + 1).padStart(2, '0')}</span><span className="track-copy"><span className="track-title"><b>{track.title}</b>{isCurrent && <QualityBadge track={current} />}</span><span className="track-artist">{track.artist}{track.year ? ` · ${track.year}` : ''}</span></span><span className={`track-action track-action--${state}`} aria-hidden="true">{state === 'error' ? '播放失败' : state === 'loading' || state === 'resolving' ? <span className="music-spinner" /> : <MusicIcon name={state === 'playing' ? 'pause' : 'play'} />}</span></button>; })}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!visibleTracks.length && <div className="music-empty"><strong>{isChartView ? chartLoading ? '正在加载榜单…' : '暂无榜单数据' : TEXT.noResult}</strong><span>{isChartView ? '请选择榜单或点击刷新' : TEXT.choose}</span></div>}</div><p className="music-search-status" aria-live="polite">{isChartView ? chartState : isSearching ? '' : searchState}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" onLoad={artworkLoaded} onError={refreshArtwork} /><div><h2><b>{current?.title || TEXT.noTrack}</b></h2><span>{current?.artist || TEXT.choose}</span></div><div className="lyrics-track__actions"><QualityBadge track={current} /><DownloadButton track={current} /><button className={`like-button${current && likedTracks.some((track) => sameFavorite(track, current)) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.songId)}>{TEXT.likes}</button></div></div><div ref={lyricsRef} className="lyrics-body" onClick={seekLyric}>{lyrics ? lyricLines.map((line, index) => <p key={`${line.time}:${line.text}:${index}`}>{line.text}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
     <footer className="music-player">
       <div className="music-player__progress"><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /></div>
       <div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" onLoad={artworkLoaded} onError={refreshArtwork} /><span className="music-player__copy"><b className="music-player__title">{current?.title || TEXT.noTrack}</b><small>{current?.artist || 'LURI MUSIC'}</small></span></div>

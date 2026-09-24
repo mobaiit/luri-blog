@@ -26,20 +26,20 @@ const manifestExample = `{
     "random": "https://provider.example.com/v1/catalog/random",
     "charts": "https://provider.example.com/v1/catalog/charts",
     "resolve": "https://provider.example.com/v1/tracks/resolve",
-    "lyrics": "https://provider.example.com/v1/tracks/{id}/lyrics",
-    "artwork": "https://provider.example.com/v1/tracks/{id}/artwork"
+    "lyrics": "https://provider.example.com/v1/tracks/{songId}/lyrics",
+    "artwork": "https://provider.example.com/v1/tracks/{songId}/artwork"
   }
 }`;
 
 const trackExample = `{
   "tracks": [{
-    "id": "track-001",
+    "songId": "2725dfd72d4bdd075e2ddaebc49c7224",
     "title": "Track title",
     "artist": "Artist",
     "album": "Album",
     "duration": 238,
     "art": "https://provider.example.com/artwork/track-001",
-    "binding": { "source": "example", "sourceId": "track-001", "meta": {} }
+    "binding": { "source": "example", "sourceId": "track-001", "meta": {}, "art": "https://provider.example.com/artwork/track-001" }
   }],
   "page": 1,
   "hasMore": false
@@ -52,12 +52,12 @@ const chartExample = `{
   "updatedAt": "2026-09-23T10:30:00Z",
   "tracks": [{
     "rank": 1,
-    "id": "track-001",
+    "songId": "2725dfd72d4bdd075e2ddaebc49c7224",
     "title": "Track title",
     "artist": "Artist",
     "album": "Album",
     "art": "https://provider.example.com/artwork/track-001",
-    "binding": { "source": "provider-source", "sourceId": "track-001", "meta": {} }
+    "binding": { "source": "provider-source", "sourceId": "track-001", "meta": {}, "art": "https://provider.example.com/artwork/track-001" }
   }]
 }`;
 
@@ -139,8 +139,8 @@ export default function Docs() {
           ['endpoints.resolve', 'HTTPS URL', '是', '播放地址解析接口。'],
           ['endpoints.random', 'HTTPS URL', '否', '随机发现接口；声明 random 能力时应提供。'],
           ['endpoints.charts', 'HTTPS URL', '否', '榜单接口；声明 charts 能力时应提供。'],
-          ['endpoints.lyrics', 'URL template', '否', '歌词接口，以 {id} 表示曲目标识。'],
-          ['endpoints.artwork', 'URL template', '否', '封面接口，以 {id} 表示曲目标识。'],
+          ['endpoints.lyrics', 'URL template', '否', '歌词接口，以 {songId} 表示统一歌曲身份。'],
+          ['endpoints.artwork', 'URL template', '否', '封面接口，以 {songId} 表示统一歌曲身份。'],
           ['endpoints.activate', 'HTTPS URL', '条件', '使用 activation_code 时必填的激活码兑换接口。'],
           ['endpoints.refresh', 'HTTPS URL', '条件', '使用 activation_code 时必填的访问令牌刷新接口。'],
           ['endpoints.account', 'HTTPS URL', '否', '授权状态与有效期查询接口。'],
@@ -191,25 +191,26 @@ export default function Docs() {
           ['updatedAt', 'ISO 8601 string', '是', '当前榜单数据的获取或更新时间。'],
           ['tracks', 'Track[]', '是', '按排名顺序返回的完整曲目数组。'],
           ['tracks[].rank', 'integer', '是', '从 1 开始的榜单排名。'],
-        ]} /><Code>{chartExample}</Code><SchemaTable title="Track 对象" rows={[
-          ['id', 'string', '是', 'Provider 返回的稳定曲目标识；客户端原样保存和回传，不规定生成算法。'],
+        ]} /><Code>{chartExample}</Code><h3>歌曲身份规则</h3><p>客户端与所有 Provider 必须使用完全相同的规则生成歌曲 ID：<code>MD5(UTF-8(JSON.stringify([title, artist])))</code>，输出 32 位小写十六进制字符串。title 和 artist 必须使用 Track 中的原始字符串，不得 trim、转换大小写、替换空格或执行 Unicode 归一化。Track 和所有单曲接口统一使用 songId，不再使用通用字段名 id。</p><div className="docs-note"><b>身份与资源定位分离</b><span>songId 用于确认“哪一首歌”；binding 用于记录当前已知的音乐平台或 API 服务资源。切换 Provider 后 songId 保持不变，binding 可以由新 Provider 重新解析或替换。</span></div><SchemaTable title="Track 对象" rows={[
+          ['songId', 'string', '是', '按统一规则生成的 32 位小写 MD5；必须等于 MD5(UTF-8(JSON.stringify([title, artist])))。'],
           ['title', 'string', '是', '歌曲或音频标题。'],
           ['artist', 'string', '是', '艺人、作者或节目名称。'],
-          ['album', 'string', '否', '专辑、节目系列或作品集名称。'],
+          ['album', 'string', '是', '专辑、节目系列或作品集名称；未知时传空字符串。'],
           ['duration', 'number', '否', '音频时长，单位为秒。'],
           ['artwork', 'HTTPS URL', '否', '通用封面地址；建议同时返回 art 以兼容当前播放器。'],
           ['art', 'HTTPS URL', '否', '当前播放器直接使用的封面字段。'],
-          ['binding', 'object', '是', '标准资源绑定；包含 source、sourceId 和可选 meta、art，其中 meta 由 Provider 自行定义。'],
+          ['binding', 'object', '是', '标准资源绑定；source、sourceId、meta、art 均必填，不得在 Track 顶层重复 source 或 sourceId。'],
           ['year', 'string | number', '否', '发行或发布年份。'],
-        ]} /><h3>获取播放资源</h3><Endpoint method="POST" path="/v1/tracks/resolve">根据 Provider 自身的合法内容授权返回当前条目的短期播放地址。请求和响应均为 JSON。</Endpoint><SchemaTable title="请求体" rows={[
-          ['songId', 'string', '是', 'Track.id；客户端不会推断其生成规则。'],
-          ['title', 'string', '是', 'Track.title，供 Provider 定位或校验条目。'],
-          ['artist', 'string', '是', 'Track.artist，供 Provider 定位或校验条目。'],
+        ]} /><h3>获取播放资源</h3><Endpoint method="POST" path="/v1/tracks/resolve">根据 Provider 自身的合法内容授权返回当前条目的短期播放地址。请求和响应均为 JSON。客户端不仅传 songId，也会传歌曲必要信息，Provider 可按 binding 直接定位，或使用原始歌曲信息重新检索。</Endpoint><SchemaTable title="请求体" rows={[
+          ['songId', 'string', '是', '由原始 title 与 artist 按统一规则生成的 Track.songId。'],
+          ['title', 'string', '是', '未经客户端改写的 Track.title，供 Provider 定位或校验条目。'],
+          ['artist', 'string', '是', '未经客户端改写的 Track.artist，供 Provider 定位或校验条目。'],
+          ['album', 'string', '是', '未经客户端改写的 Track.album；未知时传空字符串。'],
           ['quality', 'string', '否', '请求的音质标识，应来自 playback.qualities。'],
-          ['binding', 'object', '是', 'Track.binding；客户端保留标准字段，并将 Provider 自定义的 meta 原样回传。'],
+          ['binding', 'object', '是', 'Track.binding；meta 必须是 JSON object，art 是可为空的封面资源提示。'],
           ['refresh', 'boolean', '否', '音频地址失效时为 true，跳过播放结果缓存并重新解析。'],
         ]} /><SchemaTable title="成功响应" rows={[
-          ['url', 'HTTPS URL', '是', '浏览器可直接播放的音频地址，应支持媒体流或 Range 请求。'],
+          ['url', 'HTTPS URL | empty string', '是', '非空时为浏览器可尝试播放的地址；空字符串表示本次未取得播放地址，仍返回 HTTP 200。'],
           ['songId', 'string', '是', '对应的稳定歌曲 ID。'],
           ['binding', 'object', '建议', 'Provider 更新后的资源上下文；返回时客户端会替换旧值。'],
           ['expiresIn', 'integer', '是', '建议客户端缓存该播放地址的秒数。'],
@@ -220,16 +221,16 @@ export default function Docs() {
           ['qualityVerified', 'boolean', '否', '音质是否由上游返回的码率信息确认。'],
           ['mimeType', 'string', '否', '音频 MIME 类型，例如 audio/mpeg。'],
           ['art', 'HTTPS URL', '否', '解析阶段补充或更新的封面地址。'],
-        ]} /><h3>歌词</h3><Endpoint method="GET" path="/v1/tracks/{id}/lyrics">将路径中的 {`{id}`} 替换为歌曲 ID；客户端会话与 Provider 均可短期缓存成功结果。</Endpoint><SchemaTable title="查询与响应" rows={[
+        ]} /><p>没有 URL 或 URL 播放失败时，客户端会丢弃旧结果并以 <code>refresh=true</code> 强制解析一次；每次播放操作最多强制刷新一次。</p><h3>歌词</h3><Endpoint method="GET" path="/v1/tracks/{songId}/lyrics">路径使用统一 songId；同时传 title、artist、album 和 binding，Provider 不应只依赖路径 ID 定位资源。客户端会话与 Provider 均可短期缓存成功结果。</Endpoint><SchemaTable title="查询与响应" rows={[
           ['title', 'string', '是', '原始曲目标题。'],
           ['artist', 'string', '是', '原始艺人名称。'],
-          ['album', 'string', '否', '专辑名称。'],
+          ['album', 'string', '是', '专辑名称；未知时传空字符串。'],
           ['binding', 'JSON string', '是', 'Track.binding 序列化后的 JSON 字符串。'],
           ['refresh', '0 | 1', '否', '缓存结果或资源失效时传 1。'],
           ['lyrics', 'string', '响应必填', 'LRC 时间轴歌词或纯文本；无歌词时返回空字符串。'],
           ['translation', 'string', '响应可选', '翻译歌词，建议使用与 lyrics 一致的时间轴。'],
           ['format', 'string', '响应可选', '歌词格式标识，推荐 lrc 或 text。'],
-        ]} /><h3>封面</h3><Endpoint method="GET" path="/v1/tracks/{id}/artwork">请求参数与歌词接口一致；图片加载失败时客户端传 refresh=1 获取新结果。</Endpoint><SchemaTable title="JSON 响应" rows={[
+        ]} /><h3>封面</h3><Endpoint method="GET" path="/v1/tracks/{songId}/artwork">请求参数与歌词接口一致，必须同时接收 songId、title、artist、album 和 binding；图片加载失败时客户端传 refresh=1 获取新结果。</Endpoint><SchemaTable title="JSON 响应" rows={[
           ['url', 'HTTPS URL', '是', '浏览器可直接加载的图片地址。'],
           ['width', 'integer', '否', '图片原始宽度，单位像素。'],
           ['height', 'integer', '否', '图片原始高度，单位像素。'],
@@ -243,7 +244,7 @@ export default function Docs() {
     "code": "activation_code_used",
     "message": "Activation code has already been used"
   }
-}`}</Code><div className="docs-table"><div><b>400</b><span>请求参数或协议格式错误</span></div><div><b>401</b><span>凭证无效或已经过期</span></div><div><b>403</b><span>激活码无效或权限不可用</span></div><div><b>404</b><span>曲目或资源不存在</span></div><div><b>409</b><span>激活码已经被其他操作使用</span></div><div><b>429</b><span>请求频率超限</span></div><div><b>5xx</b><span>Provider 内部或上游服务异常</span></div></div></section>
+}`}</Code><p>已知端点收到协议未允许的方法时必须返回 405、<code>Allow</code> 响应头和 <code>method_not_allowed</code> 错误；OPTIONS 只用于 CORS 预检，不执行端点业务逻辑。</p><div className="docs-table"><div><b>400</b><span>请求参数或协议格式错误</span></div><div><b>401</b><span>凭证无效或已经过期</span></div><div><b>403</b><span>激活码无效或权限不可用</span></div><div><b>404</b><span>曲目或资源不存在</span></div><div><b>405</b><span>HTTP 方法不允许</span></div><div><b>409</b><span>激活码已经被其他操作使用</span></div><div><b>429</b><span>请求频率超限</span></div><div><b>5xx</b><span>Provider 内部、上游或超时异常</span></div></div></section>
 
         <footer className="docs-footer"><span>Music Provider Protocol 1.0</span><a href="mailto:luri@luri.cc.cd">问题反馈：luri@luri.cc.cd</a></footer>
       </article>
