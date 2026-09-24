@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./public/favicon.svg" alt="LURI Logo" width="120" height="120"/>
+  <img src="./public/images/luri-logo.png" alt="LURI Logo" width="120" height="120"/>
   <h1>LURI</h1>
   <p>个人博客与独立音乐播放器客户端</p>
   <p>
