@@ -207,12 +207,14 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     setPlaybackTrackId(current.songId); setPlaybackState('resolving');
     const controller = new AbortController();
     resolveRequestRef.current = controller;
-    const refresh = playbackRefreshModesRef.current.get(current.songId) || false;
-    musicRequest('resolve', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, quality: playbackQuality, binding: current.binding, refresh }, controller.signal).then(providerPayload).then((payload) => {
+    const recovery = playbackRefreshModesRef.current.get(current.songId);
+    const refresh = recovery?.mode || false;
+    const requestedQuality = recovery?.quality || playbackQuality;
+    musicRequest('resolve', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, quality: requestedQuality, binding: current.binding, refresh }, controller.signal).then(providerPayload).then((payload) => {
       if (!payload.url || Date.parse(payload.expiresAt || '') <= Date.now() + 5000) { const failure = new Error('播放地址不可用'); failure.code = 'url_expired'; throw failure; }
       if (!controller.signal.aborted) {
         const attemptedSources = Array.isArray(payload.attemptedSources) ? payload.attemptedSources : [];
-        const resolved = { ...current, url: payload.url, binding: canonicalBinding(payload.binding) || current.binding, expiresAt: resolvedExpiry(payload), requestedQuality: payload.requestedQuality || playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
+        const resolved = { ...current, url: payload.url, binding: canonicalBinding(payload.binding) || current.binding, expiresAt: resolvedExpiry(payload), requestedQuality: playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
         const update = (track) => track.songId === current.songId ? { ...track, ...resolved } : track;
         setTracks((items) => items.map(update));
         setLikedTracks((items) => items.map((track) => sameFavorite(track, current) ? { ...track, binding: resolved.binding } : track));
@@ -512,8 +514,13 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   }
   playRejectionRef.current = handlePlayRejection;
   const retryWithRefresh = (mode = 'url') => {
-    if (!current || playbackRefreshModesRef.current.has(current.songId)) return false;
-    playbackRefreshModesRef.current.set(current.songId, mode);
+    if (!current) return false;
+    const previous = playbackRefreshModesRef.current.get(current.songId);
+    const failedQuality = current.quality || playbackQuality;
+    if (previous?.mode === mode && previous?.quality === failedQuality) return false;
+    const attempts = Number(previous?.attempts || 0) + 1;
+    if (attempts > 5) return false;
+    playbackRefreshModesRef.current.set(current.songId, { mode, quality: failedQuality, attempts });
     const clearUrl = (track) => track.songId === current.songId ? { ...track, url: undefined } : track;
     setTracks((items) => items.map(clearUrl));
     setLikedTracks((items) => items.map(clearUrl));

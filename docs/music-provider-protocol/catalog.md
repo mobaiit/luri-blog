@@ -52,7 +52,7 @@
 - `GET /v1/catalog/search?q=&page=&limit=` 返回 `{ tracks, page, hasMore }`。
 - `GET /v1/catalog/random` 返回 `{ singer?, tracks }`。
 - `GET /v1/catalog/charts?platform=&chart=&refresh=` 返回 `{ platform, chart, title, updatedAt, tracks }`。
-- `POST /v1/tracks/resolve` 接收 `{ songId, title, artist, album, binding, quality?, refresh? }`。`refresh` 可取 `url` 或 `decode`：`url` 表示地址过期、网络失败或加载超时，Provider 绕过缓存并保持原音质降级链；`decode` 表示浏览器无法解码或不支持媒体格式，Provider 绕过缓存，并将无损请求切换到 `320k → 192k → 128k`。
+- `POST /v1/tracks/resolve` 接收 `{ songId, title, artist, album, binding, quality?, refresh? }`。`refresh` 可取 `url` 或 `decode`：`url` 表示地址过期、网络失败或加载超时，Provider 绕过缓存并保持原音质降级链；`decode` 表示浏览器无法解码或不支持媒体格式，Provider 绕过缓存，并从请求中当前失败音质的下一档继续降级，例如 `flac24bit → flac → 320k → 192k → 128k`。
 - `GET /v1/tracks/{songId}/lyrics?title=&artist=&album=&binding=` 接收统一单曲上下文，返回 `{ songId, lyrics, translation?, binding }`；没有歌词时 `lyrics` 为空字符串，无法绑定到平台资源的外部歌词回退允许 `binding: null`。
 - `GET /v1/tracks/{songId}/artwork?title=&artist=&album=&binding=` 接收统一单曲上下文，返回 `{ songId, url, binding }`；没有封面时 `url` 为空字符串。
 
