@@ -1813,7 +1813,7 @@
     z-index: 101;
     top: var(--nav-height);
     display: grid !important;
-    grid-template-columns: 48px minmax(0, 1fr) 48px !important;
+    grid-template-columns: 48px minmax(0, 1fr) auto !important;
     align-items: center !important;
     gap: 0.7rem;
     padding: 0.65rem 0 !important;
@@ -3258,10 +3258,11 @@ body.has-global-music-player #root > main:not(.music-page) {
     display: none;
   }
   .lyrics-track__actions {
-    width: 48px;
+    width: auto;
+    gap: 0.3rem;
   }
   .lyrics-track__actions .like-button {
-    margin-left: auto;
+    margin-left: 0;
   }
   .music-player__heading .music-player__title {
     max-width: none;
