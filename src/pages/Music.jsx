@@ -176,7 +176,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     musicRequest('resolve', { id: sourceTrackId(current), source: current.source || '', title: current.title || '', artist: current.artist || '', quality: playbackQuality, meta: current.meta || undefined, fallbackOnly: forceLocalFallbackFor === current.id ? '1' : '' }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
       if (!payload.url) throw Error();
       if (!controller.signal.aborted) {
-        const resolved = { ...current, url: payload.url, expiresAt: resolvedExpiry(payload), art: payload.art || current.art, requestedQuality: payload.requestedQuality || playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified) };
+        const resolveLayer = forceLocalFallbackFor === current.id ? 'local-fallback' : 'primary';
+        const attemptedSources = Array.isArray(payload.attemptedSources) ? payload.attemptedSources : [];
+        if (attemptedSources.length > 0) console.debug(`[Resolve] ${resolveLayer} success, attempted sources: ${attemptedSources.join(' → ')}`);
+        const resolved = { ...current, url: payload.url, expiresAt: resolvedExpiry(payload), art: payload.art || current.art, requestedQuality: payload.requestedQuality || playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
         const update = (track) => track.id === current.id ? { ...track, ...resolved } : track;
         setTracks((items) => items.map(update));
         if (pendingFavoriteRecoveryRef.current?.recoveredId !== current.id) setLikedTracks((items) => { let replaced = false; return items.flatMap((track) => { if (!sameFavorite(track, current)) return [track]; if (replaced) return []; replaced = true; return [resolved]; }); });
@@ -419,6 +422,15 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   function showToast(message, type = 'error') { setToast({ title: type === 'warning' ? '需要处理' : '播放服务异常', message, type }); }
   const retryWithLocalFallback = () => {
     if (!current || localFallbackAttempts.current.has(current.id)) return false;
+
+    // 🆕 智能降级：如果服务端已经尝试过跨音源降级，跳过本地降级
+    const serverAttemptedSources = Array.isArray(current.attemptedSources) ? current.attemptedSources : [];
+    if (serverAttemptedSources.length > 1) {
+      console.debug(`[Resolve] Server already tried ${serverAttemptedSources.length} sources (${serverAttemptedSources.join(', ')}), skipping local fallback`);
+      return false;
+    }
+
+    console.debug(`[Resolve] Triggering local fallback for track: ${current.title}`);
     localFallbackAttempts.current.add(current.id); setForceLocalFallbackFor(current.id);
     const clearUrl = (track) => track.id === current.id ? { ...track, url: undefined } : track;
     setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl));
