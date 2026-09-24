@@ -345,9 +345,9 @@ export default function Docs() {
             ['qualityVerified', 'boolean', '否', '音质是否由上游码率信息确认。'],
           ]} />
           <Code>{resolveResponse}</Code>
-          <p>HTTP 200 与空 URL 不是协议错误，客户端只把它解释为“当前不可播放”：</p>
+          <p>HTTP 200 与空 URL仍可用于兼容简单 Provider；推荐使用 no_candidate、all_resolvers_failed、quality_unavailable、upstream_timeout 等稳定错误码，让客户端直接切歌、降级或稍后重试：</p>
           <Code>{emptyResolveResponse}</Code>
-          <div className="docs-retry-flow"><span>首次 resolve</span><i>→</i><span>URL 为空或播放失败</span><i>→</i><span>refresh=true 强制解析一次</span><i>→</i><span>成功播放或结束重试</span></div>
+          <div className="docs-retry-flow"><span>首次 resolve</span><i>→</i><span>明确业务错误则切歌</span><i>→</i><span>仅 URL 播放失败时 refresh=true</span><i>→</i><span>成功播放或结束重试</span></div>
 
           <h3>歌词与封面</h3>
           <Endpoint method="GET" path="/v1/tracks/{songId}/lyrics?title=&artist=&album=&binding=&refresh=">返回 {`{ songId, lyrics, translation?, binding }`}；没有歌词时 lyrics 为空字符串，外部歌词回退结果的 binding 可以为 null。</Endpoint>

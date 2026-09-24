@@ -8,11 +8,13 @@ import './Music.css';
 const EMPTY_ART = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect width="400" height="400" fill="%23ece9e1"/%3E%3Ccircle cx="200" cy="200" r="106" fill="%23c8c2b7"/%3E%3Ccircle cx="200" cy="200" r="22" fill="%23111111"/%3E%3C/svg%3E';
 const TEXT = { title: '\u97f3\u4e50', discover: '\u53d1\u73b0\u97f3\u4e50', likes: '\u6211\u7684\u559c\u6b22', search: '\u641c\u7d22', searchHint: '\u641c\u7d22\u6b4c\u66f2\u3001\u827a\u4eba\u6216\u4e13\u8f91', searching: '\u6b63\u5728\u641c\u7d22\u2026', queue: '\u64ad\u653e\u961f\u5217', tracks: '\u9996\u6b4c\u66f2', noResult: '\u6682\u65e0\u641c\u7d22\u7ed3\u679c', noTrack: '\u6682\u65e0\u6b4c\u66f2', choose: '\u8bf7\u641c\u7d22\u540e\u9009\u62e9\u6b4c\u66f2', now: '\u6b63\u5728\u64ad\u653e', play: '\u64ad\u653e', pause: '\u6682\u505c', prev: '\u4e0a\u4e00\u9996', next: '\u4e0b\u4e00\u9996', load: '\u6b63\u5728\u83b7\u53d6\u53ef\u64ad\u653e\u6587\u4ef6\u2026', unavailable: '\u6ca1\u6709\u627e\u5230\u53ef\u76f4\u64ad\u7684\u97f3\u9891\u6587\u4ef6', source: '\u516c\u5f00\u97f3\u9891\u76ee\u5f55', disclaimer: '\u672c\u9875\u4ec5\u63d0\u4f9b\u641c\u7d22\u4e0e\u64ad\u653e\u754c\u9762\uff0c\u4e0d\u6258\u7ba1\u3001\u4e0d\u590d\u5236\u3001\u4e0d\u4ee3\u7406\u4efb\u4f55\u97f3\u9891\u6587\u4ef6\u3002\u8bf7\u4ec5\u4f7f\u7528\u5df2\u83b7\u6388\u6743\u7684\u97f3\u6e90\uff0c\u5e76\u9075\u5b88\u5176\u670d\u52a1\u6761\u6b3e\u4e0e\u9002\u7528\u6cd5\u5f8b\u3002' };
 const time = (value = 0) => Number.isFinite(value) ? `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}` : '0:00';
-const lyricLine = (line) => { const match = /^\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\](.*)$/.exec(line); return match ? { time: Number(match[1]) * 60 + Number(match[2]), text: match[3].trim() } : { time: -1, text: line }; };
+const lyricLine = (line) => { const matches = [...line.matchAll(/\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\]/g)]; const text = line.replace(/\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\]/g, '').trim(); return matches.length ? matches.map((match) => ({ time: Number(match[1]) * 60 + Number(match[2]), text })) : [{ time: -1, text: line }]; };
+const parsedLyrics = (value) => String(value || '').split(/\r?\n/).filter(Boolean).flatMap(lyricLine).filter((line) => line.text);
 const STORE_QUEUE = 'luri.music.queue.v3'; const STORE_LIKES = 'luri.music.likes.v3'; const STORE_SEARCH = 'luri.music.search.v3'; const STORE_QUERY = 'luri.music.query.v3'; const STORE_RECENT_SEARCHES = 'luri.music.recent-searches.v3';
 const STORE_CHART = 'luri.music.chart.v3';
 const CHART_TYPES = [{ value: 'rising', label: '飙升榜' }, { value: 'new', label: '新歌榜' }, { value: 'original', label: '原创榜' }, { value: 'hot', label: '热歌榜' }];
-const MEDIA_LOAD_TIMEOUT_MS = 15000;
+const CHART_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const MEDIA_LOAD_TIMEOUT_MS = 20000;
 const FAVORITES_SYNC_DEBOUNCE_MS = 30 * 1000;
 const FAVORITES_WRITE_INTERVAL_MS = 60 * 60 * 1000;
 const FAVORITES_SYNC_RETRY_MS = 30 * 1000;
@@ -41,6 +43,14 @@ const chartUpdatedLabel = (value) => { const timestamp = Date.parse(value || '')
 const minimalFavorites = (items) => canonicalTracks(items).map((track) => ({ songId: track.songId, title: track.title, artist: track.artist, album: track.album, binding: track.binding }));
 const resolvedExpiry = (payload) => { const explicit = Date.parse(payload?.expiresAt || ''); if (Number.isFinite(explicit)) return new Date(explicit).toISOString(); const seconds = Number(payload?.expiresIn); return Number.isFinite(seconds) && seconds > 0 ? new Date(Date.now() + seconds * 1000).toISOString() : null; };
 const playbackUrlExpired = (track) => { const expires = Date.parse(track?.expiresAt || ''); return Boolean(track?.url && Number.isFinite(expires) && expires <= Date.now() + 5000); };
+const providerPayload = async (response) => {
+  const payload = await response.json().catch(() => ({}));
+  if (response.ok) return payload;
+  const detail = payload?.error && typeof payload.error === 'object' ? payload.error : {};
+  const failure = new Error(detail.message || payload.error || 'Provider 请求失败');
+  failure.code = detail.code || 'provider_request_failed'; failure.status = response.status;
+  throw failure;
+};
 const singerSearchKey = (value) => String(value || '').normalize('NFKC').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 // The source status is shown only while an operation is in progress.
 TEXT.source = '';
@@ -74,7 +84,7 @@ const QUALITY_RANK = { '128k': 1, '192k': 2, '320k': 3, flac: 4, flac24bit: 5 };
 function QualityBadge({ track }) {
   const meta = QUALITY_META[track?.quality]; if (!meta) return null;
   const detail = track.qualityVerified ? '实际音质' : 'Provider 解析档位';
-  const requested = track.requestedQuality === 'auto' ? '128k' : track.requestedQuality;
+  const requested = track.requestedQuality === 'auto' ? '320k' : track.requestedQuality;
   const degraded = QUALITY_RANK[track.quality] && QUALITY_RANK[requested] ? QUALITY_RANK[track.quality] < QUALITY_RANK[requested] : Boolean(track.degraded);
   return <i className={`music-quality music-quality--${meta.icon}${degraded ? ' is-degraded' : ''}`} title={`${detail}：${meta.label}${degraded ? '（已降级）' : ''}`} aria-label={`${detail} ${meta.label}${degraded ? '，已降级' : ''}`}><span className="music-quality__mark" aria-hidden="true">{meta.mark}</span>{degraded && <b aria-hidden="true">↓</b>}</i>;
 }
@@ -119,12 +129,13 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const [tracks, setTracks] = useState(() => readTrackStore(storeKey(STORE_QUEUE)).filter((track) => track.binding)); const [likedTracks, setLikedTracks] = useState(() => favoriteInitialRef.current.items); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
   const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8); const [muted, setMuted] = useState(false);
-  const [lyrics, setLyrics] = useState(''); const [lyricsState, setLyricsState] = useState('');
+  const [lyrics, setLyrics] = useState(''); const [translation, setTranslation] = useState(''); const [lyricsState, setLyricsState] = useState('');
   const lyricsRef = useRef(null); const musicListRef = useRef(null); const currentRowRef = useRef(null); const searchSuggestionsRef = useRef(null); const locatedTrackRef = useRef('');
   const resolveRequestRef = useRef(null); const chartRequestRef = useRef(null); const mediaDeadlineRef = useRef(null); const mediaDeadlineTrackRef = useRef(''); const ignoreAudioErrorRef = useRef(false); const failedPlaybackIdsRef = useRef(new Set()); const playbackRefreshIdsRef = useRef(new Set()); const artworkRefreshIdsRef = useRef(new Set());
   const likedTracksRef = useRef(likedTracks); const favoriteMutationRef = useRef(0); const favoriteSyncRef = useRef({ syncing: false, pulling: false, timer: null, schedule: null, pull: null, dirtySince: (() => { try { return Number(localStorage.getItem(favoriteDirtyKey)) || 0; } catch { return 0; } })() });
   const loadingMoreRef = useRef(false); const activeSearchRef = useRef(query.trim()); const searchRequestRef = useRef(null);
   const mediaActionsRef = useRef({ play: () => {}, pause: () => {}, previous: () => {}, next: () => {} });
+  const playRejectionRef = useRef(() => {});
   const randomHistoryKey = `luri.music.random-history.v1${storageNamespace ? `.${storageNamespace}` : ''}`; const storedRandomHistory = useRef(readSession(randomHistoryKey));
   const randomRequest = useRef(null); const randomSession = useRef(0); const playMode = useRef('manual'); const playbackListRef = useRef('');
   const randomFallbackTracks = useRef([]); const randomSingers = useRef(Array.isArray(storedRandomHistory.current.singers) ? storedRandomHistory.current.singers : []); const randomTrackKeys = useRef(Array.isArray(storedRandomHistory.current.tracks) ? storedRandomHistory.current.tracks : []);
@@ -132,9 +143,11 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const [toast, setToast] = useState(null);
   const activeTracks = activeQueue === 'favorites' ? likedTracks : tracks;
   const current = playbackQueue.find((track) => track.songId === currentId) || activeTracks.find((track) => track.songId === currentId);
+  const lyricsTrackRef = useRef(current); lyricsTrackRef.current = current;
   const singerQuery = singerSearchKey(query);
   const singerSuggestions = singerQuery ? SINGERS.filter((singer) => singerSearchKey(singer).startsWith(singerQuery)) : [];
-  const lyricLines = lyrics.split(/\r?\n/).filter(Boolean).map(lyricLine).filter((line) => line.text);
+  const translatedByTime = new Map(parsedLyrics(translation).filter((line) => line.time >= 0).map((line) => [line.time.toFixed(3), line.text]));
+  const lyricLines = parsedLyrics(lyrics || translation).map((line) => ({ ...line, translation: lyrics ? translatedByTime.get(line.time.toFixed(3)) || '' : '' }));
   const activeLyric = lyricLines.reduce((active, line, index) => line.time >= 0 && line.time <= progress ? index : active, -1);
   const clearMediaDeadline = () => { if (mediaDeadlineRef.current) window.clearTimeout(mediaDeadlineRef.current); mediaDeadlineRef.current = null; mediaDeadlineTrackRef.current = ''; };
   const beginMediaDeadline = (id) => {
@@ -164,7 +177,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!audio.current || !current?.url) return;
     setPlaybackTrackId(current.songId); setPlaybackState('loading'); setProgress(0); setDuration(0);
     ignoreAudioErrorRef.current = false; audio.current.src = current.url; audio.current.load(); beginMediaDeadline(current.songId);
-    audio.current.play().catch(() => { clearMediaDeadline(); setPlaying(false); setPlaybackState('error'); });
+    audio.current.play().catch((error) => playRejectionRef.current(error));
   }, [currentId, current?.songId, current?.url]);
   useEffect(() => { if (listView === 'search') setCachedResults(results); }, [listView, results]);
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_SEARCH), JSON.stringify(cachedResults)); localStorage.setItem(storeKey(STORE_QUERY), query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
@@ -175,8 +188,8 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const controller = new AbortController();
     resolveRequestRef.current = controller;
     const refresh = playbackRefreshIdsRef.current.has(current.songId);
-    musicRequest('resolve', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, quality: playbackQuality, binding: current.binding, refresh }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
-      if (!payload.url) throw Error();
+    musicRequest('resolve', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, quality: playbackQuality, binding: current.binding, refresh }, controller.signal).then(providerPayload).then((payload) => {
+      if (!payload.url || Date.parse(payload.expiresAt || '') <= Date.now() + 5000) { const failure = new Error('播放地址不可用'); failure.code = 'url_expired'; throw failure; }
       if (!controller.signal.aborted) {
         const attemptedSources = Array.isArray(payload.attemptedSources) ? payload.attemptedSources : [];
         const resolved = { ...current, url: payload.url, binding: canonicalBinding(payload.binding) || current.binding, expiresAt: resolvedExpiry(payload), requestedQuality: payload.requestedQuality || playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
@@ -188,7 +201,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     }).catch((error) => {
       if (controller.signal.aborted) return;
       if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) { playMode.current = 'manual'; setPlaying(false); showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); return; }
-      handlePlaybackFailure();
+      if (['no_candidate', 'all_resolvers_failed', 'quality_unavailable'].includes(error?.code)) {
+        setPlaying(false); discardCurrentUrl();
+        if (playMode.current === 'random') playNextRandom(); else skipFailedTrack(error.code === 'no_candidate' ? '未找到可播放音源，已自动播放下一首' : '所有音源均解析失败，已自动播放下一首');
+      } else handlePlaybackFailure();
     }).finally(() => { if (resolveRequestRef.current === controller) resolveRequestRef.current = null; });
     return () => { controller.abort(); if (resolveRequestRef.current === controller) resolveRequestRef.current = null; };
   }, [activeQueue, current, playbackAttempt, playbackQuality]);
@@ -250,7 +266,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   useEffect(() => {
     if (!current || (current.art && current.art !== EMPTY_ART) || !current.binding) return undefined;
     const controller = new AbortController();
-    musicRequest('artwork', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => {
+    musicRequest('artwork', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding }, controller.signal).then(providerPayload).then((payload) => {
       if (payload.url && !controller.signal.aborted) {
         const returnedBinding = canonicalBinding(payload.binding);
         const update = (track) => track.songId === current.songId ? { ...track, art: payload.url, binding: returnedBinding || track.binding } : track;
@@ -264,7 +280,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const image = event.currentTarget;
     if (!current || current.art === EMPTY_ART || artworkRefreshIdsRef.current.has(current.songId)) { image.src = EMPTY_ART; return; }
     artworkRefreshIdsRef.current.add(current.songId);
-    void musicRequest('artwork', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding, refresh: 1 }).then((response) => response.ok ? response.json() : {}).then((payload) => {
+    void musicRequest('artwork', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding, refresh: 1 }).then(providerPayload).then((payload) => {
       if (!payload.url) throw new Error('No artwork');
       const returnedBinding = canonicalBinding(payload.binding);
       const update = (track) => track.songId === current.songId ? { ...track, art: payload.url, binding: returnedBinding || track.binding } : track;
@@ -390,11 +406,12 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     return () => { body.removeEventListener('touchstart', onTouchStart); body.removeEventListener('touchmove', onTouchMove); body.removeEventListener('touchend', onTouchEnd); body.removeEventListener('touchcancel', onTouchEnd); body.removeEventListener('wheel', onWheel); };
   }, [lyrics]);
   useEffect(() => {
-    if (!current) { setLyrics(''); setLyricsState(''); return undefined; }
-    const controller = new AbortController(); setLyrics(''); setLyricsState('正在加载歌词…');
-    musicRequest('lyrics', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding }, controller.signal).then((response) => response.ok ? response.json() : {}).then((payload) => { if (!controller.signal.aborted) { setLyrics(payload.lyrics || ''); setLyricsState(payload.lyrics ? '' : '暂无匹配歌词'); } }).catch((error) => { if (!controller.signal.aborted) { setLyricsState('暂无匹配歌词'); if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); } });
+    const lyricTrack = lyricsTrackRef.current;
+    if (!lyricTrack) { setLyrics(''); setTranslation(''); setLyricsState(''); return undefined; }
+    const controller = new AbortController(); setLyrics(''); setTranslation(''); setLyricsState('正在加载歌词…');
+    musicRequest('lyrics', { songId: lyricTrack.songId, title: lyricTrack.title, artist: lyricTrack.artist, album: lyricTrack.album, binding: lyricTrack.binding }, controller.signal).then(providerPayload).then((payload) => { if (!controller.signal.aborted) { const text = payload.lyrics || payload.translation || ''; setLyrics(payload.lyrics || ''); setTranslation(payload.translation || ''); setLyricsState(text ? '' : '暂无匹配歌词'); } }).catch((error) => { if (!controller.signal.aborted) { setLyricsState('暂无匹配歌词'); if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); } });
     return () => controller.abort();
-  }, [current]);
+  }, [current?.songId, musicRequest]);
   const stopRandom = () => {
     randomSession.current += 1;
     if (randomRequest.current) randomRequest.current.abort();
@@ -418,7 +435,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     else if (id !== currentId) setPlaybackQueue((items) => items.map(forSelectedQuality));
     clearMediaDeadline(); setPlaybackTrackId(id); setPlaybackState('loading');
     if (id === currentId) {
-      if (current?.url) { beginMediaDeadline(id); audio.current?.play().catch(() => { clearMediaDeadline(); setPlaying(false); setPlaybackState('error'); }); }
+      if (current?.url) { beginMediaDeadline(id); audio.current?.play().catch(handlePlayRejection); }
       else setPlaybackAttempt((attempt) => attempt + 1);
       return;
     }
@@ -448,7 +465,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     }
     setPlaybackTrackId(currentId); setPlaybackState('loading'); beginMediaDeadline(currentId);
     if (audio.current && current?.url && !audio.current.getAttribute('src')) { ignoreAudioErrorRef.current = false; audio.current.src = current.url; audio.current.load(); }
-    audio.current?.play().catch(() => { clearMediaDeadline(); setPlaying(false); setPlaybackState('error'); });
+    audio.current?.play().catch(handlePlayRejection);
   };
   const markFavoritesDirty = () => {
     favoriteMutationRef.current += 1;
@@ -462,6 +479,14 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     likedTracksRef.current = next; setLikedTracks(next); markFavoritesDirty();
   };
   function showToast(message, type = 'error') { setToast({ title: type === 'warning' ? '需要处理' : '播放服务异常', message, type }); }
+  function handlePlayRejection(error) {
+    clearMediaDeadline();
+    if (error?.name === 'NotAllowedError') { setPlaying(false); setPlaybackState('paused'); return; }
+    ignoreAudioErrorRef.current = true;
+    window.setTimeout(() => { ignoreAudioErrorRef.current = false; }, 1000);
+    handlePlaybackFailure('播放地址无法加载，已尝试刷新音源');
+  }
+  playRejectionRef.current = handlePlayRejection;
   const retryWithRefresh = () => {
     if (!current || playbackRefreshIdsRef.current.has(current.songId)) return false;
     playbackRefreshIdsRef.current.add(current.songId);
@@ -507,8 +532,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     try {
       const excluded = randomSingers.current.join(',');
       const response = await musicRequest('random', { exclude: excluded }, controller.signal);
-      if (!response.ok) throw Error();
-      const payload = await response.json();
+      const payload = await providerPayload(response);
       const tracks = canonicalTracks(payload.tracks).filter((track) => track.binding);
       if (!tracks.length) throw Error();
       if (controller.signal.aborted || session !== randomSession.current) return;
@@ -539,17 +563,18 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const loadChart = async (platform = chartPlatform, type = chartType, refresh = false) => {
     chartRequestRef.current?.abort(); chartRequestRef.current = null;
     const stored = readChartStore(storageNamespace, platform, type); const cached = Array.isArray(stored?.tracks) ? stored : null;
-    if (cached && !refresh) { setChartData(hydrateChart(cached)); setChartLoading(false); setChartState(''); return; }
+    const cachedAt = Date.parse(cached?.updatedAt || ''); const cacheFresh = Number.isFinite(cachedAt) && Date.now() - cachedAt < CHART_CACHE_MAX_AGE_MS;
+    if (cached && cacheFresh && !refresh) { setChartData(hydrateChart(cached)); setChartLoading(false); setChartState(''); return; }
     if (!refresh) setChartData(hydrateChart(null));
     if (!hasAccess()) { setChartLoading(false); setChartState(''); return; }
     const controller = new AbortController(); chartRequestRef.current = controller; setChartLoading(true); setChartState(refresh ? '正在刷新榜单…' : '正在加载榜单…');
     try {
       const response = await musicRequest('charts', { platform, chart: type, refresh: refresh ? '1' : '' }, controller.signal);
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !Array.isArray(payload.tracks)) throw new Error(payload.error?.message || payload.error || '榜单服务暂时不可用');
+      const payload = await providerPayload(response);
+      if (!Array.isArray(payload.tracks)) throw new Error('榜单服务暂时不可用');
       if (controller.signal.aborted) return;
       try { localStorage.setItem(chartStoreKey(storageNamespace, platform, type), JSON.stringify(payload)); } catch { /* Storage is unavailable in private browsing. */ }
-      setChartData(hydrateChart(payload)); setChartState('');
+      setChartData(hydrateChart(payload)); setChartState(payload.stale ? '榜单更新失败，正在展示上次成功数据' : '');
     } catch {
       if (controller.signal.aborted) return;
       if (cached) { setChartData(hydrateChart(cached)); setChartState('刷新失败，正在展示上次缓存'); }
@@ -567,8 +592,8 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const controller = new AbortController(); searchRequestRef.current = controller;
     if (append) { loadingMoreRef.current = true; setLoadingMore(true); } else { loadingMoreRef.current = false; setLoadingMore(false); setSearchState(TEXT.searching); }
     try {
-      const response = await musicRequest('search', { q: keyword, page }, controller.signal); if (!response.ok) throw Error();
-      const payload = await response.json();
+      const response = await musicRequest('search', { q: keyword, page }, controller.signal);
+      const payload = await providerPayload(response);
       if (controller.signal.aborted || searchRequestRef.current !== controller || activeSearchRef.current !== keyword) return;
       const incoming = canonicalTracks(payload.tracks).filter((track) => track.binding);
       setTracks((items) => append ? [...items, ...incoming.filter((track) => !items.some((item) => item.songId === track.songId))] : incoming.map((track) => ({ ...track, url: undefined })));
@@ -650,7 +675,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
           <form className="music-search" onSubmit={search}><input value={query} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} onChange={(event) => { setQuery(event.target.value); setActiveSingerSuggestion(-1); }} onKeyDown={handleSearchKeyDown} placeholder={TEXT.searchHint} autoComplete="off" aria-autocomplete="list" aria-expanded={searchFocused && singerSuggestions.length > 0} /><button className="music-icon-button" type="submit" onMouseDown={(event) => event.preventDefault()} disabled={isSearching} aria-label={isSearching ? '正在搜索' : TEXT.search} title={isSearching ? '正在搜索' : TEXT.search}>{isSearching ? <span className="music-spinner" aria-hidden="true" /> : <MusicIcon name="search" />}</button><button className="music-random-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={startRandom} disabled={randomLoading} aria-label="随机搜索并播放音乐" title="随机发现">{randomLoading ? <span className="music-spinner" aria-hidden="true" /> : <><MusicIcon name="random" /><span>随机发现</span></>}</button>{searchFocused && (singerSuggestions.length > 0 || (!singerQuery && recentSearches.length > 0)) && <div className="music-search-history" ref={searchSuggestionsRef} onMouseDown={(event) => event.preventDefault()}>{singerSuggestions.length > 0 ? <><div className="music-search-history__head"><span>歌手</span></div>{singerSuggestions.map((singer, index) => <button className={`music-search-history__item${index === activeSingerSuggestion ? ' active' : ''}`} type="button" key={singer} onClick={() => chooseSearchSuggestion(singer)}>{singer}</button>)}</> : <><div className="music-search-history__head"><span>最近搜索</span><button type="button" onClick={() => setRecentSearches([])}>清除</button></div>{recentSearches.map((item) => <button className="music-search-history__item" type="button" key={item} onClick={() => chooseSearchSuggestion(item)}>{item}</button>)}</>}</div>}</form>
         </header>
         <aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className={`music-nav${listView === 'queue' || listView === 'search' ? ' active' : ''}`} onClick={() => { setListView('queue'); }}>播放列表<span>{tracks.length}</span></button><button className={`music-nav${listView === 'likes' ? ' active' : ''}`} onClick={() => { setListView('likes'); }}>我喜欢<span>{likedTracks.length}</span></button><button className={`music-nav${listView === 'netease' ? ' active' : ''}`} onClick={openNetease}>网易<span>{listView === 'netease' ? chartData.tracks.length || '' : ''}</span></button><button className={`music-nav${listView === 'qq' ? ' active' : ''}`} onClick={openQQ}>QQ<span>{listView === 'qq' ? chartData.tracks.length || '' : ''}</span></button><div className="music-divider" /></aside>
-        <div className="music-workspace"><section className="music-results">{isChartView && <div className="music-chart-controls"><div className="music-chart-switch music-chart-switch--types" aria-label="榜单类型">{CHART_TYPES.map((chart) => <button type="button" className={chartType === chart.value ? 'active' : ''} onClick={() => selectChartType(chart.value)} key={chart.value}>{chart.label}</button>)}</div><div className="music-chart-meta"><span>{chartData.title || '音乐榜单'} · 更新于 {chartUpdatedLabel(chartData.updatedAt)} · 共 {chartData.tracks.length} 首歌曲</span><button type="button" onClick={() => loadChart(chartPlatform, chartType, true)} disabled={chartLoading}>{chartLoading ? <span className="music-spinner" aria-hidden="true" /> : '刷新'}</button></div></div>}<div className="music-list-head"><span>{listView === 'search' ? TEXT.search : listView === 'likes' ? TEXT.likes : isChartView ? '' : TEXT.queue}</span></div><div className="music-list" ref={musicListRef} onScroll={handleListScroll}>{visibleTracks.map((track, index) => { const state = rowPlaybackState(track.songId); const isCurrent = track.songId === currentId; const isCurrentBusy = isCurrent && isPlaybackBusy; return <button ref={isCurrent ? currentRowRef : null} key={track.songId} className={`music-row${isCurrent ? ' current' : ''}`} onClick={() => handleTrackAction(track)} disabled={isCurrentBusy} aria-label={`${track.title}，${isCurrentBusy ? '正在加载' : state === 'error' ? '播放失败，点击重试' : state === 'playing' ? TEXT.pause : TEXT.play}`}><span className="track-index">{String(isChartView ? track.rank || index + 1 : index + 1).padStart(2, '0')}</span><span className="track-copy"><span className="track-title"><b>{track.title}</b>{isCurrent && <QualityBadge track={current} />}</span><span className="track-artist">{track.artist}{track.year ? ` · ${track.year}` : ''}</span></span><span className={`track-action track-action--${state}`} aria-hidden="true">{state === 'error' ? '播放失败' : state === 'loading' || state === 'resolving' ? <span className="music-spinner" /> : <MusicIcon name={state === 'playing' ? 'pause' : 'play'} />}</span></button>; })}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!visibleTracks.length && <div className="music-empty"><strong>{isChartView ? chartLoading ? '正在加载榜单…' : '暂无榜单数据' : TEXT.noResult}</strong><span>{isChartView ? '请选择榜单或点击刷新' : TEXT.choose}</span></div>}</div><p className="music-search-status" aria-live="polite">{isChartView ? chartState : isSearching ? '' : searchState}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" onLoad={artworkLoaded} onError={refreshArtwork} /><div><h2><b>{current?.title || TEXT.noTrack}</b></h2><span>{current?.artist || TEXT.choose}</span></div><div className="lyrics-track__actions"><QualityBadge track={current} /><DownloadButton track={current} /><button className={`like-button${current && likedTracks.some((track) => sameFavorite(track, current)) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.songId)}>{TEXT.likes}</button></div></div><div ref={lyricsRef} className="lyrics-body" onClick={seekLyric}>{lyrics ? lyricLines.map((line, index) => <p key={`${line.time}:${line.text}:${index}`}>{line.text}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
+        <div className="music-workspace"><section className="music-results">{isChartView && <div className="music-chart-controls"><div className="music-chart-switch music-chart-switch--types" aria-label="榜单类型">{CHART_TYPES.map((chart) => <button type="button" className={chartType === chart.value ? 'active' : ''} onClick={() => selectChartType(chart.value)} key={chart.value}>{chart.label}</button>)}</div><div className="music-chart-meta"><span>{chartData.title || '音乐榜单'} · 更新于 {chartUpdatedLabel(chartData.updatedAt)} · 共 {chartData.tracks.length} 首歌曲</span><button type="button" onClick={() => loadChart(chartPlatform, chartType, true)} disabled={chartLoading}>{chartLoading ? <span className="music-spinner" aria-hidden="true" /> : '刷新'}</button></div></div>}<div className="music-list-head"><span>{listView === 'search' ? TEXT.search : listView === 'likes' ? TEXT.likes : isChartView ? '' : TEXT.queue}</span></div><div className="music-list" ref={musicListRef} onScroll={handleListScroll}>{visibleTracks.map((track, index) => { const state = rowPlaybackState(track.songId); const isCurrent = track.songId === currentId; const isCurrentBusy = isCurrent && isPlaybackBusy; return <button ref={isCurrent ? currentRowRef : null} key={track.songId} className={`music-row${isCurrent ? ' current' : ''}`} onClick={() => handleTrackAction(track)} disabled={isCurrentBusy} aria-label={`${track.title}，${isCurrentBusy ? '正在加载' : state === 'error' ? '播放失败，点击重试' : state === 'playing' ? TEXT.pause : TEXT.play}`}><span className="track-index">{String(isChartView ? track.rank || index + 1 : index + 1).padStart(2, '0')}</span><span className="track-copy"><span className="track-title"><b>{track.title}</b>{isCurrent && <QualityBadge track={current} />}</span><span className="track-artist">{track.artist}{track.year ? ` · ${track.year}` : ''}</span></span><span className={`track-action track-action--${state}`} aria-hidden="true">{state === 'error' ? '播放失败' : state === 'loading' || state === 'resolving' ? <span className="music-spinner" /> : <MusicIcon name={state === 'playing' ? 'pause' : 'play'} />}</span></button>; })}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!visibleTracks.length && <div className="music-empty"><strong>{isChartView ? chartLoading ? '正在加载榜单…' : '暂无榜单数据' : TEXT.noResult}</strong><span>{isChartView ? '请选择榜单或点击刷新' : TEXT.choose}</span></div>}</div><p className="music-search-status" aria-live="polite">{isChartView ? chartState : isSearching ? '' : searchState}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" onLoad={artworkLoaded} onError={refreshArtwork} /><div><h2><b>{current?.title || TEXT.noTrack}</b></h2><span>{current?.artist || TEXT.choose}</span></div><div className="lyrics-track__actions"><QualityBadge track={current} /><DownloadButton track={current} /><button className={`like-button${current && likedTracks.some((track) => sameFavorite(track, current)) ? ' liked' : ''}`} disabled={!current} onClick={() => current && like(current.songId)}>{TEXT.likes}</button></div></div><div ref={lyricsRef} className="lyrics-body" onClick={seekLyric}>{lyricLines.length ? lyricLines.map((line, index) => <p key={`${line.time}:${line.text}:${index}`}><span>{line.text}</span>{line.translation && <small>{line.translation}</small>}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
     <footer className="music-player">
       <div className="music-player__progress"><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /></div>
       <div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" onLoad={artworkLoaded} onError={refreshArtwork} /><span className="music-player__copy"><b className="music-player__title">{current?.title || TEXT.noTrack}</b><small>{current?.artist || 'LURI MUSIC'}</small></span></div>

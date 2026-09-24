@@ -578,6 +578,16 @@
   font-size: 0.84rem;
   line-height: 1.8;
 }
+.lyrics-body p > span,
+.lyrics-body p > small {
+  display: block;
+}
+.lyrics-body p > small {
+  margin-top: 0.1rem;
+  font-size: 0.78em;
+  font-weight: 400;
+  opacity: 0.72;
+}
 .lyrics-body .lyrics-empty {
   padding-top: 2rem;
   text-align: center;
