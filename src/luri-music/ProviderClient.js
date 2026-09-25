@@ -11,7 +11,9 @@ const api = async (path, options = {}) => {
 };
 
 const PROVIDER_REQUEST_TIMEOUT_MS = 30 * 1000;
+const PLAYBACK_CACHE_SAFETY_MS = 5 * 1000;
 const isRefreshRequest = (value) => value === true || value === 1 || value === '1' || value === 'url' || value === 'decode';
+const providerCache = () => { try { return globalThis.localStorage || null; } catch { return null; } };
 const requestDeadline = (signal) => {
   const controller = new AbortController(); let timedOut = false;
   const relayAbort = () => controller.abort(signal?.reason);
@@ -48,18 +50,20 @@ export default class ProviderClient {
 
   cacheKey(kind, params) {
     if (!['resolve', 'lyrics', 'artwork'].includes(kind) || !params.songId) return '';
-    return `luri.provider-cache.v1:${this.config.id}:${kind}:${params.songId}:${kind === 'resolve' ? params.quality || 'auto' : ''}`;
+    return `luri.provider-cache.v2:${this.config.id}:${kind}:${params.songId}:${kind === 'resolve' ? params.quality || 'auto' : ''}`;
   }
 
   cachedResponse(key, refresh) {
     if (!key) return null;
     try {
-      if (refresh) { sessionStorage.removeItem(key); return null; }
-      const entry = JSON.parse(sessionStorage.getItem(key) || 'null');
-      if (!entry || entry.expiresAt <= Date.now()) { sessionStorage.removeItem(key); return null; }
+      const storage = providerCache();
+      if (!storage) return null;
+      if (refresh) { storage.removeItem(key); return null; }
+      const entry = JSON.parse(storage.getItem(key) || 'null');
+      if (!entry || entry.expiresAt <= Date.now()) { storage.removeItem(key); return null; }
       const body = { ...entry.body };
-      if (body.url && body.expiresIn) body.expiresIn = Math.max(1, Math.floor((entry.expiresAt - Date.now()) / 1000));
-      return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json', 'x-luri-cache': 'session' } });
+      if (entry.kind === 'resolve' && body.url) body.expiresIn = Math.max(1, Math.floor((entry.expiresAt - Date.now()) / 1000));
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json', 'x-luri-cache': 'local' } });
     } catch { return null; }
   }
 
@@ -68,8 +72,15 @@ export default class ProviderClient {
     response.clone().json().then((payload) => {
       const useful = kind === 'resolve' ? payload.url : kind === 'artwork' ? payload.url : payload.lyrics || payload.translation;
       if (!useful) return;
-      const ttl = kind === 'resolve' ? Math.max(5, Number(payload.expiresIn) || 60) : 3600;
-      try { sessionStorage.setItem(key, JSON.stringify({ expiresAt: Date.now() + ttl * 1000, body: payload })); } catch { /* Session storage may be unavailable. */ }
+      const now = Date.now();
+      let expiresAt = now + 3600 * 1000;
+      if (kind === 'resolve') {
+        const reportedExpiry = Date.parse(payload.expiresAt || '');
+        const ttlExpiry = now + Math.max(1, Number(payload.expiresIn) || 60) * 1000;
+        expiresAt = Math.min(Number.isFinite(reportedExpiry) && reportedExpiry > now ? reportedExpiry : ttlExpiry, ttlExpiry) - PLAYBACK_CACHE_SAFETY_MS;
+        if (expiresAt <= now) return;
+      }
+      try { providerCache()?.setItem(key, JSON.stringify({ kind, expiresAt, body: payload })); } catch { /* Local storage may be unavailable. */ }
     }).catch(() => {});
   }
 
