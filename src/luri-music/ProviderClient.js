@@ -10,7 +10,7 @@ const api = async (path, options = {}) => {
   return data;
 };
 
-const PROVIDER_REQUEST_TIMEOUT_MS = 30 * 1000;
+const PROVIDER_REQUEST_TIMEOUT_MS = 40 * 1000;
 const PLAYBACK_CACHE_SAFETY_MS = 5 * 1000;
 const isRefreshRequest = (value) => value === true || value === 1 || value === '1' || value === 'url' || value === 'decode';
 const providerCache = () => { try { return globalThis.localStorage || null; } catch { return null; } };
@@ -90,7 +90,7 @@ export default class ProviderClient {
       const deadline = requestDeadline();
       this.pending = api(`providers/${this.config.id}/token`, { method: 'POST', body: '{}', signal: deadline.signal })
         .then((data) => { if (this.config.status !== (data.account?.status || 'active')) this.onStatusChange?.(); const access = { token: data.accessToken || '', authorization: data.authorization || null, endpoints: data.endpoints, capabilities: Array.isArray(data.capabilities) ? data.capabilities : [], expiresAt: Date.now() + Math.max(30, Number(data.expiresIn) || 900) * 1000 }; this.access = access; return access; })
-        .catch((error) => { if (!deadline.timedOut()) throw error; const timeout = new Error('Provider 授权请求超时（30 秒）'); timeout.code = 'provider_timeout'; timeout.status = 504; throw timeout; })
+        .catch((error) => { if (!deadline.timedOut()) throw error; const timeout = new Error('Provider 授权请求超时（40 秒）'); timeout.code = 'provider_timeout'; timeout.status = 504; throw timeout; })
         .finally(() => { deadline.clear(); this.pending = null; });
     }
     this.access = await waitForSignal(this.pending, signal); return this.access;
@@ -121,7 +121,7 @@ export default class ProviderClient {
       return response;
     } catch (error) {
       if (!deadline.timedOut()) throw error;
-      const timeout = new Error('Provider 请求超时（30 秒）'); timeout.code = 'provider_timeout'; timeout.status = 504; throw timeout;
+      const timeout = new Error('Provider 请求超时（40 秒）'); timeout.code = 'provider_timeout'; timeout.status = 504; throw timeout;
     } finally { deadline.clear(); }
   }
 }
