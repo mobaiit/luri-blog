@@ -10,7 +10,7 @@ const TEXT = { title: '\u97f3\u4e50', discover: '\u53d1\u73b0\u97f3\u4e50', like
 const time = (value = 0) => Number.isFinite(value) ? `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}` : '0:00';
 const lyricLine = (line) => { const matches = [...line.matchAll(/\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\]/g)]; const text = line.replace(/\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\]/g, '').trim(); return matches.length ? matches.map((match) => ({ time: Number(match[1]) * 60 + Number(match[2]), text })) : [{ time: -1, text: line }]; };
 const parsedLyrics = (value) => String(value || '').split(/\r?\n/).filter(Boolean).flatMap(lyricLine).filter((line) => line.text);
-const STORE_QUEUE = 'luri.music.queue.v3'; const STORE_LIKES = 'luri.music.likes.v3'; const STORE_SEARCH = 'luri.music.search.v3'; const STORE_QUERY = 'luri.music.query.v3'; const STORE_RECENT_SEARCHES = 'luri.music.recent-searches.v3';
+const STORE_QUEUE = 'luri.music.queue.v3'; const STORE_LIKES = 'luri.music.likes.v3'; const STORE_SEARCH = 'luri.music.search.v3'; const STORE_QUERY = 'luri.music.query.v3'; const STORE_RECENT_SEARCHES = 'luri.music.recent-searches.v3'; const STORE_RANDOM_LIST = 'luri.music.random-list.v1';
 const STORE_CHART = 'luri.music.chart.v3';
 const CHART_TYPES = [{ value: 'rising', label: '飙升榜' }, { value: 'new', label: '新歌榜' }, { value: 'original', label: '原创榜' }, { value: 'hot', label: '热歌榜' }];
 const CHART_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -136,7 +136,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const [mobileView, setMobileView] = useState('playlist');
   const [activeQueue, setActiveQueue] = useState('normal');
   const [resultPage, setResultPage] = useState(0); const [hasMoreResults, setHasMoreResults] = useState(false); const [loadingMore, setLoadingMore] = useState(false);
-  const [tracks, setTracks] = useState(() => readTrackStore(storeKey(STORE_QUEUE)).filter((track) => track.binding)); const [likedTracks, setLikedTracks] = useState(() => favoriteInitialRef.current.items); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
+  const [tracks, setTracks] = useState(() => readTrackStore(storeKey(STORE_QUEUE)).filter((track) => track.binding)); const [likedTracks, setLikedTracks] = useState(() => favoriteInitialRef.current.items); const [randomTracks, setRandomTracks] = useState(() => readTrackStore(STORE_RANDOM_LIST).filter((track) => track.binding).slice(0, 50)); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
   const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8); const [muted, setMuted] = useState(false);
   const [lyrics, setLyrics] = useState(''); const [translation, setTranslation] = useState(''); const [lyricsState, setLyricsState] = useState('');
@@ -148,7 +148,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const mediaActionsRef = useRef({ play: () => {}, pause: () => {}, previous: () => {}, next: () => {} });
   const playRejectionRef = useRef(() => {});
   const randomHistoryKey = `luri.music.random-history.v1${storageNamespace ? `.${storageNamespace}` : ''}`; const storedRandomHistory = useRef(readSession(randomHistoryKey));
-  const randomRequest = useRef(null); const randomSession = useRef(0); const playMode = useRef('manual'); const playbackListRef = useRef('');
+  const randomRequest = useRef(null); const randomSession = useRef(0); const randomSwitchRef = useRef(null); const pendingRestoreRef = useRef(null); const playMode = useRef('manual'); const playbackListRef = useRef('');
 
   useEffect(() => {
     if (!searchFocused) return undefined;
@@ -206,9 +206,11 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
 
   useEffect(() => {
     if (!audio.current || !current?.url) return;
-    setPlaybackTrackId(current.songId); setPlaybackState('loading'); setProgress(0); setDuration(0);
+    const restore = pendingRestoreRef.current?.songId === current.songId ? pendingRestoreRef.current : null;
+    setPlaybackTrackId(current.songId); setPlaybackState(restore?.wasPlaying === false ? 'paused' : 'loading'); setProgress(restore?.currentTime || 0); setDuration(0);
     ignoreAudioErrorRef.current = false; audio.current.src = current.url; audio.current.load(); beginMediaDeadline(current.songId);
-    audio.current.play().catch((error) => playRejectionRef.current(error));
+    if (restore?.wasPlaying === false) clearMediaDeadline();
+    else audio.current.play().catch((error) => playRejectionRef.current(error));
   }, [currentId, current?.songId, current?.url]);
   useEffect(() => { if (listView === 'search') setCachedResults(results); }, [listView, results]);
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_SEARCH), JSON.stringify(cachedResults)); localStorage.setItem(storeKey(STORE_QUERY), query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
@@ -233,10 +235,10 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       }
     }).catch((error) => {
       if (controller.signal.aborted) return;
-      if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) { playMode.current = 'manual'; setPlaying(false); showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); return; }
+      if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) { if (!restoreRandomSwitch('Provider 没有访问权限，已恢复上一首')) { playMode.current = 'manual'; setPlaying(false); showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); } return; }
       if (['no_candidate', 'all_resolvers_failed', 'quality_unavailable'].includes(error?.code)) {
         setPlaying(false); discardCurrentUrl();
-        if (playMode.current === 'random') playNextRandom(); else skipFailedTrack(error.code === 'no_candidate' ? '未找到可播放音源，已自动播放下一首' : '所有音源均解析失败，已自动播放下一首');
+        if (playMode.current === 'random') { if (!restoreRandomSwitch('下一首加载失败，已恢复上一首')) playNextRandom(); } else skipFailedTrack(error.code === 'no_candidate' ? '未找到可播放音源，已自动播放下一首' : '所有音源均解析失败，已自动播放下一首');
       } else handlePlaybackFailure();
     }).finally(() => { if (resolveRequestRef.current === controller) resolveRequestRef.current = null; });
     return () => { controller.abort(); if (resolveRequestRef.current === controller) resolveRequestRef.current = null; };
@@ -322,6 +324,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   };
   const artworkLoaded = () => { if (current) artworkRefreshIdsRef.current.delete(current.songId); };
   useEffect(() => { try { localStorage.setItem(storeKey(STORE_QUEUE), JSON.stringify(tracks.slice(0, 50).map(({ url: _url, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [tracks]);
+  useEffect(() => { try { localStorage.setItem(STORE_RANDOM_LIST, JSON.stringify(randomTracks.slice(0, 50).map(({ url: _url, expiresAt: _expiresAt, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [randomTracks]);
   useEffect(() => { likedTracksRef.current = likedTracks; try { localStorage.setItem(likedStoreKey, JSON.stringify(minimalFavorites(likedTracks))); } catch { /* Storage is unavailable in private browsing. */ } }, [likedTracks, likedStoreKey]);
   useEffect(() => {
     if (!favoriteSyncEnabled || !favoriteNamespace) return undefined;
@@ -448,7 +451,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const stopRandom = () => {
     randomSession.current += 1;
     if (randomRequest.current) randomRequest.current.abort();
-    randomRequest.current = null;
+    randomRequest.current = null; randomSwitchRef.current = null; pendingRestoreRef.current = null;
     playMode.current = 'manual'; setRandomLoading(false);
   };
   const rememberRandomTrack = (track, singer = '') => {
@@ -456,6 +459,25 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     randomSingers.current = singers.filter((item, index) => singers.findLastIndex((candidate) => randomTextKey(candidate) === randomTextKey(item)) === index).slice(-30);
     const key = randomTrackKey(track); randomTrackKeys.current = [...randomTrackKeys.current.filter((item) => item !== key), key].filter(Boolean).slice(-50);
     writeSession(randomHistoryKey, { singers: randomSingers.current, tracks: randomTrackKeys.current });
+  };
+  const rememberRandomListTrack = (track) => {
+    const canonical = canonicalTrack(track);
+    if (!canonical) return;
+    const { url: _url, expiresAt: _expiresAt, ...stored } = canonical;
+    setRandomTracks((items) => [stored, ...items.filter((item) => item.songId !== stored.songId)].slice(0, 50));
+  };
+  const restoreRandomSwitch = (message = '下一首加载失败，已恢复上一首') => {
+    const snapshot = randomSwitchRef.current;
+    if (!snapshot) return false;
+    randomSwitchRef.current = null; randomSession.current += 1; randomRequest.current?.abort(); randomRequest.current = null; randomFallbackTracks.current = [];
+    playMode.current = snapshot.mode; pendingRestoreRef.current = { songId: snapshot.songId, currentTime: snapshot.currentTime, wasPlaying: snapshot.wasPlaying };
+    setPlaybackQueue(snapshot.queue); setCurrentId(snapshot.songId); setPlaybackTrackId(snapshot.songId); setProgress(snapshot.currentTime); setPlaybackState(snapshot.wasPlaying ? 'loading' : 'paused'); setRandomLoading(false);
+    if (currentId === snapshot.songId && audio.current) {
+      audio.current.currentTime = snapshot.currentTime; pendingRestoreRef.current = null;
+      if (snapshot.wasPlaying) audio.current.play().catch((error) => playRejectionRef.current(error));
+    }
+    showToast(message, 'warning');
+    return true;
   };
   const hasAccess = () => !onRequireAccess || onRequireAccess() !== false;
   const selectTrack = (id, queue = null, mode = 'manual', preserveFailures = false) => {
@@ -476,9 +498,9 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     setPlaying(false); setProgress(0); setDuration(0);
     setCurrentId(id);
   };
-  const next = () => {
+  const next = (automatic = false) => {
     const queue = playbackQueue.length ? playbackQueue : activeTracks; if (!queue.length) return;
-    if (playMode.current === 'random') return startRandom();
+    if (playMode.current === 'random') return startRandom({ recover: !automatic });
     const index = queue.findIndex((track) => track.songId === currentId);
     selectTrack(queue[index < 0 ? 0 : (index + 1) % queue.length].songId, null, playMode.current);
   };
@@ -565,11 +587,15 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     setPlaying(false);
     if (retryWithRefresh(refreshMode)) return;
     discardCurrentUrl();
-    if (playMode.current === 'random') { playNextRandom(); return; }
+    if (playMode.current === 'random') { if (!restoreRandomSwitch()) playNextRandom(); return; }
     skipFailedTrack(message);
   }
-  const startRandom = async () => {
+  const startRandom = async ({ recover = true } = {}) => {
     if (!hasAccess()) return;
+    if (recover && current && !randomSwitchRef.current) {
+      randomSwitchRef.current = { songId: current.songId, currentTime: audio.current?.currentTime || progress, wasPlaying: Boolean(playing), mode: playMode.current, queue: playbackQueue.length ? playbackQueue : activeTracks };
+    }
+    if (recover && current) { clearMediaDeadline(); audio.current?.pause(); setPlaying(false); setPlaybackState('resolving'); }
     const session = randomSession.current + 1;
     randomSession.current = session;
     if (randomRequest.current) randomRequest.current.abort();
@@ -587,11 +613,12 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       const fallbackCandidates = tracks.filter((track) => track.songId !== selected.songId && randomTrackKey(track) !== randomTrackKey(selected) && !randomTrackKeys.current.includes(randomTrackKey(track)));
       randomFallbackTracks.current = shuffled(fallbackCandidates).slice(0, 5);
       rememberRandomTrack(selected, payload.singer || '');
+      if (randomSwitchRef.current) randomSwitchRef.current.targetId = selected.songId;
       playbackListRef.current = 'random'; clearMediaDeadline(); setPlaybackQueue(tracks); setCurrentId(selected.songId); setPlaybackTrackId(selected.songId); setPlaybackState('resolving');
     } catch (error) {
       if (!controller.signal.aborted && session === randomSession.current) {
         const accessDenied = error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403;
-        playMode.current = 'manual'; showToast(accessDenied ? 'Provider 没有访问权限，请重新配置或联系服务提供方' : '暂时没有可播放的随机歌曲，请重试', accessDenied ? 'warning' : 'error');
+        if (!restoreRandomSwitch(accessDenied ? 'Provider 没有访问权限，已恢复上一首' : '下一首加载失败，已恢复上一首')) { playMode.current = 'manual'; showToast(accessDenied ? 'Provider 没有访问权限，请重新配置或联系服务提供方' : '暂时没有可播放的随机歌曲，请重试', accessDenied ? 'warning' : 'error'); }
       }
     } finally {
       if (session === randomSession.current) { randomRequest.current = null; setRandomLoading(false); }
@@ -599,7 +626,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   };
   function playNextRandom() {
     const candidates = randomFallbackTracks.current;
-    if (!candidates.length) { startRandom(); return; }
+    if (!candidates.length) { startRandom({ recover: false }); return; }
     const index = Math.floor(Math.random() * candidates.length);
     const [track] = candidates.splice(index, 1);
     rememberRandomTrack(track);
@@ -686,7 +713,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const handleTrackAction = (track) => {
     if (track.songId === currentId) { toggle(); return; }
     const isChartView = listView === 'netease' || listView === 'qq';
-    const queue = listView === 'search' ? results : listView === 'likes' ? likedTracks : isChartView ? chartData.tracks : tracks;
+    const queue = listView === 'search' ? results : listView === 'likes' ? likedTracks : listView === 'random' ? randomTracks : isChartView ? chartData.tracks : tracks;
     playbackListRef.current = listView === 'search' ? `search:${activeSearchRef.current}` : isChartView ? `charts:${listView}:${chartType}` : listView;
     setActiveQueue(listView === 'likes' ? 'favorites' : 'normal');
     selectTrack(track.songId, queue);
@@ -702,7 +729,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   };
 
   const isChartView = listView === 'netease' || listView === 'qq';
-  const visibleTracks = listView === 'search' ? results : listView === 'likes' ? likedTracks : isChartView ? chartData.tracks : tracks;
+  const visibleTracks = listView === 'search' ? results : listView === 'likes' ? likedTracks : listView === 'random' ? randomTracks : isChartView ? chartData.tracks : tracks;
   const isSearching = searchState === TEXT.searching;
   const isPlaybackBusy = randomLoading || playbackState === 'resolving' || playbackState === 'loading';
   const rowPlaybackState = (id) => id === playbackTrackId ? playbackState : 'idle';
@@ -714,15 +741,15 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       next: () => { pulseControl('next'); next(); },
     };
   });
-  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}${isSearching ? ' is-searching' : ''}${chartLoading ? ' is-chart-loading' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(currentId); setPlaybackState('playing'); }} onError={(event) => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); const mediaError = event.currentTarget.error?.code; handlePlaybackFailure(undefined, mediaError === 3 || mediaError === 4 ? 'decode' : 'url'); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onEnded={() => { clearMediaDeadline(); next(); }} /><Toast toast={toast} onClose={() => setToast(null)} />
+  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}${isSearching ? ' is-searching' : ''}${chartLoading ? ' is-chart-loading' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(currentId); setPlaybackState('playing'); if (playMode.current === 'random' && current) rememberRandomListTrack(current); if (randomSwitchRef.current?.targetId === currentId) randomSwitchRef.current = null; }} onError={(event) => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); const mediaError = event.currentTarget.error?.code; handlePlaybackFailure(undefined, mediaError === 3 || mediaError === 4 ? 'decode' : 'url'); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => { const restore = pendingRestoreRef.current; if (restore?.songId === currentId) { event.currentTarget.currentTime = restore.currentTime; setProgress(restore.currentTime); pendingRestoreRef.current = null; } setDuration(event.currentTarget.duration); }} onEnded={() => { clearMediaDeadline(); next(true); }} /><Toast toast={toast} onClose={() => setToast(null)} />
   <section className="music-shell">
       <section className="music-content">
         <header className="music-header">
           {!isMusicPage && <div><p className="music-kicker">LURI MUSIC</p><h1>{pageTitle}</h1>{headerNotice}</div>}
           <form ref={searchFormRef} className="music-search" onSubmit={search}><input ref={searchInputRef} value={query} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} onChange={(event) => { setQuery(event.target.value); setActiveSingerSuggestion(-1); }} onKeyDown={handleSearchKeyDown} placeholder={TEXT.searchHint} autoComplete="off" aria-autocomplete="list" aria-expanded={searchFocused && singerSuggestions.length > 0} />{query && <button className="music-search-clear" type="button" onMouseDown={(event) => event.preventDefault()} onClick={clearSearchInput} aria-label="清空搜索内容" title="清空"><MusicIcon name="close" /></button>}<button className="music-icon-button" type="submit" onMouseDown={(event) => event.preventDefault()} disabled={isSearching} aria-label={isSearching ? '正在搜索' : TEXT.search} title={isSearching ? '正在搜索' : TEXT.search}>{isSearching ? <span className="music-spinner" aria-hidden="true" /> : <MusicIcon name="search" />}</button><button className="music-random-button" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { setSearchFocused(false); setActiveSingerSuggestion(-1); startRandom(); }} disabled={randomLoading} aria-label="随机搜索并播放音乐" title="随机发现">{randomLoading ? <span className="music-spinner" aria-hidden="true" /> : <><MusicIcon name="random" /><span>随机发现</span></>}</button>{searchFocused && (singerSuggestions.length > 0 || (!singerQuery && recentSearches.length > 0)) && <div className="music-search-history" ref={searchSuggestionsRef} onMouseDown={(event) => event.preventDefault()}>{singerSuggestions.length > 0 ? <><div className="music-search-history__head"><span>歌手</span></div>{singerSuggestions.map((singer, index) => <button className={`music-search-history__item${index === activeSingerSuggestion ? ' active' : ''}`} type="button" key={singer} onClick={() => chooseSearchSuggestion(singer)}>{singer}</button>)}</> : <><div className="music-search-history__head"><span>最近搜索</span><button type="button" onClick={() => setRecentSearches([])}>清除</button></div>{recentSearches.map((item) => <button className="music-search-history__item" type="button" key={item} onClick={() => chooseSearchSuggestion(item)}>{item}</button>)}</>}</div>}</form>
         </header>
-        <aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className={`music-nav${listView === 'queue' || listView === 'search' ? ' active' : ''}`} onClick={() => { setListView('queue'); }}>播放列表<span>({tracks.length})</span></button><button className={`music-nav${listView === 'likes' ? ' active' : ''}`} onClick={() => { setListView('likes'); }}>我喜欢<span>({likedTracks.length})</span></button><button className={`music-nav${listView === 'netease' ? ' active' : ''}`} onClick={openNetease}>网易<span>{listView === 'netease' && chartData.tracks.length ? `(${chartData.tracks.length})` : ''}</span></button><button className={`music-nav${listView === 'qq' ? ' active' : ''}`} onClick={openQQ}>QQ<span>{listView === 'qq' && chartData.tracks.length ? `(${chartData.tracks.length})` : ''}</span></button><div className="music-divider" /></aside>
-        <div className="music-workspace"><section className="music-results"><div className={`music-list-head${isChartView ? ' music-list-head--charts' : ''}`}>{isChartView ? <div className="music-chart-controls"><div className="music-chart-switch music-chart-switch--types" aria-label="榜单类型">{CHART_TYPES.map((chart) => <button type="button" className={chartType === chart.value ? 'active' : ''} onClick={() => selectChartType(chart.value)} key={chart.value}>{chart.label}</button>)}</div><div className="music-chart-meta"><span>{chartData.title || '音乐榜单'} · 更新于 {chartUpdatedLabel(chartData.updatedAt)} · 共 {chartData.tracks.length} 首歌曲</span><button type="button" onClick={() => loadChart(chartPlatform, chartType, true)} disabled={chartLoading}>{chartLoading ? <span className="music-spinner" aria-hidden="true" /> : '刷新'}</button></div></div> : <span>{listView === 'search' ? TEXT.search : listView === 'likes' ? TEXT.likes : TEXT.queue}</span>}</div><div className="music-list" ref={musicListRef} onScroll={handleListScroll}>{visibleTracks.map((track, index) => { const state = rowPlaybackState(track.songId); const isCurrent = track.songId === currentId; const isCurrentBusy = isCurrent && isPlaybackBusy; return <button ref={isCurrent ? currentRowRef : null} key={track.songId} className={`music-row${isCurrent ? ' current' : ''}`} onClick={() => handleTrackAction(track)} disabled={isCurrentBusy} aria-label={`${track.title}，${isCurrentBusy ? '正在加载' : state === 'error' ? '播放失败，点击重试' : state === 'playing' ? TEXT.pause : TEXT.play}`}><span className="track-index">{String(isChartView ? track.rank || index + 1 : index + 1).padStart(2, '0')}</span><span className="track-copy"><span className="track-title"><b>{track.title}</b>{isCurrent && <QualityBadge track={current} />}</span><span className="track-artist">{track.artist}{track.year ? ` · ${track.year}` : ''}</span></span><span className={`track-action track-action--${state}`} aria-hidden="true">{state === 'error' ? '播放失败' : state === 'loading' || state === 'resolving' ? <span className="music-spinner" /> : <MusicIcon name={state === 'playing' ? 'pause' : 'play'} />}</span></button>; })}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!visibleTracks.length && <div className="music-empty"><strong>{isChartView ? chartLoading ? '正在加载榜单…' : '暂无榜单数据' : TEXT.noResult}</strong><span>{isChartView ? '请选择榜单或点击刷新' : TEXT.choose}</span></div>}</div><p className="music-search-status" aria-live="polite">{isChartView ? chartState : isSearching ? '' : searchState}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" onLoad={artworkLoaded} onError={refreshArtwork} /><div><h2><b>{current?.title || TEXT.noTrack}</b></h2><span>{current?.artist || TEXT.choose}</span></div><div className="lyrics-track__actions"><QualityBadge track={current} /><DownloadButton track={current} /><button className={`like-button${current && likedTracks.some((track) => sameFavorite(track, current)) ? ' liked' : ''}`} type="button" disabled={!current} aria-label={current && likedTracks.some((track) => sameFavorite(track, current)) ? '取消收藏' : '收藏歌曲'} aria-pressed={Boolean(current && likedTracks.some((track) => sameFavorite(track, current)))} title={current && likedTracks.some((track) => sameFavorite(track, current)) ? '取消收藏' : '收藏'} onClick={() => current && like(current.songId)}><MusicIcon name="heart" /></button></div></div><div ref={lyricsRef} className="lyrics-body" onClick={seekLyric}>{lyricLines.length ? lyricLines.map((line, index) => <p key={`${line.time}:${line.text}:${index}`}><span>{line.text}</span>{line.translation && <small>{line.translation}</small>}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
+        <aside className="music-sidebar"><p className="music-brand">LURI / MUSIC</p><button className={`music-nav${listView === 'queue' || listView === 'search' ? ' active' : ''}`} onClick={() => { setListView('queue'); }}>播放列表<span>({tracks.length})</span></button><button className={`music-nav${listView === 'likes' ? ' active' : ''}`} onClick={() => { setListView('likes'); }}>我喜欢<span>({likedTracks.length})</span></button><button className={`music-nav${listView === 'netease' ? ' active' : ''}`} onClick={openNetease}>网易<span>{listView === 'netease' && chartData.tracks.length ? `(${chartData.tracks.length})` : ''}</span></button><button className={`music-nav${listView === 'qq' ? ' active' : ''}`} onClick={openQQ}>QQ<span>{listView === 'qq' && chartData.tracks.length ? `(${chartData.tracks.length})` : ''}</span></button><button className={`music-nav${listView === 'random' ? ' active' : ''}`} onClick={() => { setListView('random'); }}>随机播放列表<span>({randomTracks.length})</span></button><div className="music-divider" /></aside>
+        <div className="music-workspace"><section className="music-results"><div className={`music-list-head${isChartView ? ' music-list-head--charts' : ''}`}>{isChartView ? <div className="music-chart-controls"><div className="music-chart-switch music-chart-switch--types" aria-label="榜单类型">{CHART_TYPES.map((chart) => <button type="button" className={chartType === chart.value ? 'active' : ''} onClick={() => selectChartType(chart.value)} key={chart.value}>{chart.label}</button>)}</div><div className="music-chart-meta"><span>{chartData.title || '音乐榜单'} · 更新于 {chartUpdatedLabel(chartData.updatedAt)} · 共 {chartData.tracks.length} 首歌曲</span><button type="button" onClick={() => loadChart(chartPlatform, chartType, true)} disabled={chartLoading}>{chartLoading ? <span className="music-spinner" aria-hidden="true" /> : '刷新'}</button></div></div> : <span>{listView === 'search' ? TEXT.search : listView === 'likes' ? TEXT.likes : listView === 'random' ? '随机播放列表' : TEXT.queue}</span>}</div><div className="music-list" ref={musicListRef} onScroll={handleListScroll}>{visibleTracks.map((track, index) => { const state = rowPlaybackState(track.songId); const isCurrent = track.songId === currentId; const isCurrentBusy = isCurrent && isPlaybackBusy; return <button ref={isCurrent ? currentRowRef : null} key={track.songId} className={`music-row${isCurrent ? ' current' : ''}`} onClick={() => handleTrackAction(track)} disabled={isCurrentBusy} aria-label={`${track.title}，${isCurrentBusy ? '正在加载' : state === 'error' ? '播放失败，点击重试' : state === 'playing' ? TEXT.pause : TEXT.play}`}><span className="track-index">{String(isChartView ? track.rank || index + 1 : index + 1).padStart(2, '0')}</span><span className="track-copy"><span className="track-title"><b>{track.title}</b>{isCurrent && <QualityBadge track={current} />}</span><span className="track-artist">{track.artist}{track.year ? ` · ${track.year}` : ''}</span></span><span className={`track-action track-action--${state}`} aria-hidden="true">{state === 'error' ? '播放失败' : state === 'loading' || state === 'resolving' ? <span className="music-spinner" /> : <MusicIcon name={state === 'playing' ? 'pause' : 'play'} />}</span></button>; })}{loadingMore && <p className="music-list-status">正在加载更多…</p>}{!visibleTracks.length && <div className="music-empty"><strong>{isChartView ? chartLoading ? '正在加载榜单…' : '暂无榜单数据' : listView === 'random' ? '暂无随机播放记录' : TEXT.noResult}</strong><span>{isChartView ? '请选择榜单或点击刷新' : listView === 'random' ? '随机播放成功的歌曲会显示在这里' : TEXT.choose}</span></div>}</div><p className="music-search-status" aria-live="polite">{isChartView ? chartState : isSearching ? '' : searchState}</p></section><aside className="music-lyrics"><div className="lyrics-track"><img src={current?.art || EMPTY_ART} alt="" onLoad={artworkLoaded} onError={refreshArtwork} /><div><h2><b>{current?.title || TEXT.noTrack}</b></h2><span>{current?.artist || TEXT.choose}</span></div><div className="lyrics-track__actions"><QualityBadge track={current} /><DownloadButton track={current} /><button className={`like-button${current && likedTracks.some((track) => sameFavorite(track, current)) ? ' liked' : ''}`} type="button" disabled={!current} aria-label={current && likedTracks.some((track) => sameFavorite(track, current)) ? '取消收藏' : '收藏歌曲'} aria-pressed={Boolean(current && likedTracks.some((track) => sameFavorite(track, current)))} title={current && likedTracks.some((track) => sameFavorite(track, current)) ? '取消收藏' : '收藏'} onClick={() => current && like(current.songId)}><MusicIcon name="heart" /></button></div></div><div ref={lyricsRef} className="lyrics-body" onClick={seekLyric}>{lyricLines.length ? lyricLines.map((line, index) => <p key={`${line.time}:${line.text}:${index}`}><span>{line.text}</span>{line.translation && <small>{line.translation}</small>}</p>) : <p className="lyrics-empty">{lyricsState || TEXT.choose}</p>}</div></aside></div></section></section>
     <footer className="music-player">
       <div className="music-player__progress"><input type="range" min="0" max={duration || 0} value={Math.min(progress, duration || 0)} onChange={(event) => { const value = Number(event.target.value); if (audio.current) audio.current.currentTime = value; setProgress(value); }} /></div>
       <div className="music-player__song"><img src={current?.art || EMPTY_ART} alt="" onLoad={artworkLoaded} onError={refreshArtwork} /><span className="music-player__copy"><b className="music-player__title">{current?.title || TEXT.noTrack}</b><small>{current?.artist || 'LURI MUSIC'}</small></span></div>
