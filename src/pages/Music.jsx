@@ -238,7 +238,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) { if (!restoreRandomSwitch('Provider 没有访问权限，已恢复上一首')) { playMode.current = 'manual'; setPlaying(false); showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); } return; }
       if (['no_candidate', 'all_resolvers_failed', 'quality_unavailable'].includes(error?.code)) {
         setPlaying(false); discardCurrentUrl();
-        if (playMode.current === 'random') { if (!restoreRandomSwitch('下一首加载失败，已恢复上一首')) playNextRandom(); } else skipFailedTrack(error.code === 'no_candidate' ? '未找到可播放音源，已自动播放下一首' : '所有音源均解析失败，已自动播放下一首');
+        if (playMode.current === 'random') playNextRandom(); else skipFailedTrack(error.code === 'no_candidate' ? '未找到可播放音源，已自动播放下一首' : '所有音源均解析失败，已自动播放下一首');
       } else handlePlaybackFailure();
     }).finally(() => { if (resolveRequestRef.current === controller) resolveRequestRef.current = null; });
     return () => { controller.abort(); if (resolveRequestRef.current === controller) resolveRequestRef.current = null; };
@@ -594,7 +594,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     setPlaying(false);
     if (retryWithRefresh(refreshMode)) return;
     discardCurrentUrl();
-    if (playMode.current === 'random') { if (!restoreRandomSwitch()) playNextRandom(); return; }
+    if (playMode.current === 'random') { playNextRandom(); return; }
     skipFailedTrack(message);
   }
   const startRandom = async ({ recover = true } = {}) => {
@@ -639,6 +639,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const [track] = candidates.splice(index, 1);
     rememberRandomTrack(track);
     randomListWriteIdRef.current = track.songId;
+    if (randomSwitchRef.current) randomSwitchRef.current.targetId = track.songId;
     selectTrack(track.songId, null, 'random');
   }
 
