@@ -148,7 +148,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const mediaActionsRef = useRef({ play: () => {}, pause: () => {}, previous: () => {}, next: () => {} });
   const playRejectionRef = useRef(() => {});
   const randomHistoryKey = `luri.music.random-history.v1${storageNamespace ? `.${storageNamespace}` : ''}`; const storedRandomHistory = useRef(readSession(randomHistoryKey));
-  const randomRequest = useRef(null); const randomSession = useRef(0); const randomSwitchRef = useRef(null); const pendingRestoreRef = useRef(null); const playMode = useRef('manual'); const playbackListRef = useRef('');
+  const randomRequest = useRef(null); const randomSession = useRef(0); const randomSwitchRef = useRef(null); const randomListWriteIdRef = useRef(''); const pendingRestoreRef = useRef(null); const playMode = useRef('manual'); const playbackListRef = useRef('');
 
   useEffect(() => {
     if (!searchFocused) return undefined;
@@ -451,7 +451,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const stopRandom = () => {
     randomSession.current += 1;
     if (randomRequest.current) randomRequest.current.abort();
-    randomRequest.current = null; randomSwitchRef.current = null; pendingRestoreRef.current = null;
+    randomRequest.current = null; randomSwitchRef.current = null; randomListWriteIdRef.current = ''; pendingRestoreRef.current = null;
     playMode.current = 'manual'; setRandomLoading(false);
   };
   const rememberRandomTrack = (track, singer = '') => {
@@ -469,14 +469,14 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const restoreRandomSwitch = (message = '下一首加载失败，已恢复上一首') => {
     const snapshot = randomSwitchRef.current;
     if (!snapshot) return false;
-    randomSwitchRef.current = null; randomSession.current += 1; randomRequest.current?.abort(); randomRequest.current = null; randomFallbackTracks.current = [];
+    randomSwitchRef.current = null; randomListWriteIdRef.current = ''; randomSession.current += 1; randomRequest.current?.abort(); randomRequest.current = null; randomFallbackTracks.current = [];
     playMode.current = snapshot.mode; pendingRestoreRef.current = { songId: snapshot.songId, currentTime: snapshot.currentTime, wasPlaying: snapshot.wasPlaying };
     setPlaybackQueue(snapshot.queue); setCurrentId(snapshot.songId); setPlaybackTrackId(snapshot.songId); setProgress(snapshot.currentTime); setPlaybackState(snapshot.wasPlaying ? 'loading' : 'paused'); setRandomLoading(false);
     if (currentId === snapshot.songId && audio.current) {
       audio.current.currentTime = snapshot.currentTime; pendingRestoreRef.current = null;
       if (snapshot.wasPlaying) audio.current.play().catch((error) => playRejectionRef.current(error));
     }
-    showToast(message, 'warning');
+    if (message) showToast(message, 'warning');
     return true;
   };
   const hasAccess = () => !onRequireAccess || onRequireAccess() !== false;
@@ -505,6 +505,13 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     selectTrack(queue[index < 0 ? 0 : (index + 1) % queue.length].songId, null, playMode.current);
   };
   const previous = () => {
+    if (playMode.current === 'random') {
+      if (restoreRandomSwitch(null)) return;
+      const index = randomTracks.findIndex((track) => track.songId === currentId);
+      const track = index < 0 ? randomTracks[0] : randomTracks[index + 1];
+      if (!track) return;
+      playbackListRef.current = 'random'; selectTrack(track.songId, randomTracks, 'random'); return;
+    }
     const queue = playbackQueue.length ? playbackQueue : activeTracks; if (!queue.length) return;
     const index = queue.findIndex((track) => track.songId === currentId);
     selectTrack(queue[index <= 0 ? queue.length - 1 : index - 1].songId, null, playMode.current);
@@ -613,6 +620,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       const fallbackCandidates = tracks.filter((track) => track.songId !== selected.songId && randomTrackKey(track) !== randomTrackKey(selected) && !randomTrackKeys.current.includes(randomTrackKey(track)));
       randomFallbackTracks.current = shuffled(fallbackCandidates).slice(0, 5);
       rememberRandomTrack(selected, payload.singer || '');
+      randomListWriteIdRef.current = selected.songId;
       if (randomSwitchRef.current) randomSwitchRef.current.targetId = selected.songId;
       playbackListRef.current = 'random'; clearMediaDeadline(); setPlaybackQueue(tracks); setCurrentId(selected.songId); setPlaybackTrackId(selected.songId); setPlaybackState('resolving');
     } catch (error) {
@@ -630,6 +638,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const index = Math.floor(Math.random() * candidates.length);
     const [track] = candidates.splice(index, 1);
     rememberRandomTrack(track);
+    randomListWriteIdRef.current = track.songId;
     selectTrack(track.songId, null, 'random');
   }
 
@@ -741,7 +750,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       next: () => { pulseControl('next'); next(); },
     };
   });
-  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}${isSearching ? ' is-searching' : ''}${chartLoading ? ' is-chart-loading' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(currentId); setPlaybackState('playing'); if (playMode.current === 'random' && current) rememberRandomListTrack(current); if (randomSwitchRef.current?.targetId === currentId) randomSwitchRef.current = null; }} onError={(event) => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); const mediaError = event.currentTarget.error?.code; handlePlaybackFailure(undefined, mediaError === 3 || mediaError === 4 ? 'decode' : 'url'); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => { const restore = pendingRestoreRef.current; if (restore?.songId === currentId) { event.currentTarget.currentTime = restore.currentTime; setProgress(restore.currentTime); pendingRestoreRef.current = null; } setDuration(event.currentTarget.duration); }} onEnded={() => { clearMediaDeadline(); next(true); }} /><Toast toast={toast} onClose={() => setToast(null)} />
+  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}${isSearching ? ' is-searching' : ''}${chartLoading ? ' is-chart-loading' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(currentId); setPlaybackState('playing'); if (randomListWriteIdRef.current === currentId && current) { rememberRandomListTrack(current); randomListWriteIdRef.current = ''; } if (randomSwitchRef.current?.targetId === currentId) randomSwitchRef.current = null; }} onError={(event) => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); const mediaError = event.currentTarget.error?.code; handlePlaybackFailure(undefined, mediaError === 3 || mediaError === 4 ? 'decode' : 'url'); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => { const restore = pendingRestoreRef.current; if (restore?.songId === currentId) { event.currentTarget.currentTime = restore.currentTime; setProgress(restore.currentTime); pendingRestoreRef.current = null; } setDuration(event.currentTarget.duration); }} onEnded={() => { clearMediaDeadline(); next(true); }} /><Toast toast={toast} onClose={() => setToast(null)} />
   <section className="music-shell">
       <section className="music-content">
         <header className="music-header">
