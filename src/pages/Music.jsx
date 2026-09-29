@@ -624,7 +624,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     randomSession.current = session;
     if (randomRequest.current) randomRequest.current.abort();
     const controller = new AbortController(); randomRequest.current = controller;
-    playMode.current = 'random'; setMobileView('now'); setRandomLoading(true); setSearchState('');
+    playMode.current = 'random'; setListView('random'); setMobileView('now'); setRandomLoading(true); setSearchState('');
     try {
       const excluded = randomSingers.current.join(',');
       const response = await musicRequest('random', { exclude: excluded }, controller.signal);
