@@ -11,6 +11,7 @@ const time = (value = 0) => Number.isFinite(value) ? `${Math.floor(value / 60)}:
 const lyricLine = (line) => { const matches = [...line.matchAll(/\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\]/g)]; const text = line.replace(/\[(\d{2}):(\d{2}(?:\.\d{1,3})?)\]/g, '').trim(); return matches.length ? matches.map((match) => ({ time: Number(match[1]) * 60 + Number(match[2]), text })) : [{ time: -1, text: line }]; };
 const parsedLyrics = (value) => String(value || '').split(/\r?\n/).filter(Boolean).flatMap(lyricLine).filter((line) => line.text);
 const STORE_QUEUE = 'luri.music.queue.v3'; const STORE_LIKES = 'luri.music.likes.v3'; const STORE_SEARCH = 'luri.music.search.v3'; const STORE_QUERY = 'luri.music.query.v3'; const STORE_RECENT_SEARCHES = 'luri.music.recent-searches.v3'; const STORE_RANDOM_LIST = 'luri.music.random-list.v1';
+const STORE_SONG_CACHE = 'luri.music.songs.v1'; const SONG_CACHE_LIMIT = 500;
 const STORE_CHART = 'luri.music.chart.v3';
 const CHART_TYPES = [{ value: 'rising', label: '飙升榜' }, { value: 'new', label: '新歌榜' }, { value: 'original', label: '原创榜' }, { value: 'hot', label: '热歌榜' }];
 const CHART_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -21,11 +22,27 @@ const FAVORITES_SYNC_RETRY_MS = 30 * 1000;
 const canonicalBinding = (value) => value && typeof value === 'object' && !Array.isArray(value) && typeof value.source === 'string' && value.source && typeof value.sourceId === 'string' && value.sourceId && value.meta && typeof value.meta === 'object' && !Array.isArray(value.meta) && typeof value.art === 'string'
   ? { source: String(value.source), sourceId: String(value.sourceId), meta: value.meta, art: String(value.art || '') }
   : null;
+let songCacheMemory;
+const songCache = () => {
+  if (songCacheMemory) return songCacheMemory;
+  try { const value = JSON.parse(localStorage.getItem(STORE_SONG_CACHE) || '{}'); songCacheMemory = value && typeof value === 'object' && !Array.isArray(value) ? value : {}; }
+  catch { songCacheMemory = {}; }
+  return songCacheMemory;
+};
+const rememberSong = (track) => {
+  const binding = canonicalBinding(track?.binding); const title = String(track?.title || ''); const artist = String(track?.artist || '');
+  if (!binding || !title || !artist) return;
+  const songId = songIdFor(title, artist); const cache = songCache();
+  cache[songId] = { songId, title, artist, album: String(track?.album || ''), binding, updatedAt: Date.now() };
+  const entries = Object.entries(cache);
+  if (entries.length > SONG_CACHE_LIMIT) entries.sort((left, right) => Number(right[1]?.updatedAt || 0) - Number(left[1]?.updatedAt || 0)).slice(SONG_CACHE_LIMIT).forEach(([key]) => delete cache[key]);
+  try { localStorage.setItem(STORE_SONG_CACHE, JSON.stringify(cache)); } catch { /* Storage is unavailable in private browsing. */ }
+};
 const canonicalTrack = (track) => {
-  const title = String(track?.title || ''); const artist = String(track?.artist || ''); const binding = canonicalBinding(track?.binding);
+  const title = String(track?.title || ''); const artist = String(track?.artist || ''); const songId = songIdFor(title, artist); const binding = canonicalBinding(songCache()[songId]?.binding) || canonicalBinding(track?.binding);
   if (!title || !artist || !binding) return null;
   const { id: _legacyId, source: _legacySource, sourceId: _legacySourceId, ...fields } = track;
-  return { ...fields, songId: songIdFor(title, artist), title, artist, album: String(track?.album || ''), binding };
+  return { ...fields, songId, title, artist, album: String(track?.album || ''), binding };
 };
 const canonicalTracks = (items) => { const seen = new Set(); return (Array.isArray(items) ? items : []).flatMap((item) => { const track = canonicalTrack(item); if (!track || seen.has(track.songId)) return []; seen.add(track.songId); return [track]; }); };
 const readStore = (key) => { try { const value = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } };
@@ -44,8 +61,8 @@ const shuffled = (items) => {
 };
 const trackArtists = (track) => String(track?.artist || '').split(/\s*(?:,|，|、|\/|&|feat\.?|ft\.?)\s*/i).filter(Boolean);
 const sameFavorite = (left, right) => Boolean(left?.songId && right?.songId && left.songId === right.songId);
-const chartStoreKey = (providerId, platform, chart) => `${STORE_CHART}.${providerId || 'guest'}.${platform}.${chart}`;
-const readChartStore = (providerId, platform, chart) => { try { return JSON.parse(localStorage.getItem(chartStoreKey(providerId, platform, chart)) || 'null'); } catch { return null; } };
+const chartStoreKey = (platform, chart) => `${STORE_CHART}.${platform}.${chart}`;
+const readChartStore = (platform, chart) => { try { return JSON.parse(localStorage.getItem(chartStoreKey(platform, chart)) || 'null'); } catch { return null; } };
 const hydrateChart = (payload) => ({ ...payload, tracks: canonicalTracks(payload?.tracks).map((track, index) => ({ ...track, rank: Number(track.rank) || index + 1 })) });
 const chartUpdatedLabel = (value) => { const timestamp = Date.parse(value || ''); return Number.isFinite(timestamp) ? new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(timestamp) : '暂无缓存'; };
 const minimalFavorites = (items) => canonicalTracks(items).map((track) => ({ songId: track.songId, title: track.title, artist: track.artist, album: track.album, binding: track.binding }));
@@ -107,7 +124,7 @@ function DownloadButton({ track }) {
   return <a className="music-download-button" href={href} download={filename} target="_blank" rel="noreferrer" aria-label={`下载 ${track.title}`} title="直接打开 Provider 音频源"><MusicIcon name="download" /></a>;
 }
 
-export default function Music({ forceMusicPage = false, providerClient = null, playbackQuality = '128k', storageNamespace = '', favoriteNamespace = '', favoriteBackup = [], favoriteBackupUpdatedAt = null, favoriteSyncEnabled = false, onRequireAccess, pageTitle = forceMusicPage ? 'LURI MUSIC' : TEXT.title, headerNotice = null, legalLinks = null }) {
+export default function Music({ forceMusicPage = false, providerClient = null, playbackQuality = '128k', favoriteNamespace = '', favoriteBackup = [], favoriteBackupUpdatedAt = null, favoriteSyncEnabled = false, onRequireAccess, pageTitle = forceMusicPage ? 'LURI MUSIC' : TEXT.title, headerNotice = null, legalLinks = null }) {
   const location = useLocation();
   const isMusicPage = forceMusicPage || location.pathname === '/music';
   const audio = useRef(null);
@@ -118,7 +135,6 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     error.code = 'provider_access_denied';
     return Promise.reject(error);
   }, [providerClient]);
-  const storeKey = (key) => storageNamespace ? `${key}.${storageNamespace}` : key;
   const likedStoreKey = `${STORE_LIKES}.${favoriteNamespace || 'guest'}`; const favoriteDirtyKey = `luri.music.likes-sync-dirty.v3.${favoriteNamespace || 'guest'}`; const favoriteSyncedKey = `luri.music.likes-sync-last.v3.${favoriteNamespace || 'guest'}`;
   const favoriteInitialRef = useRef(null);
   if (!favoriteInitialRef.current) {
@@ -129,14 +145,14 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const items = source === 'account' ? accountItems : backupItems;
     favoriteInitialRef.current = { source, items: canonicalTracks(items).filter((track) => track.binding) };
   }
-  const restoreResults = () => readTrackStore(storeKey(STORE_SEARCH)).filter((track) => track.binding);
-  const [query, setQuery] = useState(() => localStorage.getItem(storeKey(STORE_QUERY)) || ''); const [results, setResults] = useState(restoreResults); const [cachedResults, setCachedResults] = useState(restoreResults); const [recentSearches, setRecentSearches] = useState(() => readStore(storeKey(STORE_RECENT_SEARCHES)).filter((item) => typeof item === 'string').slice(0, 10)); const [searchFocused, setSearchFocused] = useState(false); const [activeSingerSuggestion, setActiveSingerSuggestion] = useState(-1); const [searchState, setSearchState] = useState('');
+  const restoreResults = () => readTrackStore(STORE_SEARCH).filter((track) => track.binding);
+  const [query, setQuery] = useState(() => localStorage.getItem(STORE_QUERY) || ''); const [results, setResults] = useState(restoreResults); const [cachedResults, setCachedResults] = useState(restoreResults); const [recentSearches, setRecentSearches] = useState(() => readStore(STORE_RECENT_SEARCHES).filter((item) => typeof item === 'string').slice(0, 10)); const [searchFocused, setSearchFocused] = useState(false); const [activeSingerSuggestion, setActiveSingerSuggestion] = useState(-1); const [searchState, setSearchState] = useState('');
   const [listView, setListView] = useState('search');
-  const [chartPlatform, setChartPlatform] = useState('netease'); const [chartType, setChartType] = useState('rising'); const [chartData, setChartData] = useState(() => hydrateChart(readChartStore(storageNamespace, 'netease', 'rising'))); const [chartLoading, setChartLoading] = useState(false); const [chartState, setChartState] = useState('');
+  const [chartPlatform, setChartPlatform] = useState('netease'); const [chartType, setChartType] = useState('rising'); const [chartData, setChartData] = useState(() => hydrateChart(readChartStore('netease', 'rising'))); const [chartLoading, setChartLoading] = useState(false); const [chartState, setChartState] = useState('');
   const [mobileView, setMobileView] = useState('playlist');
   const [activeQueue, setActiveQueue] = useState('normal');
   const [resultPage, setResultPage] = useState(0); const [hasMoreResults, setHasMoreResults] = useState(false); const [loadingMore, setLoadingMore] = useState(false);
-  const [tracks, setTracks] = useState(() => readTrackStore(storeKey(STORE_QUEUE)).filter((track) => track.binding)); const [likedTracks, setLikedTracks] = useState(() => favoriteInitialRef.current.items); const [randomTracks, setRandomTracks] = useState(() => readTrackStore(STORE_RANDOM_LIST).filter((track) => track.binding).slice(0, 50)); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
+  const [tracks, setTracks] = useState(() => readTrackStore(STORE_QUEUE).filter((track) => track.binding)); const [likedTracks, setLikedTracks] = useState(() => favoriteInitialRef.current.items); const [randomTracks, setRandomTracks] = useState(() => readTrackStore(STORE_RANDOM_LIST).filter((track) => track.binding).slice(0, 50)); const [playbackQueue, setPlaybackQueue] = useState([]); const [currentId, setCurrentId] = useState(null); const [playing, setPlaying] = useState(false); const [playbackState, setPlaybackState] = useState('idle'); const [playbackTrackId, setPlaybackTrackId] = useState(null); const [playbackAttempt, setPlaybackAttempt] = useState(0); const [titleOverflows, setTitleOverflows] = useState(false);
   const [progress, setProgress] = useState(0); const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8); const [muted, setMuted] = useState(false);
   const [lyrics, setLyrics] = useState(''); const [translation, setTranslation] = useState(''); const [lyricsState, setLyricsState] = useState('');
@@ -147,7 +163,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const loadingMoreRef = useRef(false); const activeSearchRef = useRef(query.trim()); const searchRequestRef = useRef(null);
   const mediaActionsRef = useRef({ play: () => {}, pause: () => {}, previous: () => {}, next: () => {} });
   const playRejectionRef = useRef(() => {});
-  const randomHistoryKey = `luri.music.random-history.v1${storageNamespace ? `.${storageNamespace}` : ''}`; const storedRandomHistory = useRef(readSession(randomHistoryKey));
+  const randomHistoryKey = 'luri.music.random-history.v1'; const storedRandomHistory = useRef(readSession(randomHistoryKey));
   const randomRequest = useRef(null); const randomSession = useRef(0); const randomSwitchRef = useRef(null); const randomListWriteIdRef = useRef(''); const pendingRestoreRef = useRef(null); const playMode = useRef('manual'); const playbackListRef = useRef('');
 
   useEffect(() => {
@@ -213,8 +229,8 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     else audio.current.play().catch((error) => playRejectionRef.current(error));
   }, [currentId, current?.songId, current?.url]);
   useEffect(() => { if (listView === 'search') setCachedResults(results); }, [listView, results]);
-  useEffect(() => { try { localStorage.setItem(storeKey(STORE_SEARCH), JSON.stringify(cachedResults)); localStorage.setItem(storeKey(STORE_QUERY), query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
-  useEffect(() => { try { localStorage.setItem(storeKey(STORE_RECENT_SEARCHES), JSON.stringify(recentSearches)); } catch { /* Storage is unavailable in private browsing. */ } }, [recentSearches]);
+  useEffect(() => { try { localStorage.setItem(STORE_SEARCH, JSON.stringify(cachedResults)); localStorage.setItem(STORE_QUERY, query); } catch { /* Storage is unavailable in private browsing. */ } }, [cachedResults, query]);
+  useEffect(() => { try { localStorage.setItem(STORE_RECENT_SEARCHES, JSON.stringify(recentSearches)); } catch { /* Storage is unavailable in private browsing. */ } }, [recentSearches]);
   useEffect(() => {
     if (!current || current.url) return undefined;
     setPlaybackTrackId(current.songId); setPlaybackState('resolving');
@@ -228,6 +244,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       if (!controller.signal.aborted) {
         const attemptedSources = Array.isArray(payload.attemptedSources) ? payload.attemptedSources : [];
         const resolved = { ...current, url: payload.url, binding: canonicalBinding(payload.binding) || current.binding, expiresAt: resolvedExpiry(payload), requestedQuality: playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
+        rememberSong(resolved);
         const update = (track) => track.songId === current.songId ? { ...track, ...resolved } : track;
         setTracks((items) => items.map(update));
         setLikedTracks((items) => items.map((track) => sameFavorite(track, current) ? { ...track, binding: resolved.binding } : track));
@@ -323,7 +340,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     }).catch(() => { image.src = EMPTY_ART; });
   };
   const artworkLoaded = () => { if (current) artworkRefreshIdsRef.current.delete(current.songId); };
-  useEffect(() => { try { localStorage.setItem(storeKey(STORE_QUEUE), JSON.stringify(tracks.slice(0, 50).map(({ url: _url, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [tracks]);
+  useEffect(() => { try { localStorage.setItem(STORE_QUEUE, JSON.stringify(tracks.slice(0, 50).map(({ url: _url, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [tracks]);
   useEffect(() => { try { localStorage.setItem(STORE_RANDOM_LIST, JSON.stringify(randomTracks.slice(0, 50).map(({ url: _url, expiresAt: _expiresAt, ...track }) => track))); } catch { /* Storage is unavailable in private browsing. */ } }, [randomTracks]);
   useEffect(() => { likedTracksRef.current = likedTracks; try { localStorage.setItem(likedStoreKey, JSON.stringify(minimalFavorites(likedTracks))); } catch { /* Storage is unavailable in private browsing. */ } }, [likedTracks, likedStoreKey]);
   useEffect(() => {
@@ -645,7 +662,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
 
   const loadChart = async (platform = chartPlatform, type = chartType, refresh = false) => {
     chartRequestRef.current?.abort(); chartRequestRef.current = null;
-    const stored = readChartStore(storageNamespace, platform, type); const cached = Array.isArray(stored?.tracks) ? stored : null;
+    const stored = readChartStore(platform, type); const cached = Array.isArray(stored?.tracks) ? stored : null;
     const cachedAt = Date.parse(cached?.updatedAt || ''); const cacheFresh = Number.isFinite(cachedAt) && Date.now() - cachedAt < CHART_CACHE_MAX_AGE_MS;
     if (cached && cacheFresh && !refresh) { setChartData(hydrateChart(cached)); setChartLoading(false); setChartState(''); return; }
     if (!refresh) setChartData(hydrateChart(null));
@@ -656,7 +673,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       const payload = await providerPayload(response);
       if (!Array.isArray(payload.tracks)) throw new Error('榜单服务暂时不可用');
       if (controller.signal.aborted) return;
-      try { localStorage.setItem(chartStoreKey(storageNamespace, platform, type), JSON.stringify(payload)); } catch { /* Storage is unavailable in private browsing. */ }
+      try { localStorage.setItem(chartStoreKey(platform, type), JSON.stringify(payload)); } catch { /* Storage is unavailable in private browsing. */ }
       setChartData(hydrateChart(payload)); setChartState(payload.stale ? '榜单更新失败，正在展示上次成功数据' : '');
     } catch {
       if (controller.signal.aborted) return;

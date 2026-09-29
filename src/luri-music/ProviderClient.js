@@ -50,7 +50,7 @@ export default class ProviderClient {
 
   cacheKey(kind, params) {
     if (!['resolve', 'lyrics', 'artwork'].includes(kind) || !params.songId) return '';
-    return `luri.provider-cache.v2:${this.config.id}:${kind}:${params.songId}:${kind === 'resolve' ? params.quality || 'auto' : ''}`;
+    return `luri.song-cache.v1:${kind}:${params.songId}:${kind === 'resolve' ? params.quality || 'auto' : ''}`;
   }
 
   cachedResponse(key, refresh) {
@@ -60,9 +60,14 @@ export default class ProviderClient {
       if (!storage) return null;
       if (refresh) { storage.removeItem(key); return null; }
       const entry = JSON.parse(storage.getItem(key) || 'null');
-      if (!entry || entry.expiresAt <= Date.now()) { storage.removeItem(key); return null; }
+      const expiresAt = Number(entry?.expiresAt);
+      const expiring = Number.isFinite(expiresAt) && expiresAt > 0;
+      if (!entry || (expiring && expiresAt <= Date.now())) { storage.removeItem(key); return null; }
       const body = { ...entry.body };
-      if (entry.kind === 'resolve' && body.url) body.expiresIn = Math.max(1, Math.floor((entry.expiresAt - Date.now()) / 1000));
+      if (entry.kind === 'resolve' && body.url) {
+        if (expiring) body.expiresIn = Math.max(1, Math.floor((expiresAt - Date.now()) / 1000));
+        else { delete body.expiresAt; delete body.expiresIn; }
+      }
       return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json', 'x-luri-cache': 'local' } });
     } catch { return null; }
   }
@@ -76,9 +81,14 @@ export default class ProviderClient {
       let expiresAt = now + 3600 * 1000;
       if (kind === 'resolve') {
         const reportedExpiry = Date.parse(payload.expiresAt || '');
-        const ttlExpiry = now + Math.max(1, Number(payload.expiresIn) || 60) * 1000;
-        expiresAt = Math.min(Number.isFinite(reportedExpiry) && reportedExpiry > now ? reportedExpiry : ttlExpiry, ttlExpiry) - PLAYBACK_CACHE_SAFETY_MS;
-        if (expiresAt <= now) return;
+        const reportedTtl = Number(payload.expiresIn);
+        if (Number.isFinite(reportedExpiry)) {
+          expiresAt = reportedExpiry - PLAYBACK_CACHE_SAFETY_MS;
+          if (expiresAt <= now) return;
+        } else if (Number.isFinite(reportedTtl) && reportedTtl > 0) {
+          expiresAt = now + reportedTtl * 1000 - PLAYBACK_CACHE_SAFETY_MS;
+          if (expiresAt <= now) return;
+        } else expiresAt = null;
       }
       try { providerCache()?.setItem(key, JSON.stringify({ kind, expiresAt, body: payload })); } catch { /* Local storage may be unavailable. */ }
     }).catch(() => {});
