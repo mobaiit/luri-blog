@@ -16,6 +16,7 @@ const STORE_CHART = 'luri.music.chart.v3';
 const CHART_TYPES = [{ value: 'rising', label: '飙升榜' }, { value: 'new', label: '新歌榜' }, { value: 'original', label: '原创榜' }, { value: 'hot', label: '热歌榜' }];
 const CHART_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const MEDIA_LOAD_TIMEOUT_MS = 20000;
+const MIN_PLAYABLE_DURATION_SECONDS = 20;
 const FAVORITES_SYNC_DEBOUNCE_MS = 30 * 1000;
 const FAVORITES_WRITE_INTERVAL_MS = 60 * 60 * 1000;
 const FAVORITES_SYNC_RETRY_MS = 30 * 1000;
@@ -614,6 +615,18 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (playMode.current === 'random') { playNextRandom(); return; }
     skipFailedTrack(message);
   }
+  const handleLoadedMetadata = (event) => {
+    const media = event.currentTarget;
+    const mediaDuration = media.duration;
+    if (Number.isFinite(mediaDuration) && mediaDuration > 0 && mediaDuration < MIN_PLAYABLE_DURATION_SECONDS) {
+      clearMediaDeadline(); media.pause(); setDuration(0);
+      handlePlaybackFailure('音频时长不足 20 秒，已强制刷新音源', 'url');
+      return;
+    }
+    const restore = pendingRestoreRef.current;
+    if (restore?.songId === currentId) { media.currentTime = restore.currentTime; setProgress(restore.currentTime); pendingRestoreRef.current = null; }
+    setDuration(mediaDuration);
+  };
   const startRandom = async ({ recover = true } = {}) => {
     if (!hasAccess()) return;
     if (recover && current && !randomSwitchRef.current) {
@@ -768,7 +781,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       next: () => { pulseControl('next'); next(); },
     };
   });
-  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}${isSearching ? ' is-searching' : ''}${chartLoading ? ' is-chart-loading' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(currentId); setPlaybackState('playing'); if (randomListWriteIdRef.current === currentId && current) { rememberRandomListTrack(current); randomListWriteIdRef.current = ''; } if (randomSwitchRef.current?.targetId === currentId) randomSwitchRef.current = null; }} onError={(event) => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); const mediaError = event.currentTarget.error?.code; handlePlaybackFailure(undefined, mediaError === 3 || mediaError === 4 ? 'decode' : 'url'); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={(event) => { const restore = pendingRestoreRef.current; if (restore?.songId === currentId) { event.currentTarget.currentTime = restore.currentTime; setProgress(restore.currentTime); pendingRestoreRef.current = null; } setDuration(event.currentTarget.duration); }} onEnded={() => { clearMediaDeadline(); next(true); }} /><Toast toast={toast} onClose={() => setToast(null)} />
+  return <main className={`music-page mobile-view-${mobileView}${playing ? ' is-playing' : ''}${titleOverflows ? ' has-overflowing-title' : ''}${isSearching ? ' is-searching' : ''}${chartLoading ? ' is-chart-loading' : ''}`}><audio ref={audio} onPlay={() => { setPlaying(true); setPlaybackTrackId(currentId); setPlaybackState('playing'); }} onPause={() => { setPlaying(false); setPlaybackState((state) => state === 'loading' || state === 'resolving' ? state : 'paused'); }} onLoadStart={() => setPlaybackState('loading')} onWaiting={() => { setPlaybackState('loading'); beginMediaDeadline(currentId); }} onPlaying={() => { clearMediaDeadline(); failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(currentId); setPlaybackState('playing'); if (randomListWriteIdRef.current === currentId && current) { rememberRandomListTrack(current); randomListWriteIdRef.current = ''; } if (randomSwitchRef.current?.targetId === currentId) randomSwitchRef.current = null; }} onError={(event) => { if (ignoreAudioErrorRef.current) { ignoreAudioErrorRef.current = false; return; } clearMediaDeadline(); const mediaError = event.currentTarget.error?.code; handlePlaybackFailure(undefined, mediaError === 3 || mediaError === 4 ? 'decode' : 'url'); }} onTimeUpdate={(event) => setProgress(event.currentTarget.currentTime)} onLoadedMetadata={handleLoadedMetadata} onEnded={() => { clearMediaDeadline(); next(true); }} /><Toast toast={toast} onClose={() => setToast(null)} />
   <section className="music-shell">
       <section className="music-content">
         <header className="music-header">
