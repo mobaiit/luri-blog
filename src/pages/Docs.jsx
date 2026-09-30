@@ -101,13 +101,19 @@ const resourceRequestExample = `const context = {
   title: track.title,
   artist: track.artist,
   album: track.album, // 未知时仍传 ""
-  binding: JSON.stringify(track.binding)
+  binding: track.binding
 };
 
 const query = new URLSearchParams(context);
 const lyrics = await fetch(
-  \`/v1/tracks/\${encodeURIComponent(track.songId)}/lyrics?\${query}\`
+  \`/v1/tracks/\${encodeURIComponent(track.songId)}/lyrics\`,
+  {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(context)
+  }
 );
+query.set('binding', JSON.stringify(context.binding));
 const artwork = await fetch(
   \`/v1/tracks/\${encodeURIComponent(track.songId)}/artwork?\${query}\`
 );`;
@@ -353,8 +359,14 @@ export default function Docs() {
           <div className="docs-retry-flow"><span>首次 resolve</span><i>→</i><span>地址失败 refresh=url</span><i>→</i><span>解码失败 refresh=decode</span><i>→</i><span>成功播放或结束重试</span></div>
 
           <h3>歌词与封面</h3>
-          <Endpoint method="GET" path="/v1/tracks/{songId}/lyrics?title=&artist=&album=&binding=&refresh=">返回 {`{ songId, lyrics, translation?, binding }`}；没有歌词时 lyrics 为空字符串，外部歌词回退结果的 binding 可以为 null。</Endpoint>
+          <Endpoint method="POST" path="/v1/tracks/{songId}/lyrics">通过 JSON 请求体提交歌曲上下文，返回 {`{ songId, lyrics, translation?, binding }`}；没有歌词时 lyrics 为空字符串，外部歌词回退结果的 binding 可以为 null。</Endpoint>
           <Endpoint method="GET" path="/v1/tracks/{songId}/artwork?title=&artist=&album=&binding=&refresh=">返回 {`{ songId, url, binding }`}；没有封面时 url 为空字符串，客户端使用占位图。</Endpoint>
+          <SchemaTable title="歌词请求" rows={[
+            ['title', 'string', '是', '歌曲名称。'],
+            ['artist', 'string', '是', '艺人名称。'],
+            ['album', 'string', '是', '专辑名称；未知时传空字符串。'],
+            ['binding', 'Binding', '是', '完整的资源绑定对象，直接作为 JSON 对象提交。'],
+          ]} />
           <SchemaTable title="歌词响应" rows={[
             ['songId', 'string', '是', '对应的稳定歌曲身份。'],
             ['lyrics', 'string', '是', 'LRC 时间轴歌词或纯文本；没有歌词时为空字符串。'],
@@ -366,15 +378,15 @@ export default function Docs() {
             ['url', 'HTTPS URL | empty string', '是', '当前封面地址；没有封面时为空字符串。'],
             ['binding', 'Binding', '是', '实际使用或更新后的资源绑定。'],
           ]} />
-          <p><code>album</code> 参数即使为空也必须存在；<code>binding</code> 是完整 Binding 的 JSON 字符串。请使用标准 URL 编码：</p>
+          <p>歌词请求体中的 <code>album</code> 即使为空也必须存在，<code>binding</code> 直接提交 JSON 对象；封面接口仍将完整 Binding 序列化为 JSON 字符串并进行标准 URL 编码：</p>
           <Code>{resourceRequestExample}</Code>
         </section>
 
         <section id="methods">
           <h2>HTTP 方法与跨域</h2>
           <SimpleTable rows={[
-            ['GET', '发现、health、terms、privacy、account、search、random、charts、lyrics、artwork。'],
-            ['POST', 'activate、refresh、revoke、resolve。'],
+            ['GET', '发现、health、terms、privacy、account、search、random、charts、artwork。'],
+            ['POST', 'activate、refresh、revoke、resolve、lyrics。'],
             ['OPTIONS', '仅用于 CORS 预检，不得执行端点业务逻辑。'],
             ['其他方法', '已知端点必须返回 405、Allow 响应头和 method_not_allowed 错误。'],
           ]} />

@@ -53,7 +53,7 @@
 - `GET /v1/catalog/random` 返回 `{ singer?, tracks }`。
 - `GET /v1/catalog/charts?platform=&chart=&refresh=` 返回 `{ platform, chart, title, updatedAt, tracks }`。
 - `POST /v1/tracks/resolve` 接收 `{ songId, title, artist, album, binding, quality?, refresh? }`。`refresh` 可取 `url` 或 `decode`：`url` 表示地址过期、网络失败或加载超时，Provider 绕过缓存并保持原音质降级链；`decode` 表示浏览器无法解码或不支持媒体格式，Provider 绕过缓存，并从请求中当前失败音质的下一档继续降级，例如 `flac24bit → flac → 320k → 192k → 128k`。
-- `GET /v1/tracks/{songId}/lyrics?title=&artist=&album=&binding=` 接收统一单曲上下文，返回 `{ songId, lyrics, translation?, binding }`；没有歌词时 `lyrics` 为空字符串，无法绑定到平台资源的外部歌词回退允许 `binding: null`。
+- `POST /v1/tracks/{songId}/lyrics` 通过 JSON 请求体接收 `{ title, artist, album, binding }`；`album` 未知时仍传空字符串，`binding` 直接提交完整对象。返回 `{ songId, lyrics, translation?, binding }`；没有歌词时 `lyrics` 为空字符串，无法绑定到平台资源的外部歌词回退允许 `binding: null`。
 - `GET /v1/tracks/{songId}/artwork?title=&artist=&album=&binding=` 接收统一单曲上下文，返回 `{ songId, url, binding }`；没有封面时 `url` 为空字符串。
 
 `resolve` 请求体中的 `songId`、`title`、`artist`、`album` 和 `binding` 必须与 Track 原样一致。歌词和封面接口将 `songId` 放在路径中，并将 binding 序列化为 JSON 查询参数；其他字段的要求相同。
