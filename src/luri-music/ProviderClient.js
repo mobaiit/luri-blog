@@ -120,7 +120,6 @@ export default class ProviderClient {
       let options = { signal: deadline.signal, headers };
       if (kind === 'search' || kind === 'random' || kind === 'charts') { target = new URL(endpoint); Object.entries(params).forEach(([key, value]) => value !== undefined && value !== '' && target.searchParams.set(key, String(value))); }
       else if (kind === 'resolve') { target = new URL(endpoints.resolve); options = { ...options, method: 'POST', headers: { ...options.headers, 'content-type': 'application/json' }, body: JSON.stringify(params) }; }
-      else if (kind === 'lyrics') { target = new URL(endpoint.replace(/\{(?:songId|id)\}/, encodeURIComponent(params.songId || ''))); options = { ...options, method: 'POST', headers: { ...options.headers, 'content-type': 'application/json' }, body: JSON.stringify(Object.fromEntries(Object.entries(params).filter(([key]) => key !== 'songId'))) }; }
       else {
         target = new URL(endpoints[kind].replace(/\{(?:songId|id)\}/, encodeURIComponent(params.songId || '')));
         Object.entries(params).filter(([key]) => key !== 'songId').forEach(([key, value]) => value !== undefined && target.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value)));
