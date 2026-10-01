@@ -64,7 +64,8 @@ Content-Type: application/json
     "meta": {},
     "art": "https://provider.example.com/artwork/track-001"
   },
-  "quality": "320k"
+  "quality": "320k",
+  "refresh": "url"
 }`;
 
 const resolveResponse = `{
@@ -333,7 +334,7 @@ export default function Docs() {
           <Code>{resolveRequest}</Code>
           <SchemaTable title="resolve 请求" rows={[
             ['quality', 'string', '否', '期望音质；支持 128k、192k、320k、flac 和 flac24bit。'],
-            ['refresh', 'url | decode', '否', 'url 表示地址或网络失败，绕过缓存并保持原音质链；decode 表示浏览器无法解码，绕过缓存并从当前失败音质的下一档继续降级。'],
+            ['refresh', 'url | decode', '否', 'url 表示地址或网络失败，按用户当前设置的 quality 绕过缓存并重新解析；decode 表示浏览器无法解码，优先尝试请求音质的下一档；请求音质已是最低档时仍保留该档。'],
           ]} />
           <SchemaTable title="resolve 响应" rows={[
             ['songId', 'string', '是', '必须与请求歌曲一致。'],
