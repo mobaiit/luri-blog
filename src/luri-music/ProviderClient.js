@@ -53,6 +53,12 @@ export default class ProviderClient {
     return `luri.song-cache.v1:${kind}:${params.songId}:${kind === 'resolve' ? params.quality || 'auto' : ''}`;
   }
 
+  invalidateCache(kind, params = {}) {
+    const key = this.cacheKey(kind, params);
+    if (!key) return;
+    try { providerCache()?.removeItem(key); } catch { /* Local storage may be unavailable. */ }
+  }
+
   cachedResponse(key, refresh) {
     if (!key) return null;
     try {

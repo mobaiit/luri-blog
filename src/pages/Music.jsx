@@ -243,6 +243,11 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     musicRequest('resolve', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, quality: requestedQuality, binding: current.binding, refresh }, controller.signal).then(providerPayload).then((payload) => {
       if (!payload.url || Date.parse(payload.expiresAt || '') <= Date.now() + 5000) { const failure = new Error('播放地址不可用'); failure.code = 'url_expired'; throw failure; }
       if (!controller.signal.aborted) {
+        if (!refresh && recovery?.failedUrl && payload.url === recovery.failedUrl) {
+          playbackRefreshModesRef.current.set(current.songId, { mode: recovery.refreshMode || 'url', quality: requestedQuality, attempts: Number(recovery.attempts || 0) + 1 });
+          setPlaybackAttempt((attempt) => attempt + 1);
+          return;
+        }
         const attemptedSources = Array.isArray(payload.attemptedSources) ? payload.attemptedSources : [];
         const resolved = { ...current, url: payload.url, binding: canonicalBinding(payload.binding) || current.binding, expiresAt: resolvedExpiry(payload), requestedQuality: playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
         rememberSong(resolved);
@@ -579,6 +584,16 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!current) return false;
     const previous = playbackRefreshModesRef.current.get(current.songId);
     const recoveryQuality = playbackQuality;
+    if (!previous && current.url) {
+      providerClient?.invalidateCache('resolve', { songId: current.songId, quality: recoveryQuality });
+      playbackRefreshModesRef.current.set(current.songId, { mode: '', refreshMode: mode, quality: recoveryQuality, attempts: 1, failedUrl: current.url });
+      const clearUrl = (track) => track.songId === current.songId ? { ...track, url: undefined } : track;
+      setTracks((items) => items.map(clearUrl));
+      setLikedTracks((items) => items.map(clearUrl));
+      setPlaybackQueue((items) => (items.length ? items : activeTracks).map(clearUrl));
+      setPlaybackTrackId(current.songId); setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1);
+      return true;
+    }
     // Some malformed or unsupported media URLs stay HTTP-reachable and only
     // surface as a loading timeout. After one URL refresh at the same tier,
     // promote the next recovery to decode so the quality chain can continue.
