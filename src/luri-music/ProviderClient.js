@@ -123,7 +123,7 @@ export default class ProviderClient {
       if (!endpoint) return new Response(JSON.stringify({ error: `当前 Provider 不支持 ${kind} 能力` }), { status: 501, headers: { 'content-type': 'application/json' } });
       if (access.authorization?.header) headers[access.authorization.header] = `${access.authorization.prefix || ''}${access.token}`;
       else if (access.token) headers.authorization = `Bearer ${access.token}`;
-      let options = { signal: deadline.signal, headers, ...(kind === 'lyrics' ? { cache: 'no-store' } : {}) };
+      let options = { signal: deadline.signal, headers, ...(['lyrics', 'search'].includes(kind) ? { cache: 'no-store' } : {}) };
       if (kind === 'search' || kind === 'random' || kind === 'charts') { target = new URL(endpoint); Object.entries(params).forEach(([key, value]) => value !== undefined && value !== '' && target.searchParams.set(key, String(value))); }
       else if (kind === 'resolve') { target = new URL(endpoints.resolve); options = { ...options, method: 'POST', headers: { ...options.headers, 'content-type': 'application/json' }, body: JSON.stringify(params) }; }
       else {
