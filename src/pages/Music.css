@@ -4141,3 +4141,26 @@ body.has-global-music-player #root > main:not(.music-page) {
     min-width: 34px !important;
   }
 }
+
+/* Playback mode shares the quality slot on the mobile lyrics view. */
+.music-player .music-playback-mode--shuffle,
+.music-player .music-playback-mode--repeat-one {
+  color: var(--color-accent, var(--color-text)) !important;
+  border-color: currentColor !important;
+}
+
+@media (max-width: 760px) {
+  body.has-global-music-player .music-player .music-playback-mode,
+  body:not(.has-global-music-player) .music-page.mobile-view-playlist .music-playback-mode {
+    display: none !important;
+  }
+
+  body:not(.has-global-music-player) .music-page.mobile-view-now .music-controls > .music-quality {
+    display: none !important;
+  }
+
+  body:not(.has-global-music-player) .music-page.mobile-view-now .music-playback-mode {
+    display: inline-grid !important;
+    order: -2 !important;
+  }
+}
