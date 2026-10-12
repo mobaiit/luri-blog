@@ -40,16 +40,17 @@ const rememberSong = (track) => {
   const binding = canonicalBinding(track?.binding); const title = String(track?.title || ''); const artist = String(track?.artist || '');
   if (!binding || !title || !artist) return;
   const songId = songIdFor(title, artist); const cache = songCache();
-  cache[songId] = { songId, title, artist, album: String(track?.album || ''), binding, updatedAt: Date.now() };
+  const art = String(track?.art || '') || String(cache[songId]?.art || '');
+  cache[songId] = { songId, title, artist, album: String(track?.album || ''), binding, art, updatedAt: Date.now() };
   const entries = Object.entries(cache);
   if (entries.length > SONG_CACHE_LIMIT) entries.sort((left, right) => Number(right[1]?.updatedAt || 0) - Number(left[1]?.updatedAt || 0)).slice(SONG_CACHE_LIMIT).forEach(([key]) => delete cache[key]);
   try { localStorage.setItem(STORE_SONG_CACHE, JSON.stringify(cache)); } catch { /* Storage is unavailable in private browsing. */ }
 };
 const canonicalTrack = (track) => {
-  const title = String(track?.title || ''); const artist = String(track?.artist || ''); const songId = songIdFor(title, artist); const binding = canonicalBinding(songCache()[songId]?.binding) || canonicalBinding(track?.binding);
+  const title = String(track?.title || ''); const artist = String(track?.artist || ''); const songId = songIdFor(title, artist); const cached = songCache()[songId]; const binding = canonicalBinding(cached?.binding) || canonicalBinding(track?.binding); const art = String(track?.art || '') || String(cached?.art || '');
   if (!title || !artist || !binding) return null;
   const { id: _legacyId, source: _legacySource, sourceId: _legacySourceId, ...fields } = track;
-  return { ...fields, songId, title, artist, album: String(track?.album || ''), binding };
+  return { ...fields, songId, title, artist, album: String(track?.album || ''), binding, art };
 };
 const canonicalTracks = (items) => { const seen = new Set(); return (Array.isArray(items) ? items : []).flatMap((item) => { const track = canonicalTrack(item); if (!track || seen.has(track.songId)) return []; seen.add(track.songId); return [track]; }); };
 const readStore = (key) => { try { const value = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } };
@@ -338,6 +339,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     musicRequest('artwork', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding }, controller.signal).then(providerPayload).then((payload) => {
       if (payload.url && !controller.signal.aborted) {
         const returnedBinding = canonicalBinding(payload.binding);
+        rememberSong({ ...current, art: payload.url, binding: returnedBinding || current.binding });
         const update = (track) => track.songId === current.songId ? { ...track, art: payload.url, binding: returnedBinding || track.binding } : track;
         (activeQueue === 'favorites' ? setLikedTracks : setTracks)((items) => items.map(update));
         setPlaybackQueue((items) => items.map(update));
@@ -352,6 +354,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     void musicRequest('artwork', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, binding: current.binding, refresh: 1 }).then(providerPayload).then((payload) => {
       if (!payload.url) throw new Error('No artwork');
       const returnedBinding = canonicalBinding(payload.binding);
+      rememberSong({ ...current, art: payload.url, binding: returnedBinding || current.binding });
       const update = (track) => track.songId === current.songId ? { ...track, art: payload.url, binding: returnedBinding || track.binding } : track;
       setTracks((items) => items.map(update)); setLikedTracks((items) => items.map(update)); setPlaybackQueue((items) => items.map(update));
     }).catch(() => { image.src = EMPTY_ART; });
