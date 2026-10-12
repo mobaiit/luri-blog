@@ -3067,16 +3067,6 @@ body.has-global-music-player #root > main:not(.music-page) {
     touch-action: pan-y;
   }
 
-  body.has-global-music-player .music-player__progress input[type="range"]::-webkit-slider-thumb {
-    width: 18px;
-    height: 18px;
-  }
-
-  body.has-global-music-player .music-player__progress input[type="range"]::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-  }
-
   body.has-global-music-player .music-player__song {
     display: flex !important;
     grid-column: 1 !important;
@@ -3796,16 +3786,6 @@ body.has-global-music-player #root > main:not(.music-page) {
     background-repeat: no-repeat !important;
     background-size: 100% 3px !important;
     touch-action: pan-y;
-  }
-
-  body:not(.has-global-music-player) .music-player__progress input[type="range"]::-webkit-slider-thumb {
-    width: 18px;
-    height: 18px;
-  }
-
-  body:not(.has-global-music-player) .music-player__progress input[type="range"]::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
   }
 
   body:not(.has-global-music-player) .music-player__song {
