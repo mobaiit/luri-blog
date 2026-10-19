@@ -27,7 +27,7 @@ const FAVORITES_SYNC_DEBOUNCE_MS = 30 * 1000;
 const FAVORITES_WRITE_INTERVAL_MS = 60 * 60 * 1000;
 const FAVORITES_SYNC_RETRY_MS = 30 * 1000;
 const canonicalBinding = (value) => value && typeof value === 'object' && !Array.isArray(value) && typeof value.source === 'string' && value.source && typeof value.sourceId === 'string' && value.sourceId && value.meta && typeof value.meta === 'object' && !Array.isArray(value.meta) && typeof value.art === 'string'
-  ? { source: String(value.source), sourceId: String(value.sourceId), meta: value.meta, art: String(value.art || '') }
+  ? { source: String(value.source), sourceId: String(value.sourceId), meta: value.meta, art: String(value.art || ''), ...(typeof value.resolver === 'string' && value.resolver.trim() ? { resolver: value.resolver.trim() } : {}) }
   : null;
 let songCacheMemory;
 const songCache = () => {
