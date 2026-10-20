@@ -50,7 +50,9 @@ export default class ProviderClient {
 
   cacheKey(kind, params) {
     if (!['resolve', 'lyrics', 'artwork'].includes(kind) || !params.songId) return '';
-    return `luri.song-cache.v1:${kind}:${params.songId}:${kind === 'resolve' ? params.quality || 'auto' : ''}`;
+    return kind === 'resolve'
+      ? `luri.song-cache.v2:${kind}:${params.songId}`
+      : `luri.song-cache.v1:${kind}:${params.songId}:`;
   }
 
   invalidateCache(kind, params = {}) {
@@ -71,8 +73,10 @@ export default class ProviderClient {
       if (!entry || (expiring && expiresAt <= Date.now())) { storage.removeItem(key); return null; }
       const body = { ...entry.body };
       if (entry.kind === 'resolve' && body.url) {
-        if (expiring) body.expiresIn = Math.max(1, Math.floor((expiresAt - Date.now()) / 1000));
-        else { delete body.expiresAt; delete body.expiresIn; }
+        if (!expiring) { storage.removeItem(key); return null; }
+        body.expiresIn = Math.max(1, Math.floor((expiresAt - Date.now()) / 1000));
+      } else if (entry.kind === 'resolve') {
+        storage.removeItem(key); return null;
       }
       return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json', 'x-luri-cache': 'local' } });
     } catch { return null; }
@@ -94,7 +98,7 @@ export default class ProviderClient {
         } else if (Number.isFinite(reportedTtl) && reportedTtl > 0) {
           expiresAt = now + reportedTtl * 1000 - PLAYBACK_CACHE_SAFETY_MS;
           if (expiresAt <= now) return;
-        } else expiresAt = null;
+        } else return;
       }
       try { providerCache()?.setItem(key, JSON.stringify({ kind, expiresAt, body: payload })); } catch { /* Local storage may be unavailable. */ }
     }).catch(() => {});

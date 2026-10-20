@@ -76,7 +76,7 @@ const hydrateChart = (payload) => ({ ...payload, tracks: canonicalTracks(payload
 const chartUpdatedLabel = (value) => { const timestamp = Date.parse(value || ''); return Number.isFinite(timestamp) ? new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(timestamp) : '暂无缓存'; };
 const minimalFavorites = (items) => canonicalTracks(items).map((track) => ({ songId: track.songId, title: track.title, artist: track.artist, album: track.album, binding: track.binding }));
 const resolvedExpiry = (payload) => { const explicit = Date.parse(payload?.expiresAt || ''); if (Number.isFinite(explicit)) return new Date(explicit).toISOString(); const seconds = Number(payload?.expiresIn); return Number.isFinite(seconds) && seconds > 0 ? new Date(Date.now() + seconds * 1000).toISOString() : null; };
-const playbackUrlExpired = (track) => { const expires = Date.parse(track?.expiresAt || ''); return Boolean(track?.url && Number.isFinite(expires) && expires <= Date.now() + 5000); };
+const playbackUrlExpired = (track) => { const expires = Date.parse(track?.expiresAt || ''); return Boolean(track?.url && (!Number.isFinite(expires) || expires <= Date.now() + 5000)); };
 const providerPayload = async (response) => {
   const payload = await response.json().catch(() => ({}));
   if (response.ok) return payload;
@@ -571,13 +571,16 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     if (!preserveFailures) { failedPlaybackIdsRef.current.clear(); playbackRefreshModesRef.current.delete(id); }
     if (mode === 'manual') stopRandom();
     const sourceQueue = queue?.length ? queue : playbackQueue.some((track) => track.songId === id) ? null : activeTracks;
-    const forSelectedQuality = (track) => track.songId === id && track.url && (track.requestedQuality !== playbackQuality || playbackUrlExpired(track)) ? { ...track, url: undefined } : track;
+    const forSelectedQuality = (track) => track.songId === id && track.url && playbackUrlExpired(track) ? { ...track, url: undefined } : track;
     if (sourceQueue?.length) setPlaybackQueue(sourceQueue.map(forSelectedQuality));
     else if (id !== currentId) setPlaybackQueue((items) => items.map(forSelectedQuality));
     clearMediaDeadline(); setPlaybackTrackId(id); setPlaybackState('loading');
     if (id === currentId) {
-      if (current?.url) { beginMediaDeadline(id); audio.current?.play().catch(handlePlayRejection); }
-      else setPlaybackAttempt((attempt) => attempt + 1);
+      if (current?.url && !playbackUrlExpired(current)) { beginMediaDeadline(id); audio.current?.play().catch(handlePlayRejection); }
+      else {
+        if (current?.url) setPlaybackQueue((items) => (items.length ? items : activeTracks).map(forSelectedQuality));
+        setPlaybackState('resolving'); setPlaybackAttempt((attempt) => attempt + 1);
+      }
       return;
     }
     if (audio.current) { ignoreAudioErrorRef.current = true; audio.current.pause(); audio.current.removeAttribute('src'); audio.current.load(); }
@@ -656,7 +659,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     const recoveryQuality = playbackQuality;
     if (!previous && current.url) {
       providerClient?.invalidateCache('resolve', { songId: current.songId, quality: recoveryQuality });
-      playbackRefreshModesRef.current.set(current.songId, { mode: '', refreshMode: mode, quality: recoveryQuality, attempts: 1, failedUrl: current.url });
+      playbackRefreshModesRef.current.set(current.songId, { mode: '', refreshMode: 'url', quality: recoveryQuality, attempts: 1, failedUrl: current.url });
       const clearUrl = (track) => track.songId === current.songId ? { ...track, url: undefined } : track;
       setTracks((items) => items.map(clearUrl));
       setLikedTracks((items) => items.map(clearUrl));
@@ -667,7 +670,8 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
     // Some malformed or unsupported media URLs stay HTTP-reachable and only
     // surface as a loading timeout. After one URL refresh at the same tier,
     // promote the next recovery to decode so the quality chain can continue.
-    const recoveryMode = mode === 'url' && previous?.mode === 'url' && previous?.quality === recoveryQuality ? 'decode' : mode;
+    const requestedMode = previous?.mode ? mode : 'url';
+    const recoveryMode = requestedMode === 'url' && previous?.mode === 'url' && previous?.quality === recoveryQuality ? 'decode' : requestedMode;
     if (previous?.mode === recoveryMode && previous?.quality === recoveryQuality) return false;
     const attempts = Number(previous?.attempts || 0) + 1;
     if (attempts > 5) return false;

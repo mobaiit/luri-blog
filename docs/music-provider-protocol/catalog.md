@@ -52,7 +52,7 @@
 - `GET /v1/catalog/search?q=&page=&limit=` 返回 `{ tracks, page, hasMore }`。
 - `GET /v1/catalog/random` 返回 `{ singer?, tracks }`。
 - `GET /v1/catalog/charts?platform=&chart=&refresh=` 返回 `{ platform, chart, title, updatedAt, tracks }`。
-- `POST /v1/tracks/resolve` 接收 `{ songId, title, artist, album, binding, quality?, refresh? }`。`refresh` 可取 `url` 或 `decode`：`url` 表示地址过期、网络失败或加载超时，Provider 按请求中的用户当前设置音质绕过缓存并重新解析；`decode` 表示浏览器无法解码或不支持媒体格式，Provider 绕过缓存，并优先从请求音质的下一档继续降级，例如 `flac24bit → flac → 320k → 192k → 128k`。如果请求音质已经是最低档，则继续保留该档。
+- `POST /v1/tracks/resolve` 接收 `{ songId, title, artist, album, binding, quality?, refresh? }`。客户端和 Provider 对每个 `songId` 都只缓存一条最新成功的完整播放结果；只要 URL 非空且 `expiresAt` 未过期，就不因用户音质设置变化而丢弃。缓存无效时才按用户当前设置音质重新解析并执行音质降级。客户端实际播放失败后先清除本地缓存并发送一次普通请求，以复用可能已被其他客户端更新的后端缓存；后端仍返回同一失败 URL 或新 URL 仍无法播放时，再使用 `refresh: "url"` 强制绕过后端缓存。`refresh: "decode"` 表示浏览器无法解码或不支持媒体格式，Provider 绕过缓存，并优先从请求音质的下一档继续降级。上游未提供有效 `expiresAt` 或 `expiresIn` 时，Provider 和客户端统一使用 30 分钟默认有效期。
 - `GET /v1/tracks/{songId}/lyrics?title=&artist=&album=&binding=` 接收统一单曲上下文；`album` 未知时仍保留空参数，`binding` 必须是完整 Binding 经 JSON 序列化和 URL 编码后的字符串。返回 `{ songId, lyrics, translation?, binding }`；没有歌词时 `lyrics` 为空字符串，无法绑定到平台资源的外部歌词回退允许 `binding: null`。
 - `GET /v1/tracks/{songId}/artwork?title=&artist=&album=&binding=` 接收统一单曲上下文，返回 `{ songId, url, binding }`；没有封面时 `url` 为空字符串。
 
@@ -74,7 +74,7 @@
 }
 ```
 
-为兼容简单 Provider，HTTP 200 且 `url: ""` 仍表示本次没有取得可播放地址。推荐实现使用标准错误结构返回稳定错误码：`no_candidate` 表示没有找到任何资源绑定，`all_resolvers_failed` 表示候选存在但全部解析失败，`quality_unavailable` 表示请求档位及允许的降级档位均不可用，`upstream_timeout` 表示上游超时。客户端收到这些明确错误后可以直接切换歌曲，不再执行无意义的相同重试；URL 已返回但因地址、网络或超时失败时使用 `refresh: "url"`，浏览器报告解码失败或格式不支持时使用 `refresh: "decode"`。刷新请求的 `quality` 始终使用当前客户端设置，不使用缓存响应中的实际音质。客户端必须限制重试次数，禁止无限重试。歌词和封面的空字符串采用“当前没有资源”语义，但不触发音频播放重试。
+为兼容简单 Provider，HTTP 200 且 `url: ""` 仍表示本次没有取得可播放地址。推荐实现使用标准错误结构返回稳定错误码：`no_candidate` 表示没有找到任何资源绑定，`all_resolvers_failed` 表示候选存在但全部解析失败，`quality_unavailable` 表示请求档位及允许的降级档位均不可用，`upstream_timeout` 表示上游超时。客户端收到这些明确错误后可以直接切换歌曲，不再执行无意义的相同重试；URL 已返回但因地址、网络或超时失败时，先用普通请求复查后端缓存，仍失败再使用 `refresh: "url"`；浏览器报告解码失败或格式不支持时可继续使用 `refresh: "decode"`。刷新请求的 `quality` 始终使用当前客户端设置，不使用缓存响应中的实际音质。客户端必须限制重试次数，禁止无限重试。歌词和封面的空字符串采用“当前没有资源”语义，但不触发音频播放重试。
 
 榜单的平台和榜单标识由 Provider 定义。`refresh=1` 表示用户主动请求刷新，Provider 可以限制强制刷新频率。客户端按 Provider 配置、平台和榜单类型分别持久缓存成功响应；刷新失败时必须保留旧缓存。Provider 可以返回 `stale: true` 表示本次使用了上一次成功快照。
 

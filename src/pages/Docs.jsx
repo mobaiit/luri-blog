@@ -331,6 +331,7 @@ export default function Docs() {
           <h2>单曲接口</h2>
           <h3>解析播放资源</h3>
           <Endpoint method="POST" path="/v1/tracks/resolve">接收完整歌曲上下文。Provider 可优先使用 binding，也可按原始 title、artist、album 重新检索并返回新的 binding。</Endpoint>
+          <p>客户端和 Provider 对每个 songId 只保留一条最新成功的完整播放结果。有效缓存直接播放，不因用户音质设置变化而失效；缓存不存在、过期或被明确刷新时，才按用户当前音质设置进入解析与降级流程。</p>
           <Code>{resolveRequest}</Code>
           <SchemaTable title="resolve 请求" rows={[
             ['quality', 'string', '否', '期望音质；支持 128k、192k、320k、flac 和 flac24bit。'],
@@ -341,7 +342,7 @@ export default function Docs() {
             ['url', 'HTTPS URL | empty string', '是', '非空时可尝试播放；空字符串表示本次没有取得播放资源。'],
             ['binding', 'Binding', '是', '实际使用或更新后的资源绑定。'],
             ['expiresIn', 'integer', '是', 'expiresAt 缺失或无效时用于推算 URL 到期时间；url 为空时为 0。'],
-            ['expiresAt', 'ISO 8601 string', '否', '播放 URL 的绝对到期时间，优先级高于 expiresIn；两者均无效时视为永不过期。'],
+            ['expiresAt', 'ISO 8601 string', '是', '播放 URL 的绝对到期时间，优先级高于 expiresIn；上游没有有效期限时由 Provider 设置为 30 分钟。'],
             ['requestedQuality', 'string', '否', '客户端请求的音质。'],
             ['quality', 'string | null', '否', '实际解析音质。'],
             ['bitrate', 'integer | null', '否', '实际码率，单位 kbps。'],
@@ -351,7 +352,7 @@ export default function Docs() {
           <Code>{resolveResponse}</Code>
           <p>HTTP 200 与空 URL仍可用于兼容简单 Provider；推荐使用 no_candidate、all_resolvers_failed、quality_unavailable、upstream_timeout 等稳定错误码，让客户端直接切歌、降级或稍后重试：</p>
           <Code>{emptyResolveResponse}</Code>
-          <div className="docs-retry-flow"><span>首次 resolve</span><i>→</i><span>地址失败 refresh=url</span><i>→</i><span>解码失败 refresh=decode</span><i>→</i><span>成功播放或结束重试</span></div>
+          <div className="docs-retry-flow"><span>首次 resolve</span><i>→</i><span>地址失败后普通请求复查</span><i>→</i><span>仍失败 refresh=url</span><i>→</i><span>解码失败 refresh=decode</span><i>→</i><span>成功播放或结束重试</span></div>
 
           <h3>歌词与封面</h3>
           <Endpoint method="GET" path="/v1/tracks/{songId}/lyrics?title=&artist=&album=&binding=">通过查询参数提交歌曲上下文，返回 {`{ songId, lyrics, translation?, binding }`}；没有歌词时 lyrics 为空字符串，外部歌词回退结果的 binding 可以为 null。</Endpoint>
