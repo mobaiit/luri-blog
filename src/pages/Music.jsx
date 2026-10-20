@@ -270,7 +270,11 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       }
     }).catch((error) => {
       if (controller.signal.aborted) return;
-      if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) { if (!restoreRandomSwitch('Provider 没有访问权限，已恢复上一首')) { playMode.current = 'manual'; setPlaying(false); showToast('Provider 没有访问权限，请重新配置或联系服务提供方', 'warning'); } return; }
+      if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) {
+        setPlaying(false); setPlaybackTrackId(current.songId); setPlaybackState('error'); clearMediaDeadline();
+        if (!restoreRandomSwitch('Provider 认证失败，已恢复上一首')) { playMode.current = 'manual'; showToast('Provider 认证失败，请重新配置认证信息', 'warning'); }
+        return;
+      }
       if (['no_candidate', 'all_resolvers_failed', 'quality_unavailable'].includes(error?.code)) {
         setPlaying(false); discardCurrentUrl();
         if (playMode.current === 'random') playNextRandom(); else skipFailedTrack(error.code === 'no_candidate' ? '未找到可播放音源，已自动播放下一首' : '所有音源均解析失败，已自动播放下一首');

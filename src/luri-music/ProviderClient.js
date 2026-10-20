@@ -130,14 +130,61 @@ export async function discoverProvider(connectionInput, signal) {
   const connection = normalizeProviderConnection(connectionInput);
   const base = new URL(connection.url);
   const target = new URL('/.well-known/music-provider.json', base.origin);
-  applyConnectionQuery(target, connection);
-  const response = await fetch(target, connectionOptions(connection, signal, { cache: 'no-store' }));
+  const response = await fetch(target, { credentials: 'omit', redirect: 'error', signal, cache: 'no-store', headers: { accept: 'application/json' } });
   await providerError(response);
   const manifest = await response.json();
   if (manifest.protocol !== 'music-provider' || manifest.protocolVersion !== '1.0') throw new Error('Provider 不支持 Music Provider Protocol 1.0');
-  if (!manifest.provider?.id || !manifest.provider?.name || !manifest.endpoints || !Array.isArray(manifest.capabilities)) throw new Error('Provider 协议声明不完整');
+  if (!manifest.provider?.id || !manifest.provider?.name || !manifest.endpoints?.authenticate || !Array.isArray(manifest.capabilities)) throw new Error('Provider 协议声明不完整，缺少必需的 authenticate 端点');
   for (const endpoint of Object.values(manifest.endpoints).filter((item) => typeof item === 'string')) checkedEndpoint(endpoint.replace(/\{[^}]+\}/g, 'resource'), connection);
   return { connection, manifest: { ...manifest, presentation: validatePresentation(manifest.presentation) } };
+}
+
+async function authenticateProvider(connection, manifest, clientAccount, signal) {
+  if (!clientAccount?.email) throw new Error('缺少用于 Provider 认证的客户端账号邮箱');
+  const target = checkedEndpoint(manifest.endpoints.authenticate, connection);
+  applyConnectionQuery(target, connection);
+  const response = await fetch(target, connectionOptions(connection, signal, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      clientAccount: {
+        id: String(clientAccount.id || '').slice(0, 100),
+        name: String(clientAccount.name || '').slice(0, 80),
+        email: String(clientAccount.email).trim().toLowerCase().slice(0, 160),
+      },
+    }),
+  }));
+  await providerError(response);
+  const authorization = await response.json().catch(() => ({}));
+  if (!authorization.accessToken || (authorization.tokenType && authorization.tokenType !== 'Bearer')) throw new Error('Provider 认证响应缺少有效的 Bearer Token');
+  return {
+    accessToken: String(authorization.accessToken),
+    expiresIn: Math.max(30, Number(authorization.expiresIn) || 900),
+    presentation: validatePresentation(authorization.presentation),
+  };
+}
+
+export async function verifyProviderConnection(connectionInput, clientAccount, signal) {
+  const deadline = requestDeadline(signal);
+  try {
+    const discovered = await discoverProvider(connectionInput, deadline.signal);
+    const authorization = await authenticateProvider(discovered.connection, discovered.manifest, clientAccount, deadline.signal);
+    return {
+      ...discovered,
+      manifest: { ...discovered.manifest, presentation: authorization.presentation || discovered.manifest.presentation },
+      authorization,
+    };
+  } catch (error) {
+    if (deadline.timedOut()) {
+      const timeoutError = new Error('Provider 连接验证超时（60 秒）');
+      timeoutError.code = 'provider_timeout';
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    deadline.clear();
+  }
 }
 
 export default class ProviderClient {
@@ -213,12 +260,17 @@ export default class ProviderClient {
         .then(async (stored) => {
           if (stored.connection) {
             const discovered = await discoverProvider(stored.connection, deadline.signal);
+            const authorization = await authenticateProvider(discovered.connection, discovered.manifest, stored.clientAccount, deadline.signal);
             const access = {
-              connection: discovered.connection,
+              connection: normalizeProviderConnection({
+                url: new URL(discovered.connection.url).origin,
+                headers: { Authorization: `Bearer ${authorization.accessToken}` },
+                credentials: 'omit',
+              }),
               endpoints: discovered.manifest.endpoints,
               capabilities: discovered.manifest.capabilities,
-              presentation: discovered.manifest.presentation,
-              expiresAt: Date.now() + 3600 * 1000,
+              presentation: authorization.presentation || discovered.manifest.presentation,
+              expiresAt: Date.now() + authorization.expiresIn * 1000,
             };
             this.access = access;
             return access;
@@ -257,7 +309,7 @@ export default class ProviderClient {
       const access = await this.authorization(deadline.signal);
       const endpoint = access.endpoints?.[kind];
       if (!endpoint) return new Response(JSON.stringify({ error: { code: 'not_supported', message: `当前 Provider 不支持 ${kind} 能力` } }), { status: 501, headers: { 'content-type': 'application/json' } });
-      const target = applyConnectionQuery(checkedEndpoint(endpoint.replace(/\{(?:songId|id)\}/, encodeURIComponent(params.songId || '')), access.connection), access.connection);
+      const target = checkedEndpoint(endpoint.replace(/\{(?:songId|id)\}/, encodeURIComponent(params.songId || '')), access.connection);
       let options = connectionOptions(access.connection, deadline.signal, ['lyrics', 'search'].includes(kind) ? { cache: 'no-store' } : {});
 
       if (kind === 'search' || kind === 'random' || kind === 'charts') {
@@ -278,6 +330,7 @@ export default class ProviderClient {
       this.rememberResponse(cacheKey, kind, response);
       return response;
     } catch (error) {
+      if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) this.access = null;
       if (!deadline.timedOut()) throw error;
       const timeout = new Error('Provider 请求超时（60 秒）');
       timeout.code = 'provider_timeout';

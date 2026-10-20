@@ -242,16 +242,32 @@
   font-size: 10px;
 }
 .lm-provider-modal > div {
-  width: min(620px, calc(100vw - 32px));
+  width: min(700px, calc(100vw - 32px));
+  max-height: min(820px, calc(100vh - 32px));
+  overflow-y: auto;
 }
 .lm-provider-intro {
   display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
   justify-items: start;
-  gap: 5px;
-  margin: -5px 0 18px;
+  gap: 7px 16px;
+  margin: -5px 0 16px;
+  padding: 13px 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 11px;
+  background: #fafafa;
   color: #707070;
   font-size: 12px;
   line-height: 1.7;
+}
+.lm-provider-intro > div {
+  display: grid;
+  gap: 2px;
+}
+.lm-provider-intro b {
+  color: #222;
+  font-size: 12px;
 }
 .lm-provider-intro p {
   margin: 0;
@@ -272,6 +288,7 @@
   text-decoration-color: #111;
 }
 .lm-provider-intro small {
+  grid-column: 1 / -1;
   color: #969696;
   font-size: 10px;
 }
@@ -290,20 +307,41 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 13px;
+  padding: 14px;
   border: 1px solid #e5e5e5;
   border-radius: 12px;
   background: #fafafa;
+}
+.lm-provider-list article.editing {
+  border-color: #8d8d8d;
+  box-shadow: 0 0 0 2px #0000000a;
 }
 .lm-provider-list article.active {
   border-color: #111;
   background: #fff;
   box-shadow: inset 3px 0 #111;
 }
-.lm-provider-list article > div:first-child {
+.lm-provider-summary {
   display: grid;
+  flex: 1;
   min-width: 0;
-  gap: 3px;
+  gap: 5px;
+}
+.lm-provider-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lm-provider-heading > span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #ececec;
+  color: #666;
+  font-size: 9px;
+}
+.lm-provider-heading > span.active {
+  background: #111;
+  color: #fff;
 }
 .lm-provider-list article small {
   overflow: hidden;
@@ -316,8 +354,9 @@
   color: #666;
   font-size: 10px;
 }
-.lm-provider-list article > div:last-child {
+.lm-provider-actions {
   display: flex;
+  flex: 0 0 auto;
   gap: 6px;
 }
 .lm-provider-list article button {
@@ -346,15 +385,96 @@
   margin-top: 15px;
 }
 .lm-provider-form {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #eee;
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #dedede;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 28px #00000008;
+}
+.lm-provider-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid #eee;
+}
+.lm-provider-form-header > div {
+  display: grid;
+  gap: 2px;
+}
+.lm-provider-form-header b {
+  font-size: 13px;
+}
+.lm-provider-form-header small {
+  color: #888;
+  font-size: 10px;
+}
+.lm-provider-form-header > span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f0f0f0;
+  color: #555;
+  font-size: 10px;
 }
 .lm-provider-form > p {
   margin: 0;
   color: #777;
   font-size: 10px;
   line-height: 1.6;
+}
+.lm-provider-form-error {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid #e8b8b8;
+  border-radius: 9px;
+  outline: none;
+  background: #fff6f6;
+  color: #8d2424;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.lm-provider-form-error:focus {
+  box-shadow: 0 0 0 3px #b52d2d14;
+}
+.lm-provider-current {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border-radius: 9px;
+  background: #f5f5f3;
+}
+.lm-provider-current span,
+.lm-provider-current small {
+  color: #777;
+  font-size: 10px;
+}
+.lm-provider-current b {
+  overflow: hidden;
+  font: 11px/1.5 var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lm-provider-reconfigure {
+  justify-self: start;
+  padding: 8px 11px !important;
+  border: 1px solid #ccc !important;
+  background: #fff !important;
+  color: #333 !important;
+  font-size: 11px !important;
+}
+.lm-provider-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+}
+.lm-provider-form-actions .primary {
+  margin: 0;
 }
 .lm-provider-types {
   display: grid;
@@ -878,8 +998,14 @@
     flex-direction: column;
   }
   .lm-provider-list article > div:last-child {
-    justify-content: flex-end;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
   }
+  .lm-provider-list article button { width: 100%; }
+  .lm-provider-intro { grid-template-columns: 1fr; }
+  .lm-provider-intro small { grid-column: auto; }
+  .lm-provider-form { padding: 13px; }
+  .lm-provider-form-header { align-items: flex-start; }
   .lm-provider-types {
     grid-template-columns: 1fr;
   }

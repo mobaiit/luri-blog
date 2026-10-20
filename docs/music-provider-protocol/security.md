@@ -10,7 +10,7 @@
 
 常用状态码：400 参数错误，401 或 403 Provider 拒绝请求，404 资源不存在，405 方法不允许，429 限流，502 上游不可用，504 超时。客户端只展示 Provider 返回的信息，不推断 Provider 的验证规则。
 
-发现、health、terms、privacy、目录、歌词和封面使用 `GET`；播放解析使用 `POST`；CORS 预检使用 `OPTIONS`。已知端点收到错误方法时必须返回 HTTP 405、`Allow` 响应头和标准错误结构。
+发现、health、terms、privacy、目录、歌词和封面使用 `GET`；认证与播放解析使用 `POST`；CORS 预检使用 `OPTIONS`。已知端点收到错误方法时必须返回 HTTP 405、`Allow` 响应头和标准错误结构。
 
 Provider 必须为允许的客户端 Origin 配置 CORS。使用自定义 Header 时，应在 `Access-Control-Allow-Headers` 中明确列出；使用 Cookie 时，还必须返回 `Access-Control-Allow-Credentials: true`，且 `Access-Control-Allow-Origin` 不能为 `*`。
 

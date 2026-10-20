@@ -15,6 +15,7 @@ const manifestExample = `{
     "qualities": ["128k", "192k", "320k", "flac", "flac24bit"]
   },
   "endpoints": {
+    "authenticate": "https://provider.example.com/v1/auth/authenticate",
     "terms": "https://provider.example.com/terms",
     "privacy": "https://provider.example.com/privacy",
     "search": "https://provider.example.com/v1/catalog/search",
@@ -253,6 +254,7 @@ export default function Docs() {
             ['capabilities', 'string[]', '是', 'search、random、charts、lyrics、artwork、playback、qualities 中已实现的能力。'],
             ['playback.mode', 'direct', '条件', '声明 playback 时必填；resolve 返回浏览器可尝试播放的 URL。'],
             ['playback.qualities', 'string[]', '否', '声明 qualities 时给出可请求的音质标识。'],
+            ['endpoints.authenticate', 'HTTPS URL', '是', '使用连接凭据和客户端账号换取短期 Bearer Token；客户端使用 POST 请求。'],
             ['endpoints.terms', 'HTTPS URL', '是', '服务条款与内容授权范围。'],
             ['endpoints.privacy', 'HTTPS URL', '是', '隐私政策、运营主体与联系方式。'],
             ['endpoints.search', 'HTTPS URL', '条件', '声明 search 时必填。'],
@@ -276,14 +278,14 @@ export default function Docs() {
 
         <section id="authentication">
           <h2>连接配置</h2>
-          <p>客户端不理解 Provider 的验证方式，只按声明式配置发送请求。Provider 可以自行验证 URL 参数、静态 Header、浏览器 Cookie 或其组合。</p>
+          <p>客户端不理解 Provider 的凭据含义，只在认证请求中按声明式配置发送 URL 参数、静态 Header、浏览器 Cookie 或其组合，并携带当前 LURI MUSIC 账号信息。认证成功后，业务请求只使用 Provider 返回的短期 Bearer Token。</p>
           <Code>{connectionExample}</Code>
           <SchemaTable title="连接配置" rows={[
-            ['url', 'HTTPS URL', '是', '完整 Provider 地址，路径和查询参数原样保留。'],
-            ['headers', 'object', '否', '附加到发现和协议请求的静态 Header。'],
-            ['credentials', 'string', '否', 'omit、same-origin 或 include；默认 omit。'],
+            ['url', 'HTTPS URL', '是', 'Provider 地址；查询参数仅附加到 authenticate 请求。'],
+            ['headers', 'object', '否', '仅附加到 authenticate 请求的静态 Header。'],
+            ['credentials', 'string', '否', 'authenticate 请求的 Cookie 策略：omit、same-origin 或 include；默认 omit。'],
           ]} />
-          <div className="docs-note"><b>职责边界</b><span>客户端不解析、不转换、不刷新配置值。Cookie 由浏览器管理，服务端如何验证请求不属于协议范围。</span></div>
+          <div className="docs-note"><b>职责边界</b><span>Provider 服务端自行验证连接凭据与客户端账号。客户端不解释凭据，不把原始 key 附加到搜索、歌词或播放等业务请求。</span></div>
         </section>
 
         <section id="track-model">
@@ -378,7 +380,7 @@ export default function Docs() {
           <h2>HTTP 方法与跨域</h2>
           <SimpleTable rows={[
             ['GET', '发现、health、terms、privacy、search、random、charts、lyrics、artwork。'],
-            ['POST', 'resolve。'],
+            ['POST', 'authenticate、resolve。'],
             ['OPTIONS', '仅用于 CORS 预检，不得执行端点业务逻辑。'],
             ['其他方法', '已知端点必须返回 405、Allow 响应头和 method_not_allowed 错误。'],
           ]} />

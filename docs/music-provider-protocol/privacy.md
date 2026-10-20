@@ -4,4 +4,6 @@ Provider 应公开 `terms` 与 `privacy` 端点，说明运营主体、处理的
 
 Provider 可以依据自身规则验证 URL 参数、Header 或 Cookie，但不得要求客户端理解其业务含义。连接配置仅用于向用户选定的 Provider 发起请求，不得发送到其他来源。
 
+认证时，客户端会向用户选定的 Provider 发送 `clientAccount.id`、`clientAccount.name` 和 `clientAccount.email`，其中邮箱作为唯一账号凭证。Provider 必须在隐私说明中披露这些字段的用途、保存期限和删除方式，不得将其用于协议认证之外的目的。
+
 协议版本固定为 `1.0`。兼容更新只能增加可选字段或能力；客户端必须忽略未知字段。删除必填字段、改变字段含义或响应结构时必须发布新的协议版本。

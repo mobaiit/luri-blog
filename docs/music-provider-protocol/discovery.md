@@ -26,6 +26,7 @@ Provider 必须直接返回 HTTP 200 和 `application/json`，不得通过 3xx �
     "notice": "信息由 Provider 提供"
   },
   "endpoints": {
+    "authenticate": "https://provider.example/v1/auth/authenticate",
     "terms": "https://provider.example/terms",
     "privacy": "https://provider.example/privacy",
     "search": "https://provider.example/v1/catalog/search",
@@ -37,6 +38,8 @@ Provider 必须直接返回 HTTP 200 和 `application/json`，不得通过 3xx �
   }
 }
 ```
+
+`endpoints.authenticate` 是协议 1.0 的必需端点。客户端在新增、重新配置或短期 Token 到期时，将连接 URL 的查询参数、静态 Header 和 `credentials` 策略仅应用于该端点，并使用 `POST` 请求携带 `clientAccount`。Provider 验证成功后返回短期 Bearer Token；原始连接凭据不得附加到其他协议请求。
 
 `protocol` 固定为 `music-provider`，`protocolVersion` 固定为 `1.0`。`provider.id` 必须稳定；`provider.name` 用于展示；`provider.homepage` 可选。
 

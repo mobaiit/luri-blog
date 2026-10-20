@@ -83,7 +83,7 @@ function cleanPresentation(value) {
 function validateManifest(value, connection) {
   const manifest = value && typeof value === 'object' && !Array.isArray(value) ? value : null;
   if (!manifest || manifest.protocol !== 'music-provider' || manifest.protocolVersion !== '1.0') throw new Error('Provider 不支持 Music Provider Protocol 1.0');
-  if (!manifest.provider?.id || !manifest.provider?.name || !manifest.endpoints || !Array.isArray(manifest.capabilities)) throw new Error('Provider 协议声明不完整');
+  if (!manifest.provider?.id || !manifest.provider?.name || !manifest.endpoints?.authenticate || !Array.isArray(manifest.capabilities)) throw new Error('Provider 协议声明不完整，缺少必需的 authenticate 端点');
   if (!manifest.endpoints.terms || !manifest.endpoints.privacy) throw new Error('Provider 必须公开服务条款和隐私政策');
   Object.values(manifest.endpoints).filter((item) => typeof item === 'string').forEach((item) => checkedEndpoint(item.replace(/\{[^}]+\}/g, 'resource'), connection.url));
   return { ...manifest, presentation: cleanPresentation(manifest.presentation) };
@@ -260,6 +260,15 @@ export async function handleProviderRequest(request, env, action, user) {
   if (request.method === 'PATCH' && !configMatch[2]) {
     const data = await parseBody(request);
     try {
+      if (!data.connection && !data.manifest && !data.providerUrl) {
+        const displayName = String(data.displayName || config.display_name || 'Music Provider').trim().slice(0, 60);
+        const timestamp = now();
+        await env.LURI_MUSIC_DB.batch([
+          env.LURI_MUSIC_DB.prepare('UPDATE luri_music_provider_configs SET display_name=?,updated_at=? WHERE id=? AND user_id=?').bind(displayName, timestamp, config.id, user.id),
+          env.LURI_MUSIC_DB.prepare('UPDATE luri_music_preferences SET provider_revision=provider_revision+1,updated_at=? WHERE user_id=?').bind(timestamp, user.id),
+        ]);
+        return json({ config: { ...publicConfig(config, null), displayName } }, 200, { 'cache-control': 'no-store' });
+      }
       const direct = Boolean(data.connection && data.manifest); const prepared = direct ? prepareConnection(data) : null;
       const providerUrl = direct ? prepared.providerUrl : normalizeProviderUrl(data.providerUrl); const manifest = direct ? prepared.manifest : await discover(providerUrl);
       const duplicate = await env.LURI_MUSIC_DB.prepare('SELECT id FROM luri_music_provider_configs WHERE user_id=? AND provider_url=? AND provider_id=? AND id<>?').bind(user.id, providerUrl, String(manifest.provider.id), config.id).first();
@@ -289,7 +298,17 @@ export async function handleProviderRequest(request, env, action, user) {
   if (configMatch[2] === 'token' && request.method === 'POST') {
     try {
       const credential = await decryptCredential(config, env); const authType = config.auth_type || 'none';
-      if (authType === 'connection') return json({ connection: credential.connection, endpoints: credential.manifest?.endpoints || {}, capabilities: credential.manifest?.capabilities || [], presentation: cleanPresentation(credential.manifest?.presentation) }, 200, { 'cache-control': 'no-store' });
+      if (authType === 'connection') return json({
+        connection: credential.connection,
+        endpoints: credential.manifest?.endpoints || {},
+        capabilities: credential.manifest?.capabilities || [],
+        presentation: cleanPresentation(credential.manifest?.presentation),
+        clientAccount: {
+          id: String(user.id || '').slice(0, 100),
+          name: String(user.display_name || '').slice(0, 80),
+          email: String(user.email || '').trim().toLowerCase().slice(0, 160),
+        },
+      }, 200, { 'cache-control': 'no-store' });
       const manifestRefresh = refreshManifest(config, credential); let accessToken = ''; let expiresIn = 900; let authorization = null; let account = null;
       if (authType === 'activation_code') {
         const response = await providerFetch(checkedEndpoint(credential.refreshEndpoint, config.provider_url), { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ refreshToken: credential.refreshToken }) }); const refreshed = await response.json().catch(() => ({}));
