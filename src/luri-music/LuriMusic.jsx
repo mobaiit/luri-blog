@@ -136,28 +136,34 @@ function ProviderDialog({ user, providers, refresh, close, notify }) {
   const beginAdd = () => { setEditing(null); setConnectionType('official'); setAdvanced(false); setReconfiguring(true); setFormError(''); setAdding(true); };
   const beginEdit = (provider) => { setAdding(false); setEditing(provider); setConnectionType(provider.connectionType === 'official' ? 'official' : 'third_party'); setAdvanced(false); setReconfiguring(false); setFormError(''); };
   const editConnection = () => { setReconfiguring(true); setAdvanced(false); setFormError(''); };
+  const providerHost = (value) => { try { return new URL(value).host; } catch { return String(value || ''); } };
   return <Modal className="lm-provider-modal" title="Provider 配置" close={close}>
-    <div className="lm-provider-intro"><div><b>连接管理</b><p>可保存多个兼容 Music Provider Protocol 1.0 的服务，同一时间启用一个。</p></div><a href={PROVIDER_PROTOCOL_DOCS} target="_blank" rel="noreferrer">查看协议文档 <span aria-hidden="true">↗</span></a><small>URL 参数、静态 Header 与 Cookie 策略由 Provider 自行验证，敏感配置会加密保存。</small></div>
-    <div className="lm-provider-list">{providers.map((provider) => <article className={`${provider.active ? 'active ' : ''}${editing?.id === provider.id ? 'editing' : ''}`.trim()} key={provider.id}>
-      <div className="lm-provider-summary"><div className="lm-provider-heading"><b>{provider.displayName}</b><span className={provider.active ? 'active' : ''}>{provider.active ? '当前启用' : '已配置'}</span></div><small title={provider.providerUrl}>{provider.providerUrl}</small><span>{connectionLabels[provider.connectionType] || '第三方 Provider'}</span>{provider.presentation && <ProviderPresentation value={provider.presentation} />}</div>
-      <div className="lm-provider-actions">{!provider.active && <button disabled={Boolean(acting)} onClick={() => activate(provider)}>{acting === provider.id ? <Spinner /> : '启用'}</button>}<button disabled={Boolean(acting)} onClick={() => beginEdit(provider)}>编辑</button><button className="danger" disabled={Boolean(acting)} onClick={() => setConfirming(provider)}>删除</button></div>
-    </article>)}{!providers.length && <p className="lm-provider-empty">尚未配置 Provider</p>}</div>
     {showForm ? <form key={`${formProvider?.id || 'new'}:${reconfiguring}`} className="lm-provider-form" onSubmit={save}>
-      <header className="lm-provider-form-header"><div><b>{formProvider ? '编辑 Provider' : '添加 Provider'}</b><small>{formProvider && !reconfiguring ? '保留现有连接配置' : '验证协议与认证后保存'}</small></div>{formProvider && <span>{reconfiguring ? '重新配置连接' : '仅编辑名称'}</span>}</header>
+      <button type="button" className="lm-provider-back" onClick={cancelForm} disabled={Boolean(acting)}><span aria-hidden="true">←</span> 返回 Provider 列表</button>
+      <header className="lm-provider-form-header"><div><b>{formProvider ? '管理 Provider' : '添加 Provider'}</b><small>{formProvider && !reconfiguring ? '修改显示名称或重新配置连接' : '完成认证后保存连接'}</small></div>{formProvider && <span>{reconfiguring ? '重新配置' : '基本信息'}</span>}</header>
       {formError && <div className="lm-provider-form-error" role="alert" tabIndex="-1" ref={errorRef}><b>无法保存</b><span>{formError}</span></div>}
       {formProvider && !reconfiguring ? <>
         <label>显示名称<input name="name" maxLength="60" defaultValue={formProvider.displayName || ''} placeholder="我的 Provider" autoFocus /></label>
         <div className="lm-provider-current"><span>当前连接</span><b>{formProvider.providerUrl}</b><small>认证参数与 Header 已隐藏，保存名称不会修改现有连接。</small></div>
         <button type="button" className="lm-provider-reconfigure" onClick={editConnection}>重新配置连接</button>
       </> : <>
-        <fieldset className="lm-provider-types"><legend>Provider 类型</legend>{[['official', '官方源', '系统认可的标准服务'], ['third_party', '第三方 Provider', '由用户提供连接配置']].map(([value, title, note]) => <button type="button" className={connectionType === value ? 'active' : ''} onClick={() => { setConnectionType(value); if (value === 'official') setAdvanced(false); }} key={value}><b>{title}</b><small>{note}</small></button>)}</fieldset>
-        {connectionType === 'third_party' && <button type="button" className="lm-provider-advanced-toggle" onClick={() => { setAdvanced((value) => !value); setFormError(''); }}>{advanced ? '改用普通 URL' : '使用高级 JSON 配置'}</button>}
+        <fieldset className="lm-provider-types"><legend>Provider 类型</legend>{[['official', '官方源'], ['third_party', '第三方 Provider']].map(([value, title]) => <button type="button" className={connectionType === value ? 'active' : ''} onClick={() => { setConnectionType(value); if (value === 'official') setAdvanced(false); }} key={value}>{title}</button>)}</fieldset>
         {advanced ? <label>高级 JSON 配置<textarea name="advanced" rows="8" required autoFocus spellCheck="false" placeholder={'{\n  "url": "https://provider.example?key=xxx",\n  "headers": {\n    "Authorization": "Bearer xxx"\n  },\n  "credentials": "include"\n}'} /></label> : <label>Provider 地址<input name="url" type="url" placeholder="https://provider.example.com?key=xxx" required autoFocus /></label>}
+        {connectionType === 'third_party' && <button type="button" className="lm-provider-advanced-toggle" aria-expanded={advanced} onClick={() => { setAdvanced((value) => !value); setFormError(''); }}>{advanced ? '收起高级配置，改用普通 URL' : '高级配置：Header、Cookie 与 JSON'}</button>}
         <label>显示名称（可选）<input name="name" maxLength="60" defaultValue={formProvider?.displayName || ''} placeholder="我的 Provider" /></label>
         <p>{formProvider ? '为保护敏感信息，重新配置时需要填写完整连接。' : 'URL 参数、静态 Header 和浏览器 Cookie 只用于认证。'} 保存前会将当前账号邮箱发送给 Provider，并换取短期访问 Token。</p>
       </>}
-      <div className="lm-provider-form-actions"><button className="primary" disabled={Boolean(acting)}>{acting ? <><Spinner /> {editing && !reconfiguring ? '保存中…' : '验证中…'}</> : editing && !reconfiguring ? '保存名称' : formProvider ? '验证并更新' : '验证并添加'}</button><button type="button" className="link" onClick={cancelForm} disabled={Boolean(acting)}>取消</button></div>
-    </form> : <button className="primary lm-provider-add" onClick={beginAdd}>添加 Provider</button>}
+      <div className="lm-provider-form-actions"><button className="primary" disabled={Boolean(acting)}>{acting ? <><Spinner /> {editing && !reconfiguring ? '保存中…' : '认证中…'}</> : editing && !reconfiguring ? '保存名称' : formProvider ? '认证并更新' : '认证并添加'}</button></div>
+      {formProvider && !reconfiguring && <section className="lm-provider-danger-zone"><div><b>删除 Provider</b><small>删除后需要重新配置才能再次使用。</small></div><button type="button" disabled={Boolean(acting)} onClick={() => setConfirming(formProvider)}>删除</button></section>}
+    </form> : <section className="lm-provider-index">
+      <div className="lm-provider-intro"><div><b>已保存的 Provider</b><p>可保存多个兼容 Music Provider Protocol 1.0 的服务，同一时间启用一个。</p></div><a href={PROVIDER_PROTOCOL_DOCS} target="_blank" rel="noreferrer">查看协议文档 <span aria-hidden="true">↗</span></a></div>
+      <div className="lm-provider-list">{providers.map((provider) => <article className={provider.active ? 'active' : ''} key={provider.id}>
+        <div className="lm-provider-summary"><div className="lm-provider-heading"><b>{provider.displayName}</b><span className={provider.active ? 'active' : ''}>{provider.active ? '当前启用' : '已配置'}</span></div><small title={provider.providerUrl}>{providerHost(provider.providerUrl)}</small><span>{connectionLabels[provider.connectionType] || '第三方 Provider'}</span>{provider.presentation && <ProviderPresentation value={provider.presentation} />}</div>
+        <div className="lm-provider-actions">{!provider.active && <button className="primary" disabled={Boolean(acting)} onClick={() => activate(provider)}>{acting === provider.id ? <Spinner /> : '启用'}</button>}<button disabled={Boolean(acting)} onClick={() => beginEdit(provider)}>管理</button></div>
+      </article>)}{!providers.length && <div className="lm-provider-empty"><b>还没有 Provider</b><span>添加一个 Provider 后即可搜索和播放内容。</span><button className="primary" type="button" onClick={beginAdd}>添加 Provider</button></div>}</div>
+      {providers.length > 0 && <button className="primary lm-provider-add" onClick={beginAdd}>添加 Provider</button>}
+      <small className="lm-provider-security">连接凭据仅用于 Provider 认证，并以加密形式保存。</small>
+    </section>}
     <ConfirmDialog open={Boolean(confirming)} title="删除 Provider？" message={confirming ? `“${confirming.displayName}”及其已保存的连接配置将被永久删除，此操作无法撤销。` : ''} confirmLabel="确认删除" tone="error" busy={Boolean(confirming && acting === confirming.id)} onCancel={() => setConfirming(null)} onConfirm={() => confirming && remove(confirming)} />
   </Modal>;
 }

@@ -242,9 +242,13 @@
   font-size: 10px;
 }
 .lm-provider-modal > div {
-  width: min(700px, calc(100vw - 32px));
+  width: min(680px, calc(100vw - 32px));
   max-height: min(820px, calc(100vh - 32px));
   overflow-y: auto;
+}
+.lm-provider-index {
+  display: grid;
+  gap: 14px;
 }
 .lm-provider-intro {
   display: grid;
@@ -252,11 +256,9 @@
   align-items: start;
   justify-items: start;
   gap: 7px 16px;
-  margin: -5px 0 16px;
-  padding: 13px 14px;
-  border: 1px solid #e8e8e8;
-  border-radius: 11px;
-  background: #fafafa;
+  margin: -3px 0 0;
+  padding: 2px 0 14px;
+  border-bottom: 1px solid #e8e8e8;
   color: #707070;
   font-size: 12px;
   line-height: 1.7;
@@ -287,11 +289,6 @@
 .lm-protocol-doc-link:hover {
   text-decoration-color: #111;
 }
-.lm-provider-intro small {
-  grid-column: 1 / -1;
-  color: #969696;
-  font-size: 10px;
-}
 .lm-protocol-doc-link {
   margin-top: 7px;
   font-size: 12px;
@@ -299,8 +296,9 @@
 .lm-provider-list {
   display: grid;
   gap: 9px;
-  max-height: 280px;
+  max-height: min(430px, 52vh);
   overflow: auto;
+  padding-right: 2px;
 }
 .lm-provider-list article {
   display: flex;
@@ -311,10 +309,6 @@
   border: 1px solid #e5e5e5;
   border-radius: 12px;
   background: #fafafa;
-}
-.lm-provider-list article.editing {
-  border-color: #8d8d8d;
-  box-shadow: 0 0 0 2px #0000000a;
 }
 .lm-provider-list article.active {
   border-color: #111;
@@ -368,31 +362,59 @@
   font-size: 11px;
   cursor: pointer;
 }
-.lm-provider-list article button.danger {
-  color: #a32d2d;
+.lm-provider-list article button.primary {
+  border-color: #111;
+  background: #111;
+  color: #fff;
 }
 .lm-provider-empty {
   display: grid;
   place-items: center;
-  min-height: 100px;
+  gap: 6px;
+  min-height: 190px;
   margin: 0;
   border: 1px dashed #ddd;
   border-radius: 12px;
   color: #888;
   font-size: 12px;
+  text-align: center;
+}
+.lm-provider-empty b {
+  color: #333;
+  font-size: 13px;
+}
+.lm-provider-empty span {
+  color: #888;
+  font-size: 11px;
+}
+.lm-provider-empty .primary {
+  width: auto;
+  margin-top: 8px;
+  padding: 9px 14px;
 }
 .lm-provider-add {
-  margin-top: 15px;
+  justify-self: start;
+  margin: 0;
+}
+.lm-provider-security {
+  color: #999;
+  font-size: 10px;
 }
 .lm-provider-form {
   display: grid;
   gap: 12px;
-  margin-top: 16px;
-  padding: 16px;
-  border: 1px solid #dedede;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 10px 28px #00000008;
+  margin: -4px 0 0;
+}
+.lm-provider-back {
+  justify-self: start;
+  padding: 5px 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #666 !important;
+  font-size: 11px !important;
+}
+.lm-provider-back:hover {
+  color: #111 !important;
 }
 .lm-provider-form-header {
   display: flex;
@@ -471,18 +493,21 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-top: 2px;
+  padding-top: 5px;
 }
 .lm-provider-form-actions .primary {
   margin: 0;
 }
 .lm-provider-types {
-  display: grid;
+  display: inline-grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  justify-self: start;
+  gap: 3px;
   margin: 0;
-  padding: 0;
-  border: 0;
+  padding: 3px;
+  border: 1px solid #dedede;
+  border-radius: 9px;
+  background: #f4f4f2;
 }
 .lm-provider-form textarea {
   box-sizing: border-box;
@@ -503,10 +528,13 @@
 .lm-provider-advanced-toggle {
   justify-self: start;
   padding: 7px 10px !important;
-  border: 1px solid #ddd !important;
-  background: #fff !important;
+  border: 0 !important;
+  background: transparent !important;
   color: #555 !important;
   font-size: 11px !important;
+  text-decoration: underline;
+  text-decoration-color: #bbb;
+  text-underline-offset: 3px;
 }
 .lm-provider-presentation {
   display: grid;
@@ -556,23 +584,23 @@
   font-size: inherit;
 }
 .lm-provider-types legend {
-  grid-column: 1 / -1;
-  margin-bottom: 1px;
-  font-size: 12px;
-  font-weight: 600;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 .lm-provider-types button {
-  display: grid;
-  justify-items: start;
-  gap: 3px;
+  display: block;
   min-width: 0;
-  padding: 10px;
-  border: 1px solid #dedede;
-  border-radius: 9px;
-  background: #fff;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   color: #555;
-  font: inherit;
-  text-align: left;
+  font: 600 11px var(--font-ui);
+  text-align: center;
   cursor: pointer;
 }
 .lm-provider-types button.active {
@@ -580,19 +608,33 @@
   background: #111;
   color: #fff;
 }
-.lm-provider-types b {
+.lm-provider-danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #eee;
+}
+.lm-provider-danger-zone > div {
+  display: grid;
+  gap: 2px;
+}
+.lm-provider-danger-zone b {
+  color: #852f2f;
   font-size: 11px;
 }
-.lm-provider-types small {
-  overflow: hidden;
-  max-width: 100%;
-  color: #929292;
-  font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.lm-provider-danger-zone small {
+  color: #999;
+  font-size: 10px;
 }
-.lm-provider-types button.active small {
-  color: #c4c4c4;
+.lm-provider-danger-zone > button {
+  padding: 7px 10px !important;
+  border: 1px solid #e2caca !important;
+  background: #fff !important;
+  color: #a32d2d !important;
+  font-size: 11px !important;
 }
 .lm-provider-public-note {
   padding: 10px 12px;
@@ -999,20 +1041,13 @@
   }
   .lm-provider-list article > div:last-child {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
   .lm-provider-list article button { width: 100%; }
   .lm-provider-intro { grid-template-columns: 1fr; }
-  .lm-provider-intro small { grid-column: auto; }
-  .lm-provider-form { padding: 13px; }
   .lm-provider-form-header { align-items: flex-start; }
   .lm-provider-types {
-    grid-template-columns: 1fr;
-  }
-  .lm-provider-types button {
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 8px;
+    justify-self: stretch;
   }
   .lm-quality-options {
     grid-template-columns: 1fr;

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './Docs.css';
 
@@ -126,7 +127,7 @@ const nav = [
   ['troubleshooting', '常见问题', 'user'],
   ['protocol', '协议概览', 'developer'],
   ['discovery', '服务发现', 'developer'],
-  ['authentication', '连接配置', 'developer'],
+  ['authentication', '认证与连接', 'developer'],
   ['track-model', 'Track 与 Binding', 'developer'],
   ['catalog', '目录接口', 'developer'],
   ['resources', '单曲接口', 'developer'],
@@ -136,11 +137,19 @@ const nav = [
 ];
 
 function Code({ children }) {
-  return <pre className="docs-code"><code>{children}</code></pre>;
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(String(children));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch { setCopied(false); }
+  };
+  return <div className="docs-code-wrap"><div className="docs-code-toolbar"><span>示例</span><button type="button" onClick={copy}>{copied ? '已复制' : '复制代码'}</button></div><pre className="docs-code"><code>{children}</code></pre></div>;
 }
 
 function Endpoint({ method, path, children }) {
-  return <article className="docs-endpoint"><header><b>{method}</b><code>{path}</code></header><p>{children}</p></article>;
+  return <article className="docs-endpoint"><header><b className={`method-${method.toLowerCase()}`}>{method}</b><code>{path}</code></header><p>{children}</p></article>;
 }
 
 function SchemaTable({ title, rows }) {
@@ -156,28 +165,45 @@ function Icon({ id }) {
 }
 
 export default function Docs() {
+  const [activeSection, setActiveSection] = useState('start');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const filteredNav = nav.filter(([, label]) => !query.trim() || label.toLowerCase().includes(query.trim().toLowerCase()));
+  useEffect(() => {
+    const sections = nav.map(([id]) => document.getElementById(id)).filter(Boolean);
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (visible) setActiveSection(visible.target.id);
+    }, { rootMargin: '-18% 0px -68% 0px', threshold: 0 });
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
+  const navLink = ([id, label]) => <a className={activeSection === id ? 'active' : ''} href={`#${id}`} key={id} aria-current={activeSection === id ? 'location' : undefined} onClick={() => setMenuOpen(false)}>{label}</a>;
   return <main className="docs-page">
     <header className="docs-hero">
-      <div><span>LURI MUSIC</span><strong>使用与开发文档</strong></div>
+      <button className="docs-menu-button" type="button" aria-label="打开文档目录" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><span /><span /><span /></button>
+      <Link className="docs-brand" to="/docs"><span>LURI MUSIC</span><strong>使用与开发文档</strong></Link>
+      <span className="docs-version">MPP 1.0</span>
       <nav>
-        <a href="#start">用户指南</a>
-        <a href="#protocol">Provider 协议</a>
-        <a href="#resources">接口模型</a>
         <a href="https://github.com/mobaiit/luri-blog" target="_blank" rel="noreferrer" className="docs-github-link"><Icon id="github-icon" /></a>
         <Link to="/music">打开播放器</Link>
       </nav>
     </header>
 
+    {menuOpen && <button type="button" className="docs-menu-backdrop" aria-label="关闭文档目录" onClick={() => setMenuOpen(false)} />}
     <div className="docs-layout">
-      <aside className="docs-sidebar">
+      <aside className={`docs-sidebar${menuOpen ? ' open' : ''}`}>
+        <label className="docs-search"><span>搜索目录</span><input value={query} onChange={(event) => setQuery(event.target.value)} type="search" placeholder="搜索文档…" /></label>
         <p>播放器用户</p>
-        {nav.filter((item) => item[2] === 'user').map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
+        {filteredNav.filter((item) => item[2] === 'user').map(navLink)}
         <p className="docs-sidebar-group">Provider 开发者</p>
-        {nav.filter((item) => item[2] === 'developer').map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}
+        {filteredNav.filter((item) => item[2] === 'developer').map(navLink)}
+        {!filteredNav.length && <span className="docs-search-empty">没有匹配章节</span>}
+        <footer><span>协议版本 1.0</span><a href="mailto:luri@luri.cc.cd">反馈问题</a></footer>
       </aside>
 
       <article className="docs-content">
-        <div className="docs-title"><p>MUSIC PROVIDER PROTOCOL · 1.0</p><h1>LURI MUSIC 文档</h1><span>先帮助用户安全连接音乐服务，再为 Provider 开发者给出可直接实现的协议定义。</span></div>
+        <div className="docs-title"><div className="docs-breadcrumb"><span>Documentation</span><i>/</i><b>Music Provider Protocol</b></div><p>使用指南与开发者参考</p><h1>LURI MUSIC 文档</h1><span>从连接 Provider 到实现完整协议，一份可直接查阅和落地的产品文档。</span><div className="docs-title-actions"><a href="#start">开始使用</a><a href="#protocol">阅读协议</a></div></div>
 
         <div className="docs-section-label"><span>01</span><b>播放器用户指南</b></div>
 
@@ -188,7 +214,7 @@ export default function Docs() {
             <li>注册并登录 LURI MUSIC。</li>
             <li>从账户菜单打开“Provider 配置”，点击“添加 Provider”。</li>
             <li>选择官方源或第三方 Provider，填写完整 URL；需要 Header 或 Cookie 时使用高级 JSON。</li>
-            <li>点击“验证并添加”。客户端会按连接配置读取发现文件并校验协议版本和端点。</li>
+            <li>点击“认证并添加”。客户端公开读取发现文件，再将连接凭据和当前账号信息发送到 authenticate 端点换取短期 Token。</li>
             <li>启用 Provider，进入播放器使用其已声明的搜索、榜单、播放、歌词和封面能力。</li>
           </ol>
           <div className="docs-note"><b>连接前检查</b><span>请确认 Provider 的运营主体、服务条款、隐私政策和内容授权范围。兼容本协议只代表接口格式正确，不代表 LURI MUSIC 对服务或内容进行审核、推荐或授权。</span></div>
@@ -243,7 +269,7 @@ export default function Docs() {
 
         <section id="discovery">
           <h2>服务发现</h2>
-          <Endpoint method="GET" path="/.well-known/music-provider.json">返回 Provider 身份、协议版本、能力、播放配置、端点以及可选展示区块。请求必须应用当前连接配置。</Endpoint>
+          <Endpoint method="GET" path="/.well-known/music-provider.json">公开返回 Provider 身份、协议版本、能力、播放配置和端点。发现请求不携带连接凭据。</Endpoint>
           <Code>{manifestExample}</Code>
           <SchemaTable title="发现文件字段" rows={[
             ['protocol', 'string', '是', '固定为 music-provider。'],
@@ -277,8 +303,9 @@ export default function Docs() {
         </section>
 
         <section id="authentication">
-          <h2>连接配置</h2>
+          <h2>认证与连接配置</h2>
           <p>客户端不理解 Provider 的凭据含义，只在认证请求中按声明式配置发送 URL 参数、静态 Header、浏览器 Cookie 或其组合，并携带当前 LURI MUSIC 账号信息。认证成功后，业务请求只使用 Provider 返回的短期 Bearer Token。</p>
+          <Endpoint method="POST" path="/v1/auth/authenticate">接收客户端账号上下文，并通过 URL 参数、静态 Header 或 Cookie 验证连接凭据；成功时返回短期 Bearer Token。</Endpoint>
           <Code>{connectionExample}</Code>
           <SchemaTable title="连接配置" rows={[
             ['url', 'HTTPS URL', '是', 'Provider 地址；查询参数仅附加到 authenticate 请求。'],
@@ -427,7 +454,7 @@ Access-Control-Max-Age: 86400`}</Code>
         <footer className="docs-footer"><span>Music Provider Protocol 1.0</span><a href="mailto:luri@luri.cc.cd">问题反馈：luri@luri.cc.cd</a></footer>
       </article>
 
-      <aside className="docs-outline"><p>Provider 开发规范</p>{nav.filter((item) => item[2] === 'developer').map(([id, label]) => <a href={`#${id}`} key={id}>{label}</a>)}</aside>
+      <aside className="docs-outline"><p>本页目录</p>{nav.filter((item) => item[2] === (nav.find(([id]) => id === activeSection)?.[2] || 'developer')).map(navLink)}</aside>
     </div>
   </main>;
 }
