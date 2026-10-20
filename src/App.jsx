@@ -13,6 +13,7 @@ import LuriMusic from './luri-music/LuriMusic';
 import Admin from './luri-music/Admin';
 import { fetchSiteConfig, readSiteConfig, writeSiteConfig } from './luri-music/siteConfig';
 import './luri-music/page-titles.css';
+import './styles/product-polish.css';
 
 export default function App() {
   const location = useLocation();
