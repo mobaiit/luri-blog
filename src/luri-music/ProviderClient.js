@@ -15,7 +15,7 @@ const api = async (path, options = {}) => {
   return data;
 };
 
-const PROVIDER_REQUEST_TIMEOUT_MS = 30 * 1000;
+const PROVIDER_REQUEST_TIMEOUT_MS = 60 * 1000;
 const PLAYBACK_CACHE_SAFETY_MS = 5 * 1000;
 const FORBIDDEN_HEADERS = new Set(['cookie', 'host', 'origin', 'referer', 'user-agent', 'content-length', 'connection']);
 const isRefreshRequest = (value) => value === true || value === 1 || value === '1' || value === 'url' || value === 'decode';
@@ -238,7 +238,7 @@ export default class ProviderClient {
         })
         .catch((error) => {
           if (!deadline.timedOut()) throw error;
-          const timeout = new Error('Provider 配置请求超时（30 秒）');
+          const timeout = new Error('Provider 配置请求超时（60 秒）');
           timeout.code = 'provider_timeout';
           timeout.status = 504;
           throw timeout;
@@ -279,7 +279,7 @@ export default class ProviderClient {
       return response;
     } catch (error) {
       if (!deadline.timedOut()) throw error;
-      const timeout = new Error('Provider 请求超时（30 秒）');
+      const timeout = new Error('Provider 请求超时（60 秒）');
       timeout.code = 'provider_timeout';
       timeout.status = 504;
       throw timeout;

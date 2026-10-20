@@ -78,4 +78,4 @@
 
 榜单的平台和榜单标识由 Provider 定义。`refresh=1` 表示用户主动请求刷新，Provider 可以限制强制刷新频率。客户端按 Provider 配置、平台和榜单类型分别持久缓存成功响应；刷新失败时必须保留旧缓存。Provider 可以返回 `stale: true` 表示本次使用了上一次成功快照。
 
-客户端对 Provider 请求设置 30 秒超时；Provider 应在超时前返回结果或明确的错误响应。
+客户端对 Provider 请求设置 60 秒超时；Provider 应在超时前返回结果或明确的错误响应。

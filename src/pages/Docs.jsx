@@ -221,7 +221,7 @@ export default function Docs() {
             ['没有搜索或榜单', '功能由 Provider 的 capabilities 决定；未声明或未实现的能力不会显示。'],
             ['歌曲无法播放', '空 URL、临时 URL 失效或媒体服务器拒绝访问都会导致失败。客户端会自动强制刷新一次，之后需要用户重新播放。'],
             ['歌词或封面为空', '空内容是合法结果，表示 Provider 本次没有匹配资源，不影响歌曲身份与收藏。'],
-            ['Provider 请求超时', '所有 Provider 请求最多等待 30 秒；检查服务和上游状态后重试。'],
+            ['Provider 请求超时', '所有 Provider 请求最多等待 60 秒；检查服务和上游状态后重试。'],
             ['切换后收藏不能播放', '收藏身份仍保留，但新 Provider 必须能识别 binding，或根据 title、artist、album 重新检索该歌曲。'],
           ]} />
         </section>
@@ -236,7 +236,7 @@ export default function Docs() {
             <li>发现文件和端点必须使用 HTTPS、保持同源且不得重定向到第三方主机。</li>
             <li>1.x 客户端忽略未知字段；已有字段不能在兼容更新中删除或改变语义。</li>
             <li>Provider 只声明确实实现的能力。协议 1.0 的播放模式为 <code>direct</code>。</li>
-            <li>所有 Provider 请求的客户端超时为 30 秒。</li>
+            <li>所有 Provider 请求的客户端超时为 60 秒。</li>
           </ul>
         </section>
 
@@ -406,7 +406,7 @@ Access-Control-Max-Age: 86400`}</Code>
             ['405', 'method_not_allowed：HTTP 方法不符合端点定义，同时返回 Allow。'],
             ['429', 'rate_limited：请求或强制刷新频率超限。'],
             ['502', 'upstream_unavailable：Provider 上游暂时不可用。'],
-            ['504', 'provider_timeout：Provider 请求超过客户端 30 秒期限。'],
+            ['504', 'provider_timeout：Provider 请求超过客户端 60 秒期限。'],
           ]} />
         </section>
 
