@@ -7,6 +7,7 @@ import './luri-music.css';
 import './auth-ux.css';
 import './code-management.css';
 import './ui-feedback.css';
+import './product-refresh.css';
 
 const api = async (path, options = {}) => { const response = await fetch(`/api/luri-music/${path}`, { credentials: 'same-origin', headers: { 'content-type': 'application/json' }, ...options }); const data = await response.json().catch(() => ({})); if (!response.ok) throw Error(data.error || '请求失败，请稍后重试'); return data; };
 const ANNOUNCEMENT_DISMISSED = 'luri.music.announcement.dismissed.v2';
@@ -121,8 +122,9 @@ function ProviderDialog({ user, providers, refresh, close, notify }) {
       setAdding(false); setEditing(null); setAdvanced(false); setReconfiguring(false); setFormError('');
       notify(editing ? 'Provider 已更新' : 'Provider 已添加', nameOnly ? '显示名称已保存，原连接配置保持不变' : '连接与认证已验证并安全保存', 'success');
     } catch (error) {
-      const accessDenied = error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403;
-      const message = error instanceof SyntaxError ? '高级配置不是有效的 JSON' : accessDenied ? 'Provider 拒绝了当前认证信息，请检查后重试' : error.message;
+      const knownAuthError = ['access_denied', 'provider_access_denied', 'connection_credential_bound', 'invalid_connection_credential', 'activation_code_used', 'invalid_activation_code'].includes(error?.code);
+      const accessDenied = knownAuthError || error?.status === 401 || error?.status === 403;
+      const message = error instanceof SyntaxError ? '高级配置不是有效的 JSON' : knownAuthError ? error.message : accessDenied ? 'Provider 拒绝了当前认证信息，请检查后重试' : error.message;
       setFormError(message);
       requestAnimationFrame(() => errorRef.current?.focus());
       notify(accessDenied ? 'Provider 认证失败' : editing ? '更新失败' : '添加失败', message, 'error');
@@ -191,6 +193,22 @@ function QualityDialog({ value, saved, close, notify }) {
 function Announcement({ close, dismissForever }) { return <div className="lm-announcement" role="dialog" aria-modal="true" aria-label="网站公告" onClick={close}><article><span>NOTICE</span><h2>网站公告</h2><p><strong>LURI MUSIC 是一款基于 Web 的可扩展媒体播放客户端。</strong>我们专注于提供内容检索与播放界面、播放列表、本地播放控制、账号服务及 Provider 配置管理，让用户能够连接符合 Music Provider Protocol 的独立内容服务。</p><p><strong>LURI MUSIC 不预置内容源，不实现具体内容源适配，不运营音乐曲库，也不托管、存储、缓存、代理或分发音频文件，所有音频相关信息均由用户自行配置的第三方 Provider 提供。</strong>检索结果、条目信息、播放地址、歌词及封面等数据，均由用户主动选择的 Provider 处理和返回。连接前请核实 Provider 的运营主体、服务条款、隐私政策、数据来源与内容授权范围，并仅访问和使用你依法有权使用的内容。</p><p>Music Provider Protocol 是一套开放的技术接口规范，第三方开发者及用户可以据此接入私有媒体库、授权曲库、开放许可内容、播客或广播目录等服务。<strong>协议兼容仅表示接口格式兼容，不代表 LURI MUSIC 对第三方 Provider 的审核、推荐、授权、合作或担保。</strong>你可以随时停用或删除 Provider 配置；安全问题或权利投诉请联系 <strong>luri@luri.cc.cd</strong>。</p><div className="lm-announcement-actions"><small>点击公告任意位置关闭</small><button type="button" onClick={(event) => { event.stopPropagation(); dismissForever(); }}>不再提示</button></div></article></div>; }
 function LegalDocument({ type, close }) { const document = LEGAL_DOCUMENTS[type]; return <Modal className="lm-legal-modal" title={document.title} close={close}><article className="lm-legal"><p className="lm-legal-date">更新日期：2026 年 9 月 22 日 · 版本 {TERMS_VERSION}</p>{document.sections.map(([title, content], index) => <section key={title}><h3>{index + 1}. {title}</h3><p>{renderStrongText(content)}</p>{index === 2 && <a className="lm-protocol-doc-link" href={PROVIDER_PROTOCOL_DOCS} target="_blank" rel="noreferrer">Music Provider Protocol 1.0 接口协议文档 <span aria-hidden="true">↗</span></a>}</section>)}<button className="primary" onClick={close}>我已阅读</button></article></Modal>; }
 function Modal({ title, children, close, className = '' }) {
-  useEffect(() => () => document.activeElement?.blur?.(), []);
-  return <div className={`lm-modal ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title}><div><button className="close" onClick={close} aria-label="关闭">×</button><h2>{title}</h2>{children}</div></div>;
+  const dialogRef = useRef(null); const closeRef = useRef(close);
+  useEffect(() => { closeRef.current = close; }, [close]);
+  useEffect(() => {
+    const previousFocus = document.activeElement; const dialog = dialogRef.current;
+    const focusable = () => [...dialog.querySelectorAll('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')];
+    focusable()[0]?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') { closeRef.current(); return; }
+      if (event.key !== 'Tab') return;
+      const items = focusable(); if (!items.length) return;
+      const first = items[0]; const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => { window.removeEventListener('keydown', onKeyDown); previousFocus?.focus?.(); };
+  }, []);
+  return <div className={`lm-modal ${className}`.trim()} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title}><button className="close" onClick={close} aria-label="关闭">×</button><h2>{title}</h2>{children}</div></div>;
 }

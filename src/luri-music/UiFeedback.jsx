@@ -42,19 +42,35 @@ export function Toast({ toast, onClose }) {
 }
 
 export function ConfirmDialog({ open, title, message, confirmLabel = '确认', cancelLabel = '取消', tone = 'warning', busy = false, onConfirm, onCancel }) {
+  const dialogRef = useRef(null);
+  const cancelRef = useRef(onCancel);
+  const busyRef = useRef(busy);
+  useEffect(() => { cancelRef.current = onCancel; busyRef.current = busy; }, [onCancel, busy]);
   useEffect(() => {
     if (!open) return undefined;
-    const onKeyDown = (event) => { if (event.key === 'Escape' && !busy) onCancel(); };
+    const previousFocus = document.activeElement;
+    const dialog = dialogRef.current;
+    const focusable = () => [...dialog.querySelectorAll('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')];
+    focusable()[0]?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape' && !busyRef.current) cancelRef.current();
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0]; const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, busy, onCancel]);
+    return () => { window.removeEventListener('keydown', onKeyDown); previousFocus?.focus?.(); };
+  }, [open]);
   if (!open) return null;
   const type = tone === 'error' ? 'error' : 'warning';
   return <div className="ui-confirm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onCancel(); }}>
-    <section className={`ui-confirm ui-confirm--${type}`} role="alertdialog" aria-modal="true" aria-labelledby="ui-confirm-title" aria-describedby="ui-confirm-message">
+    <section ref={dialogRef} className={`ui-confirm ui-confirm--${type}`} role="alertdialog" aria-modal="true" aria-labelledby="ui-confirm-title" aria-describedby="ui-confirm-message">
       <span className="ui-confirm__icon"><FeedbackIcon type={type} /></span>
       <div><small>{META[type].label}</small><h2 id="ui-confirm-title">{title}</h2><p id="ui-confirm-message">{message}</p></div>
-      <footer><button type="button" onClick={onCancel} disabled={busy} autoFocus>{cancelLabel}</button><button type="button" className="ui-confirm__primary" onClick={onConfirm} disabled={busy}>{busy ? '处理中…' : confirmLabel}</button></footer>
+      <footer><button type="button" onClick={onCancel} disabled={busy}>{cancelLabel}</button><button type="button" className="ui-confirm__primary" onClick={onConfirm} disabled={busy}>{busy ? '处理中…' : confirmLabel}</button></footer>
     </section>
   </div>;
 }

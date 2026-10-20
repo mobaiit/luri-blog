@@ -6,9 +6,9 @@
 { "error": { "code": "invalid_request", "message": "Human-readable message" } }
 ```
 
-通用错误码为 `invalid_request`、`access_denied`、`not_supported`、`not_found`、`method_not_allowed`、`rate_limited`、`upstream_unavailable` 和 `provider_timeout`。播放解析还可以使用 `no_candidate`、`all_resolvers_failed`、`quality_unavailable` 和 `upstream_timeout`。
+通用错误码为 `invalid_request`、`access_denied`、`not_supported`、`not_found`、`method_not_allowed`、`rate_limited`、`upstream_unavailable` 和 `provider_timeout`。认证端点还可以使用 `invalid_connection_credential` 和 `connection_credential_bound`；播放解析还可以使用 `no_candidate`、`all_resolvers_failed`、`quality_unavailable` 和 `upstream_timeout`。
 
-常用状态码：400 参数错误，401 或 403 Provider 拒绝请求，404 资源不存在，405 方法不允许，429 限流，502 上游不可用，504 超时。客户端只展示 Provider 返回的信息，不推断 Provider 的验证规则。
+常用状态码：400 参数错误，401 或 403 Provider 拒绝请求，404 资源不存在，405 方法不允许，409 连接凭据状态冲突，429 限流，502 上游不可用，504 超时。客户端可将协议已定义的稳定错误码映射为本地化提示；未知错误使用 Provider 返回的 `message`，但不推断 Provider 的验证规则。
 
 发现、health、terms、privacy、目录、歌词和封面使用 `GET`；认证与播放解析使用 `POST`；CORS 预检使用 `OPTIONS`。已知端点收到错误方法时必须返回 HTTP 405、`Allow` 响应头和标准错误结构。
 

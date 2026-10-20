@@ -1,3 +1,14 @@
+const PROVIDER_ERROR_MESSAGES = {
+  connection_credential_bound: '该连接凭据已绑定其他 LURI MUSIC 账号，请使用原账号或更换凭据',
+  invalid_connection_credential: '连接凭据无效或当前不可用，请检查后重试',
+  activation_code_used: '该连接凭据已绑定其他 LURI MUSIC 账号，请使用原账号或更换凭据',
+  invalid_activation_code: '连接凭据无效或当前不可用，请检查后重试',
+  access_denied: 'Provider 拒绝了当前认证信息，请检查后重试',
+  provider_access_denied: 'Provider 拒绝了当前认证信息，请检查后重试',
+};
+
+const providerMessage = (code, fallback) => PROVIDER_ERROR_MESSAGES[code] || fallback;
+
 const api = async (path, options = {}) => {
   const response = await fetch(`/api/luri-music/${path}`, {
     credentials: 'same-origin',
@@ -7,9 +18,10 @@ const api = async (path, options = {}) => {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const detail = data.error && typeof data.error === 'object' ? data.error : null;
-    const error = new Error(detail?.message || data.error || 'Provider 配置读取失败');
+    const code = detail?.code || data.code || (response.status === 401 || response.status === 403 ? 'provider_access_denied' : 'provider_request_failed');
+    const error = new Error(providerMessage(code, detail?.message || data.error || 'Provider 配置读取失败'));
     error.status = response.status;
-    error.code = detail?.code || data.code || (response.status === 401 || response.status === 403 ? 'provider_access_denied' : 'provider_request_failed');
+    error.code = code;
     throw error;
   }
   return data;
@@ -53,9 +65,10 @@ const providerError = async (response) => {
   if (response.ok) return response;
   const data = await response.clone().json().catch(() => ({}));
   const detail = data.error && typeof data.error === 'object' ? data.error : null;
-  const error = new Error(detail?.message || data.error || `Provider 请求失败（${response.status}）`);
+  const code = detail?.code || (response.status === 401 || response.status === 403 ? 'provider_access_denied' : 'provider_request_failed');
+  const error = new Error(providerMessage(code, detail?.message || data.error || `Provider 请求失败（${response.status}）`));
   error.status = response.status;
-  error.code = detail?.code || (response.status === 401 || response.status === 403 ? 'provider_access_denied' : 'provider_request_failed');
+  error.code = code;
   throw error;
 };
 

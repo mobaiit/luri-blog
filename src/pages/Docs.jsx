@@ -430,7 +430,8 @@ Access-Control-Max-Age: 86400`}</Code>
 }`}</Code>
           <SimpleTable rows={[
             ['400', 'invalid_request / invalid_song_id：字段缺失、Binding 不合法或 songId 校验失败。'],
-            ['401 / 403', 'access_denied：Provider 拒绝当前请求。'],
+            ['401 / 403', 'invalid_connection_credential / access_denied：连接凭据无效，或 Provider 拒绝当前请求。'],
+            ['409', 'connection_credential_bound：连接凭据已绑定其他客户端账号。'],
             ['404', 'not_found：端点或协议资源不存在。'],
             ['405', 'method_not_allowed：HTTP 方法不符合端点定义，同时返回 Allow。'],
             ['429', 'rate_limited：请求或强制刷新频率超限。'],
