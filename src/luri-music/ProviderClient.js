@@ -1,30 +1,43 @@
 const api = async (path, options = {}) => {
-  const response = await fetch(`/api/luri-music/${path}`, { credentials: 'same-origin', headers: { 'content-type': 'application/json' }, ...options });
+  const response = await fetch(`/api/luri-music/${path}`, {
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    ...options,
+  });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.error || 'Provider 凭证同步失败');
+    const detail = data.error && typeof data.error === 'object' ? data.error : null;
+    const error = new Error(detail?.message || data.error || 'Provider 配置读取失败');
     error.status = response.status;
-    error.code = data.code || (response.status === 401 || response.status === 403 ? 'provider_access_denied' : 'provider_request_failed');
+    error.code = detail?.code || data.code || (response.status === 401 || response.status === 403 ? 'provider_access_denied' : 'provider_request_failed');
     throw error;
   }
   return data;
 };
 
-const PROVIDER_REQUEST_TIMEOUT_MS = 60 * 1000;
+const PROVIDER_REQUEST_TIMEOUT_MS = 30 * 1000;
 const PLAYBACK_CACHE_SAFETY_MS = 5 * 1000;
+const FORBIDDEN_HEADERS = new Set(['cookie', 'host', 'origin', 'referer', 'user-agent', 'content-length', 'connection']);
 const isRefreshRequest = (value) => value === true || value === 1 || value === '1' || value === 'url' || value === 'decode';
 const providerCache = () => { try { return globalThis.localStorage || null; } catch { return null; } };
+
 const requestDeadline = (signal) => {
-  const controller = new AbortController(); let timedOut = false;
+  const controller = new AbortController();
+  let timedOut = false;
   const relayAbort = () => controller.abort(signal?.reason);
-  if (signal?.aborted) relayAbort(); else signal?.addEventListener('abort', relayAbort, { once: true });
+  if (signal?.aborted) relayAbort();
+  else signal?.addEventListener('abort', relayAbort, { once: true });
   const timer = globalThis.setTimeout(() => { timedOut = true; controller.abort(); }, PROVIDER_REQUEST_TIMEOUT_MS);
   return {
     signal: controller.signal,
     timedOut: () => timedOut,
-    clear: () => { globalThis.clearTimeout(timer); signal?.removeEventListener('abort', relayAbort); },
+    clear: () => {
+      globalThis.clearTimeout(timer);
+      signal?.removeEventListener('abort', relayAbort);
+    },
   };
 };
+
 const waitForSignal = (promise, signal) => {
   if (!signal) return promise;
   if (signal.aborted) return Promise.reject(signal.reason || new DOMException('Aborted', 'AbortError'));
@@ -36,17 +49,104 @@ const waitForSignal = (promise, signal) => {
   });
 };
 
-const throwProviderError = async (response) => {
-  if (response.status !== 401 && response.status !== 403) return response;
+const providerError = async (response) => {
+  if (response.ok) return response;
   const data = await response.clone().json().catch(() => ({}));
-  const error = new Error(data.error?.message || data.error || 'Provider 没有访问权限');
+  const detail = data.error && typeof data.error === 'object' ? data.error : null;
+  const error = new Error(detail?.message || data.error || `Provider 请求失败（${response.status}）`);
   error.status = response.status;
-  error.code = 'provider_access_denied';
+  error.code = detail?.code || (response.status === 401 || response.status === 403 ? 'provider_access_denied' : 'provider_request_failed');
   throw error;
 };
 
+export function normalizeProviderConnection(value) {
+  const input = typeof value === 'string' ? JSON.parse(value) : value;
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Provider 配置必须是 JSON 对象');
+  const url = new URL(String(input.url || '').trim());
+  if (url.protocol !== 'https:') throw new Error('Provider 必须使用 HTTPS');
+  if (url.username || url.password) throw new Error('Provider URL 不允许包含用户名或密码');
+  url.hash = '';
+
+  const headers = {};
+  if (input.headers !== undefined && (!input.headers || typeof input.headers !== 'object' || Array.isArray(input.headers))) throw new Error('headers 必须是 JSON 对象');
+  for (const [rawName, rawValue] of Object.entries(input.headers || {})) {
+    const name = String(rawName).trim();
+    const lower = name.toLowerCase();
+    if (!/^[A-Za-z][A-Za-z0-9-]{0,63}$/.test(name) || FORBIDDEN_HEADERS.has(lower) || lower.startsWith('sec-') || lower.startsWith('proxy-')) throw new Error(`不支持请求头 ${name}`);
+    const headerValue = String(rawValue);
+    if (headerValue.length > 2048 || /[\r\n]/.test(headerValue)) throw new Error(`请求头 ${name} 的值不合法`);
+    headers[name] = headerValue;
+  }
+  if (Object.keys(headers).length > 20) throw new Error('自定义请求头不能超过 20 个');
+
+  const credentials = input.credentials || 'omit';
+  if (!['omit', 'same-origin', 'include'].includes(credentials)) throw new Error('credentials 仅支持 omit、same-origin 或 include');
+  return { url: url.href, headers, credentials };
+}
+
+const connectionOptions = (connection, signal, extra = {}) => ({
+  credentials: connection.credentials,
+  redirect: 'error',
+  signal,
+  ...extra,
+  headers: { accept: 'application/json', ...connection.headers, ...(extra.headers || {}) },
+});
+
+const applyConnectionQuery = (target, connection) => {
+  const configured = new URL(connection.url);
+  configured.searchParams.forEach((value, key) => {
+    if (!target.searchParams.has(key)) target.searchParams.append(key, value);
+  });
+  return target;
+};
+
+const checkedEndpoint = (value, connection) => {
+  const endpoint = new URL(String(value || ''));
+  const provider = new URL(connection.url);
+  if (endpoint.protocol !== 'https:' || endpoint.origin !== provider.origin) throw new Error('Provider 端点必须与连接地址同源并使用 HTTPS');
+  if (endpoint.username || endpoint.password) throw new Error('Provider 端点不允许包含用户名或密码');
+  return endpoint;
+};
+
+const validatePresentation = (value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) throw new Error('presentation 必须是对象');
+  const text = (input, max) => input === undefined || input === null ? '' : String(input).slice(0, max);
+  const tone = ['neutral', 'positive', 'warning', 'negative'].includes(value.badge?.tone) ? value.badge.tone : 'neutral';
+  const items = Array.isArray(value.items)
+    ? value.items.slice(0, 12).map((item) => ({ label: text(item?.label, 60), value: text(item?.value, 200) })).filter((item) => item.label || item.value)
+    : [];
+  const presentation = {
+    title: text(value.title, 80),
+    badge: value.badge?.text ? { text: text(value.badge.text, 40), tone } : null,
+    description: text(value.description, 300),
+    items,
+    notice: text(value.notice, 300),
+  };
+  return presentation.title || presentation.badge || presentation.description || presentation.items.length || presentation.notice ? presentation : null;
+};
+
+export async function discoverProvider(connectionInput, signal) {
+  const connection = normalizeProviderConnection(connectionInput);
+  const base = new URL(connection.url);
+  const target = new URL('/.well-known/music-provider.json', base.origin);
+  applyConnectionQuery(target, connection);
+  const response = await fetch(target, connectionOptions(connection, signal, { cache: 'no-store' }));
+  await providerError(response);
+  const manifest = await response.json();
+  if (manifest.protocol !== 'music-provider' || manifest.protocolVersion !== '1.0') throw new Error('Provider 不支持 Music Provider Protocol 1.0');
+  if (!manifest.provider?.id || !manifest.provider?.name || !manifest.endpoints || !Array.isArray(manifest.capabilities)) throw new Error('Provider 协议声明不完整');
+  for (const endpoint of Object.values(manifest.endpoints).filter((item) => typeof item === 'string')) checkedEndpoint(endpoint.replace(/\{[^}]+\}/g, 'resource'), connection);
+  return { connection, manifest: { ...manifest, presentation: validatePresentation(manifest.presentation) } };
+}
+
 export default class ProviderClient {
-  constructor(config, onStatusChange) { this.config = config; this.onStatusChange = onStatusChange; this.access = null; this.pending = null; }
+  constructor(config, onStatusChange) {
+    this.config = config;
+    this.onStatusChange = onStatusChange;
+    this.access = null;
+    this.pending = null;
+  }
 
   cacheKey(kind, params) {
     if (!['resolve', 'lyrics', 'artwork'].includes(kind) || !params.songId) return '';
@@ -71,14 +171,15 @@ export default class ProviderClient {
       const expiresAt = Number(entry?.expiresAt);
       const expiring = Number.isFinite(expiresAt) && expiresAt > 0;
       if (!entry || (expiring && expiresAt <= Date.now())) { storage.removeItem(key); return null; }
-      const body = { ...entry.body };
-      if (entry.kind === 'resolve' && body.url) {
+      const responseBody = { ...entry.body };
+      if (entry.kind === 'resolve' && responseBody.url) {
         if (!expiring) { storage.removeItem(key); return null; }
-        body.expiresIn = Math.max(1, Math.floor((expiresAt - Date.now()) / 1000));
+        responseBody.expiresIn = Math.max(1, Math.floor((expiresAt - Date.now()) / 1000));
       } else if (entry.kind === 'resolve') {
-        storage.removeItem(key); return null;
+        storage.removeItem(key);
+        return null;
       }
-      return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json', 'x-luri-cache': 'local' } });
+      return new Response(JSON.stringify(responseBody), { status: 200, headers: { 'content-type': 'application/json', 'x-luri-cache': 'local' } });
     } catch { return null; }
   }
 
@@ -87,17 +188,17 @@ export default class ProviderClient {
     response.clone().json().then((payload) => {
       const useful = kind === 'resolve' ? payload.url : kind === 'artwork' ? payload.url : payload.lyrics || payload.translation;
       if (!useful) return;
-      const now = Date.now();
-      let expiresAt = now + 3600 * 1000;
+      const current = Date.now();
+      let expiresAt = current + 3600 * 1000;
       if (kind === 'resolve') {
         const reportedExpiry = Date.parse(payload.expiresAt || '');
         const reportedTtl = Number(payload.expiresIn);
         if (Number.isFinite(reportedExpiry)) {
           expiresAt = reportedExpiry - PLAYBACK_CACHE_SAFETY_MS;
-          if (expiresAt <= now) return;
+          if (expiresAt <= current) return;
         } else if (Number.isFinite(reportedTtl) && reportedTtl > 0) {
-          expiresAt = now + reportedTtl * 1000 - PLAYBACK_CACHE_SAFETY_MS;
-          if (expiresAt <= now) return;
+          expiresAt = current + reportedTtl * 1000 - PLAYBACK_CACHE_SAFETY_MS;
+          if (expiresAt <= current) return;
         } else return;
       }
       try { providerCache()?.setItem(key, JSON.stringify({ kind, expiresAt, body: payload })); } catch { /* Local storage may be unavailable. */ }
@@ -109,11 +210,42 @@ export default class ProviderClient {
     if (!this.pending) {
       const deadline = requestDeadline();
       this.pending = api(`providers/${this.config.id}/token`, { method: 'POST', body: '{}', signal: deadline.signal })
-        .then((data) => { if (this.config.status !== (data.account?.status || 'active')) this.onStatusChange?.(); const access = { token: data.accessToken || '', authorization: data.authorization || null, endpoints: data.endpoints, capabilities: Array.isArray(data.capabilities) ? data.capabilities : [], expiresAt: Date.now() + Math.max(30, Number(data.expiresIn) || 900) * 1000 }; this.access = access; return access; })
-        .catch((error) => { if (!deadline.timedOut()) throw error; const timeout = new Error('Provider 授权请求超时（60 秒）'); timeout.code = 'provider_timeout'; timeout.status = 504; throw timeout; })
+        .then(async (stored) => {
+          if (stored.connection) {
+            const discovered = await discoverProvider(stored.connection, deadline.signal);
+            const access = {
+              connection: discovered.connection,
+              endpoints: discovered.manifest.endpoints,
+              capabilities: discovered.manifest.capabilities,
+              presentation: discovered.manifest.presentation,
+              expiresAt: Date.now() + 3600 * 1000,
+            };
+            this.access = access;
+            return access;
+          }
+          const headers = {};
+          if (stored.authorization?.header) headers[stored.authorization.header] = `${stored.authorization.prefix || ''}${stored.accessToken || ''}`;
+          else if (stored.accessToken) headers.Authorization = `Bearer ${stored.accessToken}`;
+          const access = {
+            connection: normalizeProviderConnection({ url: this.config.providerUrl, headers, credentials: 'omit' }),
+            endpoints: stored.endpoints,
+            capabilities: stored.capabilities || [],
+            presentation: validatePresentation(stored.account?.presentation),
+            expiresAt: Date.now() + Math.max(30, Number(stored.expiresIn) || 900) * 1000,
+          };
+          this.access = access;
+          return access;
+        })
+        .catch((error) => {
+          if (!deadline.timedOut()) throw error;
+          const timeout = new Error('Provider 配置请求超时（30 秒）');
+          timeout.code = 'provider_timeout';
+          timeout.status = 504;
+          throw timeout;
+        })
         .finally(() => { deadline.clear(); this.pending = null; });
     }
-    this.access = await waitForSignal(this.pending, signal); return this.access;
+    return waitForSignal(this.pending, signal);
   }
 
   async request(kind, params = {}, signal) {
@@ -122,26 +254,37 @@ export default class ProviderClient {
     if (cached) return cached;
     const deadline = requestDeadline(signal);
     try {
-      const access = await this.authorization(deadline.signal); const endpoints = access.endpoints || {}; let target; const headers = { accept: 'application/json' };
-      const endpoint = endpoints[kind] || '';
-      if (!endpoint) return new Response(JSON.stringify({ error: `当前 Provider 不支持 ${kind} 能力` }), { status: 501, headers: { 'content-type': 'application/json' } });
-      if (access.authorization?.header) headers[access.authorization.header] = `${access.authorization.prefix || ''}${access.token}`;
-      else if (access.token) headers.authorization = `Bearer ${access.token}`;
-      let options = { signal: deadline.signal, headers, ...(['lyrics', 'search'].includes(kind) ? { cache: 'no-store' } : {}) };
-      if (kind === 'search' || kind === 'random' || kind === 'charts') { target = new URL(endpoint); Object.entries(params).forEach(([key, value]) => value !== undefined && value !== '' && target.searchParams.set(key, String(value))); }
-      else if (kind === 'resolve') { target = new URL(endpoints.resolve); options = { ...options, method: 'POST', headers: { ...options.headers, 'content-type': 'application/json' }, body: JSON.stringify(params) }; }
-      else {
-        target = new URL(endpoints[kind].replace(/\{(?:songId|id)\}/, encodeURIComponent(params.songId || '')));
-        Object.entries(params).filter(([key]) => key !== 'songId').forEach(([key, value]) => value !== undefined && target.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value)));
+      const access = await this.authorization(deadline.signal);
+      const endpoint = access.endpoints?.[kind];
+      if (!endpoint) return new Response(JSON.stringify({ error: { code: 'not_supported', message: `当前 Provider 不支持 ${kind} 能力` } }), { status: 501, headers: { 'content-type': 'application/json' } });
+      const target = applyConnectionQuery(checkedEndpoint(endpoint.replace(/\{(?:songId|id)\}/, encodeURIComponent(params.songId || '')), access.connection), access.connection);
+      let options = connectionOptions(access.connection, deadline.signal, ['lyrics', 'search'].includes(kind) ? { cache: 'no-store' } : {});
+
+      if (kind === 'search' || kind === 'random' || kind === 'charts') {
+        Object.entries(params).forEach(([key, value]) => value !== undefined && value !== '' && target.searchParams.set(key, String(value)));
+      } else if (kind === 'resolve') {
+        options = connectionOptions(access.connection, deadline.signal, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(params),
+        });
+      } else {
+        Object.entries(params)
+          .filter(([key]) => key !== 'songId')
+          .forEach(([key, value]) => value !== undefined && target.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value)));
       }
-      let response = await fetch(target, options);
-      if (response.status === 401) { this.access = null; const renewed = await this.authorization(deadline.signal); delete options.headers.authorization; if (renewed.authorization?.header) options.headers[renewed.authorization.header] = `${renewed.authorization.prefix || ''}${renewed.token}`; else if (renewed.token) options.headers.authorization = `Bearer ${renewed.token}`; response = await fetch(target, options); }
-      response = await throwProviderError(response);
+
+      const response = await providerError(await fetch(target, options));
       this.rememberResponse(cacheKey, kind, response);
       return response;
     } catch (error) {
       if (!deadline.timedOut()) throw error;
-      const timeout = new Error('Provider 请求超时（60 秒）'); timeout.code = 'provider_timeout'; timeout.status = 504; throw timeout;
-    } finally { deadline.clear(); }
+      const timeout = new Error('Provider 请求超时（30 秒）');
+      timeout.code = 'provider_timeout';
+      timeout.status = 504;
+      throw timeout;
+    } finally {
+      deadline.clear();
+    }
   }
 }

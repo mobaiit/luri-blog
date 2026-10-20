@@ -1,23 +1,31 @@
-# Provider 认证
+# 连接配置
 
-LURI MUSIC 1.x 支持 `none`、`api_key`、`activation_code` 和 `bearer_token`。`none` 与 `api_key` 是直接连接方式，Authorization 是 `api_key` 模式下的标准请求头配置；`activation_code` 用于首次领取独立授权，领取后内容接口使用短期 `bearer_token`。Bearer token 不是用户需要再次填写的连接凭证。
+连接配置描述客户端如何发送 Provider 请求。它不是 Provider 发现文件的一部分，也不表达任何业务身份或验证流程。
 
-## 无认证
+```json
+{
+  "url": "https://provider.example?key=opaque-value",
+  "headers": {
+    "Authorization": "Bearer opaque-value",
+    "X-Provider-Key": "opaque-value"
+  },
+  "credentials": "include"
+}
+```
 
-Provider 在 `authentication.types` 中声明 `none`。客户端不会发送认证请求头。
+仅 `url` 必填。`headers` 默认为空对象；`credentials` 可为 `omit`、`same-origin` 或 `include`，默认 `omit`。
 
-## API Key 与 Authorization
+客户端必须：
 
-Provider 在 `authentication.types` 中声明 `api_key`。用户可以选择 API Key 或 Authorization，并配置请求头与前缀。推荐由 Provider 通过 `authentication.apiKey.header` 和 `authentication.apiKey.prefix` 声明默认值；客户端不得使用 Cookie、Host、Origin、Referer 等受限请求头，也不得在 URL 中传输凭证。
+- 将 `url` 视为不透明的 HTTPS 地址，保留其路径和查询参数；
+- 将配置的静态 Header 附加到发现请求和所有协议请求；
+- 将 `credentials` 原样传给 Fetch API；
+- 在所有请求中保留连接 URL 自带的查询参数；
+- 不解析、不转换、不刷新任何配置值；
+- 不允许配置浏览器禁止脚本设置的 Header，例如 `Cookie`、`Host`、`Origin`、`Referer` 和 `User-Agent`。
 
-## 激活码
+Cookie 只能由浏览器管理。`credentials: "include"` 表示允许浏览器按自身策略携带 Provider 已设置的 Cookie，并不允许客户端手工构造 `Cookie` Header。
 
-`POST /v1/auth/activate` 接收 `activationCode`、`idempotencyKey` 和 `clientAccount`。其中 `clientAccount.id`、`clientAccount.email` 必填，供 Provider 后台记录兑换用户。首次成功请求创建独立授权，将激活码标记为已使用，并返回短期 `accessToken`、长期 `refreshToken`、过期时间和账号摘要。
+Provider 可以使用 URL、Header、Cookie 或其任意组合作为服务端验证依据。验证规则完全由 Provider 决定，不属于本协议。
 
-- 相同激活码和相同 `idempotencyKey` 的重试属于同一次激活，Provider 重新签发凭证。
-- 已使用激活码配合新的 `idempotencyKey` 返回 `409 activation_code_used`。
-- `clientAccount` 仅供 Provider 后台展示和审计，不是可验证的用户身份凭证。
-
-`POST /v1/auth/refresh` 使用 refresh token 获取短期 access token。`POST /v1/auth/revoke` 撤销当前账号级凭证。`GET /v1/account` 返回权限状态与有效期。Provider 声明激活码认证时，应在发现文件中同时声明实际支持的 `activate`、`refresh`、`revoke` 和 `account` 端点。
-
-Access token 建议 15 分钟内有效；refresh token 必须使用高熵随机值，Provider 只保存摘要。LURI MUSIC 服务端使用 AES-GCM 加密保存长期凭证并关联当前登录用户，浏览器只取得完成当前 Provider 请求所需的短期凭证。激活码明文不得持久化。
+高级 JSON 配置必须符合上述结构，不允许脚本、动态表达式、请求钩子或自定义签名代码。需要动态签名的服务应在 Provider 服务端完成签名，并向客户端暴露普通的 MPP 入口。

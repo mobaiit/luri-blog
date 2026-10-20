@@ -12,7 +12,7 @@ songId = lowercaseHex(MD5(UTF8(JSON.stringify([String(title || ''), String(artis
 - 计算前不得 trim、折叠或替换空格，不得转换大小写，也不得执行 Unicode 归一化。
 - JSON 必须是无额外空格的两元素数组，顺序固定为 `[title, artist]`。
 - MD5 输入是该 JSON 字符串的 UTF-8 字节，输出必须是 32 位小写十六进制字符串。
-- 搜索、随机推荐和榜单返回的每个 Track 都必须提供符合该规则的 `id`。不符合规则的 Provider 不兼容本协议。
+- 搜索、随机推荐和榜单返回的每个 Track 都必须提供符合该规则的 `songId`。不符合规则的 Provider 不兼容本协议。
 
 例如：
 

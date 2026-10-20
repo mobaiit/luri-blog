@@ -9,11 +9,6 @@ const manifestExample = `{
     "name": "Example Library",
     "homepage": "https://provider.example.com"
   },
-  "authentication": {
-    "types": ["none", "api_key", "activation_code", "bearer_token"],
-    "apiKey": { "header": "X-API-Key", "prefix": "" },
-    "accessTokenSeconds": 900
-  },
   "capabilities": ["search", "random", "charts", "lyrics", "artwork", "playback", "qualities"],
   "playback": {
     "mode": "direct",
@@ -22,17 +17,27 @@ const manifestExample = `{
   "endpoints": {
     "terms": "https://provider.example.com/terms",
     "privacy": "https://provider.example.com/privacy",
-    "activate": "https://provider.example.com/v1/auth/activate",
-    "refresh": "https://provider.example.com/v1/auth/refresh",
-    "revoke": "https://provider.example.com/v1/auth/revoke",
-    "account": "https://provider.example.com/v1/account",
     "search": "https://provider.example.com/v1/catalog/search",
     "random": "https://provider.example.com/v1/catalog/random",
     "charts": "https://provider.example.com/v1/catalog/charts",
     "resolve": "https://provider.example.com/v1/tracks/resolve",
     "lyrics": "https://provider.example.com/v1/tracks/{songId}/lyrics",
     "artwork": "https://provider.example.com/v1/tracks/{songId}/artwork"
+  },
+  "presentation": {
+    "title": "服务状态",
+    "badge": { "text": "可用", "tone": "positive" },
+    "items": [{ "label": "有效时间", "value": "2027年10月20日" }]
   }
+}`;
+
+const connectionExample = `{
+  "url": "https://provider.example.com?key=opaque-value",
+  "headers": {
+    "Authorization": "Bearer opaque-value",
+    "X-Provider-Key": "opaque-value"
+  },
+  "credentials": "include"
 }`;
 
 const trackExample = `{
@@ -120,7 +125,7 @@ const nav = [
   ['troubleshooting', '常见问题', 'user'],
   ['protocol', '协议概览', 'developer'],
   ['discovery', '服务发现', 'developer'],
-  ['authentication', '认证协议', 'developer'],
+  ['authentication', '连接配置', 'developer'],
   ['track-model', 'Track 与 Binding', 'developer'],
   ['catalog', '目录接口', 'developer'],
   ['resources', '单曲接口', 'developer'],
@@ -181,8 +186,8 @@ export default function Docs() {
           <ol>
             <li>注册并登录 LURI MUSIC。</li>
             <li>从账户菜单打开“Provider 配置”，点击“添加 Provider”。</li>
-            <li>选择连接方式，填写 Provider 根地址和所需凭证。</li>
-            <li>点击“验证并添加”。只有发现文件、协议版本、端点和凭证全部验证成功后才会保存。</li>
+            <li>选择官方源或第三方 Provider，填写完整 URL；需要 Header 或 Cookie 时使用高级 JSON。</li>
+            <li>点击“验证并添加”。客户端会按连接配置读取发现文件并校验协议版本和端点。</li>
             <li>启用 Provider，进入播放器使用其已声明的搜索、榜单、播放、歌词和封面能力。</li>
           </ol>
           <div className="docs-note"><b>连接前检查</b><span>请确认 Provider 的运营主体、服务条款、隐私政策和内容授权范围。兼容本协议只代表接口格式正确，不代表 LURI MUSIC 对服务或内容进行审核、推荐或授权。</span></div>
@@ -190,14 +195,13 @@ export default function Docs() {
 
         <section id="connections">
           <h2>连接方式</h2>
-          <p>同一账号可以保存多个 Provider，但同一时间只启用一个。Provider 地址填写服务根地址，例如 <code>https://provider.example.com</code>，不要填写具体搜索或播放接口。</p>
+          <p>同一账号可以保存多个 Provider，但同一时间只启用一个。官方源与第三方 Provider 使用完全相同的协议，区别只在于连接配置由系统预置还是由用户提供。</p>
           <div className="docs-cards">
-            <article><i>01</i><h3>官方源</h3><p>连接符合协议的正式 Provider，认证方式以发现文件声明为准。</p><code>none / api_key</code></article>
-            <article><i>02</i><h3>HTTPS 私有源</h3><p>连接自建或私有服务，可配置 API Key、Authorization 请求头和前缀。</p><code>none / api_key</code></article>
-            <article><i>03</i><h3>激活码</h3><p>使用 Provider 签发的一次性激活码领取独立授权。</p><code>activation_code</code></article>
+            <article><i>01</i><h3>官方源</h3><p>由系统提供的标准 Provider 连接配置。</p><code>预置配置</code></article>
+            <article><i>02</i><h3>第三方 Provider</h3><p>通过完整 URL 或高级 JSON 连接用户选择的独立服务。</p><code>url / headers / credentials</code></article>
           </div>
-          <p>编辑已有配置时会先验证新地址和凭证，失败不会覆盖原配置。删除配置会永久移除 LURI MUSIC 加密保存的连接凭证；已兑换的激活码不能再次使用。</p>
-          <div className="docs-note"><b>凭证安全</b><span>API Key、Authorization 凭证和 refresh token 由 LURI MUSIC 服务端加密保存，不会写入浏览器存储或 Provider URL。</span></div>
+          <p>编辑已有配置时会先验证新连接，失败不会覆盖原配置。删除配置会永久移除 LURI MUSIC 加密保存的连接信息。</p>
+          <div className="docs-note"><b>配置安全</b><span>完整 URL 和 Header 可能包含敏感值。列表只显示隐藏查询参数后的地址，保存时会加密完整连接配置。</span></div>
         </section>
 
         <section id="data">
@@ -238,7 +242,7 @@ export default function Docs() {
 
         <section id="discovery">
           <h2>服务发现</h2>
-          <Endpoint method="GET" path="/.well-known/music-provider.json">公开返回 Provider 身份、协议版本、认证方式、能力、播放配置和端点。必须直接返回 HTTP 200 与 application/json。</Endpoint>
+          <Endpoint method="GET" path="/.well-known/music-provider.json">返回 Provider 身份、协议版本、能力、播放配置、端点以及可选展示区块。请求必须应用当前连接配置。</Endpoint>
           <Code>{manifestExample}</Code>
           <SchemaTable title="发现文件字段" rows={[
             ['protocol', 'string', '是', '固定为 music-provider。'],
@@ -246,7 +250,6 @@ export default function Docs() {
             ['provider.id', 'string', '是', '全局稳定的 Provider 标识。'],
             ['provider.name', 'string', '是', '面向用户展示的 Provider 名称。'],
             ['provider.homepage', 'HTTPS URL', '否', 'Provider 官网或运营主体页面。'],
-            ['authentication.types', 'string[]', '是', 'none、api_key、activation_code、bearer_token 的受支持组合。'],
             ['capabilities', 'string[]', '是', 'search、random、charts、lyrics、artwork、playback、qualities 中已实现的能力。'],
             ['playback.mode', 'direct', '条件', '声明 playback 时必填；resolve 返回浏览器可尝试播放的 URL。'],
             ['playback.qualities', 'string[]', '否', '声明 qualities 时给出可请求的音质标识。'],
@@ -258,36 +261,29 @@ export default function Docs() {
             ['endpoints.resolve', 'HTTPS URL', '条件', '声明 playback 时必填。'],
             ['endpoints.lyrics', 'URL template', '条件', '声明 lyrics 时必填，使用 {songId} 占位符。'],
             ['endpoints.artwork', 'URL template', '条件', '声明 artwork 时必填，使用 {songId} 占位符。'],
-            ['endpoints.activate', 'HTTPS URL', '条件', '声明 activation_code 时必填。'],
-            ['endpoints.refresh', 'HTTPS URL', '条件', '激活码授权需要刷新令牌时必填。'],
-            ['endpoints.revoke', 'HTTPS URL', '条件', '激活码授权支持撤销时必填。'],
-            ['endpoints.account', 'HTTPS URL', '否', '查询授权状态和有效期。'],
+            ['presentation', 'object', '否', '纯文本固定展示区块；不存在时客户端隐藏。'],
           ]} />
+          <SchemaTable title="presentation 固定展示字段" rows={[
+            ['title', 'string', '否', '展示区块标题。'],
+            ['badge.text', 'string', '否', '状态标签文字。'],
+            ['badge.tone', 'string', '否', 'neutral、positive、warning 或 negative，仅控制视觉样式。'],
+            ['description', 'string', '否', '辅助说明。'],
+            ['items', 'array', '否', '最多 12 个 label/value 纯文本键值项，按返回顺序展示。'],
+            ['notice', 'string', '否', '底部提示。'],
+          ]} />
+          <div className="docs-note"><b>仅用于展示</b><span>客户端不解析 presentation 内容、不计算日期，也不据此判断能力或访问权限；没有值的字段隐藏，整个对象不存在时不渲染展示区块。</span></div>
         </section>
 
         <section id="authentication">
-          <h2>认证协议</h2>
-          <p><code>none</code> 和 <code>api_key</code> 是直接访问方式；Authorization 作为 API Key 模式下的标准请求头配置。<code>activation_code</code> 用于首次领取授权，领取后内容接口使用短期 <code>bearer_token</code>。Bearer token 不是用户再次填写的连接凭证。</p>
-          <Endpoint method="POST" path="/v1/auth/activate">使用一次性激活码和幂等键领取短期 accessToken 与长期 refreshToken。</Endpoint>
-          <SchemaTable title="激活请求" rows={[
-            ['activationCode', 'string', '是', 'Provider 签发且尚未使用的激活码。'],
-            ['idempotencyKey', 'string', '是', '同一次操作重试必须复用，最长 100 字符。'],
-            ['clientAccount', 'object', '是', '供 Provider 审计的客户端账号摘要，不是身份凭证。'],
-            ['clientAccount.id', 'string', '是', '客户端账号内部标识。'],
-            ['clientAccount.name', 'string', '否', '客户端账号显示名称。'],
-            ['clientAccount.email', 'string', '是', '客户端账号邮箱。'],
+          <h2>连接配置</h2>
+          <p>客户端不理解 Provider 的验证方式，只按声明式配置发送请求。Provider 可以自行验证 URL 参数、静态 Header、浏览器 Cookie 或其组合。</p>
+          <Code>{connectionExample}</Code>
+          <SchemaTable title="连接配置" rows={[
+            ['url', 'HTTPS URL', '是', '完整 Provider 地址，路径和查询参数原样保留。'],
+            ['headers', 'object', '否', '附加到发现和协议请求的静态 Header。'],
+            ['credentials', 'string', '否', 'omit、same-origin 或 include；默认 omit。'],
           ]} />
-          <SchemaTable title="激活响应" rows={[
-            ['accessToken', 'string', '是', '调用内容接口的短期 Bearer token。'],
-            ['refreshToken', 'string', '是', '换取新 accessToken 的长期凭证。'],
-            ['expiresIn', 'integer', '是', 'accessToken 有效秒数，建议 300–3600。'],
-            ['refreshExpiresAt', 'ISO 8601 string', '否', 'refreshToken 或授权到期时间。'],
-            ['account', 'object', '否', '授权状态与有效期摘要。'],
-          ]} />
-          <Endpoint method="POST" path="/v1/auth/refresh">请求体传 refreshToken，返回新的 accessToken 与 expiresIn。</Endpoint>
-          <Endpoint method="POST" path="/v1/auth/revoke">撤销当前账号级授权或刷新凭证。</Endpoint>
-          <Endpoint method="GET" path="/v1/account">使用当前 accessToken 查询 status 与 expiresAt。</Endpoint>
-          <div className="docs-note"><b>激活幂等性</b><span>相同激活码与相同 idempotencyKey 的重试属于同一次操作；已使用激活码配合新的 idempotencyKey 必须返回 409 activation_code_used。</span></div>
+          <div className="docs-note"><b>职责边界</b><span>客户端不解析、不转换、不刷新配置值。Cookie 由浏览器管理，服务端如何验证请求不属于协议范围。</span></div>
         </section>
 
         <section id="track-model">
@@ -381,15 +377,16 @@ export default function Docs() {
         <section id="methods">
           <h2>HTTP 方法与跨域</h2>
           <SimpleTable rows={[
-            ['GET', '发现、health、terms、privacy、account、search、random、charts、lyrics、artwork。'],
-            ['POST', 'activate、refresh、revoke、resolve。'],
+            ['GET', '发现、health、terms、privacy、search、random、charts、lyrics、artwork。'],
+            ['POST', 'resolve。'],
             ['OPTIONS', '仅用于 CORS 预检，不得执行端点业务逻辑。'],
             ['其他方法', '已知端点必须返回 405、Allow 响应头和 method_not_allowed 错误。'],
           ]} />
           <p>浏览器直接访问 Provider。Provider 必须允许已登记的 LURI MUSIC Origin、实际使用的认证请求头以及 GET、POST、OPTIONS。音频和图片资源也应支持 HTTPS、跨域访问；音频地址建议支持 Range 请求。</p>
           <Code>{`Access-Control-Allow-Origin: https://luri.cc.cd
 Access-Control-Allow-Methods: GET, POST, OPTIONS
-Access-Control-Allow-Headers: Content-Type, Authorization
+Access-Control-Allow-Headers: Content-Type, Authorization, X-Provider-Key
+Access-Control-Allow-Credentials: true
 Access-Control-Max-Age: 86400`}</Code>
         </section>
 
@@ -404,11 +401,9 @@ Access-Control-Max-Age: 86400`}</Code>
 }`}</Code>
           <SimpleTable rows={[
             ['400', 'invalid_request / invalid_song_id：字段缺失、Binding 不合法或 songId 校验失败。'],
-            ['401', 'unauthorized / invalid_grant：凭证无效、过期或已撤销。'],
-            ['403', 'forbidden / entitlement_inactive：凭证有效但没有当前权限。'],
+            ['401 / 403', 'access_denied：Provider 拒绝当前请求。'],
             ['404', 'not_found：端点或协议资源不存在。'],
             ['405', 'method_not_allowed：HTTP 方法不符合端点定义，同时返回 Allow。'],
-            ['409', 'activation_code_used：激活状态或幂等操作冲突。'],
             ['429', 'rate_limited：请求或强制刷新频率超限。'],
             ['502', 'upstream_unavailable：Provider 上游暂时不可用。'],
             ['504', 'provider_timeout：Provider 请求超过客户端 30 秒期限。'],
@@ -418,10 +413,10 @@ Access-Control-Max-Age: 86400`}</Code>
         <section id="security">
           <h2>安全与合规</h2>
           <ul>
-            <li>API Key、Authorization、激活码、access token 和 refresh token 不得出现在 URL 查询参数或日志中。</li>
-            <li>refresh token 必须高熵、可撤销、可轮换；数据库只保存其摘要。</li>
+            <li>完整 URL、Header 值和 Cookie 可能包含敏感信息，不得写入日志、分析数据或界面摘要。</li>
+            <li>客户端允许 URL 携带不透明查询参数，但不得解析、修改或向其他来源转发。</li>
             <li>播放 URL 应短期有效，不得暴露上游长期凭证；日志不得记录完整播放 URL。</li>
-            <li>发现文件中的端点必须与 Provider 根地址同源，客户端拒绝重定向和带账号密码的 URL。</li>
+            <li>发现文件中的端点必须与 Provider 连接地址同源，客户端拒绝重定向和带账号密码的 URL。</li>
             <li>Provider 应公开服务条款、隐私政策、运营主体、联系方式和权利投诉渠道。</li>
             <li>只可提供自有、已获授权、开放许可或用户依法有权访问的内容，不得绕过访问控制或数字版权保护措施。</li>
           </ul>

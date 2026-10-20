@@ -43,6 +43,67 @@ function checkedEndpoint(value, providerUrl) {
   return endpoint.href;
 }
 
+const FORBIDDEN_HEADERS = new Set(['cookie', 'host', 'origin', 'referer', 'user-agent', 'content-length', 'connection']);
+
+function normalizeConnection(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Provider 连接配置必须是 JSON 对象');
+  const url = new URL(String(value.url || '').trim());
+  if (url.protocol !== 'https:') throw new Error('Provider 必须使用 HTTPS');
+  if (url.username || url.password) throw new Error('Provider URL 不允许包含用户名或密码');
+  url.hash = '';
+  const headers = {};
+  if (value.headers !== undefined && (!value.headers || typeof value.headers !== 'object' || Array.isArray(value.headers))) throw new Error('headers 必须是 JSON 对象');
+  for (const [rawName, rawValue] of Object.entries(value.headers || {})) {
+    const name = String(rawName).trim(); const lower = name.toLowerCase();
+    if (!/^[A-Za-z][A-Za-z0-9-]{0,63}$/.test(name) || FORBIDDEN_HEADERS.has(lower) || lower.startsWith('sec-') || lower.startsWith('proxy-')) throw new Error(`不支持请求头 ${name}`);
+    const headerValue = String(rawValue);
+    if (headerValue.length > 2048 || /[\r\n]/.test(headerValue)) throw new Error(`请求头 ${name} 的值不合法`);
+    headers[name] = headerValue;
+  }
+  if (Object.keys(headers).length > 20) throw new Error('自定义请求头不能超过 20 个');
+  const credentials = value.credentials || 'omit';
+  if (!['omit', 'same-origin', 'include'].includes(credentials)) throw new Error('credentials 仅支持 omit、same-origin 或 include');
+  return { url: url.href, headers, credentials };
+}
+
+function publicProviderUrl(value) {
+  const url = new URL(value); url.search = ''; return url.href.replace(/\/$/, '');
+}
+
+function cleanPresentation(value) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) throw new Error('presentation 必须是对象');
+  const text = (input, max) => input === undefined || input === null ? '' : String(input).slice(0, max);
+  const tone = ['neutral', 'positive', 'warning', 'negative'].includes(value.badge?.tone) ? value.badge.tone : 'neutral';
+  const items = Array.isArray(value.items) ? value.items.slice(0, 12).map((item) => ({ label: text(item?.label, 60), value: text(item?.value, 200) })).filter((item) => item.label || item.value) : [];
+  const result = { title: text(value.title, 80), badge: value.badge?.text ? { text: text(value.badge.text, 40), tone } : null, description: text(value.description, 300), items, notice: text(value.notice, 300) };
+  return result.title || result.badge || result.description || result.items.length || result.notice ? result : null;
+}
+
+function validateManifest(value, connection) {
+  const manifest = value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+  if (!manifest || manifest.protocol !== 'music-provider' || manifest.protocolVersion !== '1.0') throw new Error('Provider 不支持 Music Provider Protocol 1.0');
+  if (!manifest.provider?.id || !manifest.provider?.name || !manifest.endpoints || !Array.isArray(manifest.capabilities)) throw new Error('Provider 协议声明不完整');
+  if (!manifest.endpoints.terms || !manifest.endpoints.privacy) throw new Error('Provider 必须公开服务条款和隐私政策');
+  Object.values(manifest.endpoints).filter((item) => typeof item === 'string').forEach((item) => checkedEndpoint(item.replace(/\{[^}]+\}/g, 'resource'), connection.url));
+  return { ...manifest, presentation: cleanPresentation(manifest.presentation) };
+}
+
+function prepareConnection(data) {
+  const connection = normalizeConnection(data.connection);
+  const manifest = validateManifest(data.manifest, connection);
+  const connectionType = data.connectionType === 'official' ? 'official' : 'third_party';
+  return {
+    providerUrl: publicProviderUrl(connection.url),
+    manifest,
+    connectionType,
+    authType: 'connection',
+    credential: { connection, manifest },
+    account: null,
+    initialAccess: { connection, endpoints: manifest.endpoints, capabilities: manifest.capabilities || [], presentation: manifest.presentation || null },
+  };
+}
+
 async function discover(providerUrl) {
   const response = await providerFetch(`${providerUrl}/.well-known/music-provider.json`, { cache: 'no-store', headers: { accept: 'application/json' } });
   if (!response.ok) throw new Error('无法读取 Provider 协议声明');
@@ -151,7 +212,7 @@ async function prepareCredential(manifest, providerUrl, data, user) {
   return { connectionType, authType, credential: { manifest }, account: null, initialAccess: { accessToken: '', expiresIn: 3600, authorization: null } };
 }
 
-const publicConfig = (row, activeId) => ({ id: row.id, providerId: row.provider_id, providerUrl: row.provider_url, displayName: row.display_name, protocolVersion: row.protocol_version, connectionType: row.connection_type || (row.auth_type === 'none' ? 'private_https' : row.auth_type), authType: row.auth_type, status: row.cached_status, expiresAt: row.cached_expires_at, lastSyncedAt: row.last_synced_at, active: row.id === activeId, createdAt: row.created_at });
+const publicConfig = (row, activeId, presentation = null) => ({ id: row.id, providerId: row.provider_id, providerUrl: row.provider_url, displayName: row.display_name, protocolVersion: row.protocol_version, connectionType: row.auth_type === 'connection' ? (row.connection_type === 'official' ? 'official' : 'third_party') : row.connection_type || 'third_party', status: row.auth_type === 'connection' ? 'configured' : row.cached_status, presentation, lastSyncedAt: row.last_synced_at, active: row.id === activeId, createdAt: row.created_at });
 
 export async function handleProviderRequest(request, env, action, user) {
   if (!user) return json({ error: '请先登录' }, 401);
@@ -161,7 +222,12 @@ export async function handleProviderRequest(request, env, action, user) {
       env.LURI_MUSIC_DB.prepare('SELECT active_provider_config_id,provider_revision,playback_quality FROM luri_music_preferences WHERE user_id=?').bind(user.id).first(),
     ]);
     const playbackQuality = !preference?.playback_quality || preference.playback_quality === 'auto' ? '128k' : preference.playback_quality;
-    return json({ items: configs.results.map((row) => publicConfig(row, preference?.active_provider_config_id)), activeProviderId: preference?.active_provider_config_id || null, revision: preference?.provider_revision || 0, preferences: { playbackQuality } });
+    const items = await Promise.all(configs.results.map(async (row) => {
+      if (row.auth_type !== 'connection') return publicConfig(row, preference?.active_provider_config_id);
+      try { return publicConfig(row, preference?.active_provider_config_id, cleanPresentation((await decryptCredential(row, env)).manifest?.presentation)); }
+      catch { return publicConfig(row, preference?.active_provider_config_id); }
+    }));
+    return json({ items, activeProviderId: preference?.active_provider_config_id || null, revision: preference?.provider_revision || 0, preferences: { playbackQuality } });
   }
 
   if (action === 'providers/discover' && request.method === 'POST') {
@@ -172,16 +238,17 @@ export async function handleProviderRequest(request, env, action, user) {
   if (action === 'providers' && request.method === 'POST') {
     const data = await parseBody(request);
     try {
-      const providerUrl = normalizeProviderUrl(data.providerUrl); const manifest = await discover(providerUrl);
+      const direct = Boolean(data.connection && data.manifest); const prepared = direct ? prepareConnection(data) : null;
+      const providerUrl = direct ? prepared.providerUrl : normalizeProviderUrl(data.providerUrl); const manifest = direct ? prepared.manifest : await discover(providerUrl);
       const duplicate = await env.LURI_MUSIC_DB.prepare('SELECT id FROM luri_music_provider_configs WHERE user_id=? AND provider_url=? AND provider_id=?').bind(user.id, providerUrl, String(manifest.provider.id)).first();
       if (duplicate) return json({ error: '该 Provider 已存在，请编辑现有配置' }, 409);
-      const prepared = await prepareCredential(manifest, providerUrl, data, user); const encrypted = await encryptCredential(prepared.credential, env);
+      const resolved = prepared || await prepareCredential(manifest, providerUrl, data, user); const encrypted = await encryptCredential(resolved.credential, env);
       const configId = id(); const timestamp = now(); const displayName = String(data.displayName || manifest.provider.name || 'Music Provider').trim().slice(0, 60);
       await env.LURI_MUSIC_DB.batch([
-        env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_provider_configs(id,user_id,provider_id,provider_url,display_name,protocol_version,auth_type,connection_type,credential_ciphertext,credential_iv,cached_status,cached_expires_at,last_synced_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(configId, user.id, String(manifest.provider.id), providerUrl, displayName, String(manifest.protocolVersion), prepared.authType, prepared.connectionType, encrypted.ciphertext, encrypted.iv, prepared.account?.status || 'active', prepared.account?.expiresAt || null, timestamp, timestamp, timestamp),
+        env.LURI_MUSIC_DB.prepare('INSERT INTO luri_music_provider_configs(id,user_id,provider_id,provider_url,display_name,protocol_version,auth_type,connection_type,credential_ciphertext,credential_iv,cached_status,cached_expires_at,last_synced_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(configId, user.id, String(manifest.provider.id), providerUrl, displayName, String(manifest.protocolVersion), resolved.authType, resolved.connectionType, encrypted.ciphertext, encrypted.iv, resolved.account?.status || 'configured', resolved.account?.expiresAt || null, timestamp, timestamp, timestamp),
         env.LURI_MUSIC_DB.prepare("INSERT INTO luri_music_preferences(user_id,active_provider_config_id,playback_quality,provider_revision,updated_at) VALUES(?,?,'128k',1,?) ON CONFLICT(user_id) DO UPDATE SET active_provider_config_id=CASE WHEN active_provider_config_id IS NULL THEN excluded.active_provider_config_id ELSE active_provider_config_id END,provider_revision=provider_revision+1,updated_at=excluded.updated_at").bind(user.id, configId, timestamp),
       ]);
-      return json({ config: { id: configId, providerId: manifest.provider.id, providerUrl, displayName, protocolVersion: manifest.protocolVersion, connectionType: prepared.connectionType, authType: prepared.authType, status: prepared.account?.status || 'active', expiresAt: prepared.account?.expiresAt || null }, access: { ...prepared.initialAccess, endpoints: manifest.endpoints, capabilities: manifest.capabilities || [] } }, 201, { 'cache-control': 'no-store' });
+      return json({ config: { id: configId, providerId: manifest.provider.id, providerUrl, displayName, protocolVersion: manifest.protocolVersion, connectionType: resolved.connectionType, status: resolved.account?.status || 'configured', presentation: manifest.presentation || null }, access: { ...resolved.initialAccess, endpoints: manifest.endpoints, capabilities: manifest.capabilities || [] } }, 201, { 'cache-control': 'no-store' });
     } catch (error) { return json({ error: error.message || 'Provider 配置失败' }, error.status || 400); }
   }
 
@@ -193,16 +260,17 @@ export async function handleProviderRequest(request, env, action, user) {
   if (request.method === 'PATCH' && !configMatch[2]) {
     const data = await parseBody(request);
     try {
-      const providerUrl = normalizeProviderUrl(data.providerUrl); const manifest = await discover(providerUrl);
+      const direct = Boolean(data.connection && data.manifest); const prepared = direct ? prepareConnection(data) : null;
+      const providerUrl = direct ? prepared.providerUrl : normalizeProviderUrl(data.providerUrl); const manifest = direct ? prepared.manifest : await discover(providerUrl);
       const duplicate = await env.LURI_MUSIC_DB.prepare('SELECT id FROM luri_music_provider_configs WHERE user_id=? AND provider_url=? AND provider_id=? AND id<>?').bind(user.id, providerUrl, String(manifest.provider.id), config.id).first();
       if (duplicate) return json({ error: '该 Provider 已存在，请编辑对应配置' }, 409);
-      const prepared = await prepareCredential(manifest, providerUrl, data, user); const encrypted = await encryptCredential(prepared.credential, env);
+      const resolved = prepared || await prepareCredential(manifest, providerUrl, data, user); const encrypted = await encryptCredential(resolved.credential, env);
       const timestamp = now(); const displayName = String(data.displayName || manifest.provider.name || 'Music Provider').trim().slice(0, 60);
       await env.LURI_MUSIC_DB.batch([
-        env.LURI_MUSIC_DB.prepare('UPDATE luri_music_provider_configs SET provider_id=?,provider_url=?,display_name=?,protocol_version=?,auth_type=?,connection_type=?,credential_ciphertext=?,credential_iv=?,cached_status=?,cached_expires_at=?,last_synced_at=?,updated_at=? WHERE id=? AND user_id=?').bind(String(manifest.provider.id), providerUrl, displayName, String(manifest.protocolVersion), prepared.authType, prepared.connectionType, encrypted.ciphertext, encrypted.iv, prepared.account?.status || 'active', prepared.account?.expiresAt || null, timestamp, timestamp, config.id, user.id),
+        env.LURI_MUSIC_DB.prepare('UPDATE luri_music_provider_configs SET provider_id=?,provider_url=?,display_name=?,protocol_version=?,auth_type=?,connection_type=?,credential_ciphertext=?,credential_iv=?,cached_status=?,cached_expires_at=?,last_synced_at=?,updated_at=? WHERE id=? AND user_id=?').bind(String(manifest.provider.id), providerUrl, displayName, String(manifest.protocolVersion), resolved.authType, resolved.connectionType, encrypted.ciphertext, encrypted.iv, resolved.account?.status || 'configured', resolved.account?.expiresAt || null, timestamp, timestamp, config.id, user.id),
         env.LURI_MUSIC_DB.prepare('UPDATE luri_music_preferences SET provider_revision=provider_revision+1,updated_at=? WHERE user_id=?').bind(timestamp, user.id),
       ]);
-      return json({ config: { id: config.id, providerId: manifest.provider.id, providerUrl, displayName, protocolVersion: manifest.protocolVersion, connectionType: prepared.connectionType, authType: prepared.authType, status: prepared.account?.status || 'active', expiresAt: prepared.account?.expiresAt || null }, access: { ...prepared.initialAccess, endpoints: manifest.endpoints, capabilities: manifest.capabilities || [] } }, 200, { 'cache-control': 'no-store' });
+      return json({ config: { id: config.id, providerId: manifest.provider.id, providerUrl, displayName, protocolVersion: manifest.protocolVersion, connectionType: resolved.connectionType, status: resolved.account?.status || 'configured', presentation: manifest.presentation || null }, access: { ...resolved.initialAccess, endpoints: manifest.endpoints, capabilities: manifest.capabilities || [] } }, 200, { 'cache-control': 'no-store' });
     } catch (error) { return json({ error: error.message || 'Provider 更新失败' }, error.status || 400); }
   }
 
@@ -220,7 +288,9 @@ export async function handleProviderRequest(request, env, action, user) {
   }
   if (configMatch[2] === 'token' && request.method === 'POST') {
     try {
-      const credential = await decryptCredential(config, env); const manifestRefresh = refreshManifest(config, credential); const authType = config.auth_type || 'none'; let accessToken = ''; let expiresIn = 900; let authorization = null; let account = null;
+      const credential = await decryptCredential(config, env); const authType = config.auth_type || 'none';
+      if (authType === 'connection') return json({ connection: credential.connection, endpoints: credential.manifest?.endpoints || {}, capabilities: credential.manifest?.capabilities || [], presentation: cleanPresentation(credential.manifest?.presentation) }, 200, { 'cache-control': 'no-store' });
+      const manifestRefresh = refreshManifest(config, credential); let accessToken = ''; let expiresIn = 900; let authorization = null; let account = null;
       if (authType === 'activation_code') {
         const response = await providerFetch(checkedEndpoint(credential.refreshEndpoint, config.provider_url), { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({ refreshToken: credential.refreshToken }) }); const refreshed = await response.json().catch(() => ({}));
         if (!response.ok || !refreshed.accessToken) { await env.LURI_MUSIC_DB.prepare("UPDATE luri_music_provider_configs SET cached_status='inactive',last_synced_at=?,updated_at=? WHERE id=?").bind(now(), now(), config.id).run(); return json({ error: 'Provider 没有访问权限，请编辑配置并更新凭证', code: 'provider_access_denied' }, 401); }
