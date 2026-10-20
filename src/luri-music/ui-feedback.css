@@ -25,8 +25,9 @@
   --ui-soft: #eff6ff;
   position: fixed;
   z-index: 1500;
-  top: 20px;
-  right: 20px;
+  top: max(calc(env(safe-area-inset-top, 0px) + 64px), clamp(96px, 18dvh, 180px));
+  right: auto;
+  left: 50%;
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) 28px;
   align-items: start;
@@ -43,6 +44,7 @@
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   font: 13px var(--font-ui);
+  transform: translateX(-50%);
   animation: ui-toast-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .ui-toast--success {
@@ -232,11 +234,11 @@
 @keyframes ui-toast-in {
   from {
     opacity: 0;
-    transform: translateY(-10px) scale(0.98);
+    transform: translate(-50%, -10px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: none;
+    transform: translateX(-50%);
   }
 }
 @keyframes ui-toast-progress {
@@ -261,23 +263,7 @@
 }
 @media (max-width: 600px) {
   .ui-toast {
-    top: 12px;
-    right: 12px;
-    left: 12px;
-    width: auto;
-  }
-
-  /* Keep music feedback below whichever header stack is currently visible. */
-  .luri-music-clone:not(.is-standalone):not(.is-global-player) .ui-toast {
-    top: calc(var(--nav-height) + 56px);
-  }
-
-  .luri-music-clone.is-standalone .ui-toast {
-    top: 56px;
-  }
-
-  .luri-music-clone.is-global-player .ui-toast {
-    top: calc(var(--nav-height) + 12px);
+    width: min(390px, calc(100vw - 24px));
   }
 
   .ui-confirm {
