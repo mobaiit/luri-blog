@@ -430,11 +430,26 @@
   background: #15803d;
   color: #fff;
 }
+.lm-provider-list article button.enable:hover,
+.lm-provider-detail-actions .enable:hover {
+  border-color: #166534;
+  background: #166534;
+}
 .lm-provider-list article button.disable,
 .lm-provider-detail-actions .disable {
   border-color: #b91c1c;
   background: #b91c1c;
   color: #fff;
+}
+.lm-provider-list article button.disable:hover,
+.lm-provider-detail-actions .disable:hover {
+  border-color: #991b1b;
+  background: #991b1b;
+}
+.lm-provider-list article button:not(.enable, .disable):hover,
+.lm-provider-detail-actions button:not(.enable, .disable, .danger, .lm-provider-back):hover {
+  border-color: #bdbdbd;
+  background: #f6f6f6;
 }
 .lm-provider-list article button.enable .ui-spinner,
 .lm-provider-list article button.disable .ui-spinner,
@@ -485,14 +500,21 @@
 }
 .lm-provider-footer a {
   flex: 0 0 auto;
-  color: #555;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  background: #fff;
+  color: #333;
+  font-weight: 600;
   text-decoration: none;
 }
 .lm-provider-footer a:hover {
-  color: #111;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  border-color: #bdbdbd;
+  background: #f6f6f6;
 }
 .lm-provider-form {
   display: grid;
@@ -587,18 +609,28 @@
   border-color: #e4caca;
   color: #9b2c2c;
 }
+.lm-provider-detail-actions .danger:hover,
+.lm-provider-danger-zone > button:hover {
+  border-color: #cf9f9f !important;
+  background: #fff6f6 !important;
+}
 .lm-provider-back {
   justify-self: start;
-  padding: 5px 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-  color: #666 !important;
-  font-size: 11px !important;
+  min-height: 38px;
+  padding: 8px 12px !important;
+  border: 1px solid #d8d8d8 !important;
+  border-radius: 8px;
+  background: #fff !important;
+  color: #333 !important;
+  font: 600 11px var(--font-ui) !important;
 }
-.lm-provider-detail-actions .lm-provider-back {
+.lm-provider-detail-actions .lm-provider-back,
+.lm-provider-form-actions .lm-provider-back {
   margin-left: auto;
 }
 .lm-provider-back:hover {
+  border-color: #bdbdbd !important;
+  background: #f6f6f6 !important;
   color: #111 !important;
 }
 .lm-provider-form-header {
@@ -668,15 +700,23 @@
 }
 .lm-provider-reconfigure {
   justify-self: start;
+  min-height: 38px;
   padding: 8px 11px !important;
-  border: 1px solid #ccc !important;
+  border: 1px solid #d8d8d8 !important;
+  border-radius: 8px;
   background: #fff !important;
   color: #333 !important;
-  font-size: 11px !important;
+  font: 600 11px var(--font-ui) !important;
+  cursor: pointer;
+}
+.lm-provider-reconfigure:hover {
+  border-color: #bdbdbd !important;
+  background: #f6f6f6 !important;
 }
 .lm-provider-form-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding-top: 5px;
 }
@@ -712,14 +752,18 @@
 }
 .lm-provider-advanced-toggle {
   justify-self: start;
-  padding: 7px 10px !important;
-  border: 0 !important;
-  background: transparent !important;
-  color: #555 !important;
-  font-size: 11px !important;
-  text-decoration: underline;
-  text-decoration-color: #bbb;
-  text-underline-offset: 3px;
+  min-height: 38px;
+  padding: 8px 11px !important;
+  border: 1px solid #d8d8d8 !important;
+  border-radius: 8px;
+  background: #fff !important;
+  color: #333 !important;
+  font: 600 11px var(--font-ui) !important;
+  cursor: pointer;
+}
+.lm-provider-advanced-toggle:hover {
+  border-color: #bdbdbd !important;
+  background: #f6f6f6 !important;
 }
 .lm-account-menu > .lm-provider-info {
   margin: 0;
@@ -778,11 +822,18 @@
   font-size: 10px;
 }
 .lm-provider-danger-zone > button {
+  min-height: 36px;
   padding: 7px 10px !important;
   border: 1px solid #e2caca !important;
+  border-radius: 8px;
   background: #fff !important;
   color: #a32d2d !important;
-  font-size: 11px !important;
+  font: 600 11px var(--font-ui) !important;
+  cursor: pointer;
+}
+.lm-provider-modal :is(button, a):focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 2px;
 }
 .lm-provider-public-note {
   padding: 10px 12px;

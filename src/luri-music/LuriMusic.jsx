@@ -132,14 +132,13 @@ function ProviderDialog({ user, providers, refresh, close, notify }) {
   const deactivate = async (provider) => { setActing(provider.id); try { await api(`providers/${provider.id}/deactivate`, { method: 'POST', body: '{}' }); await refresh(); setViewing((current) => current?.id === provider.id ? { ...current, active: false } : current); notify('Provider 已禁用', provider.displayName, 'success'); } catch (error) { notify('禁用失败', error.message, 'error'); } finally { setActing(''); } };
   const remove = async (provider) => { setActing(provider.id); try { await api(`providers/${provider.id}`, { method: 'DELETE' }); await refresh(); setViewing(null); notify('Provider 已删除', '', 'success'); } catch (error) { notify('删除失败', error.message, 'error'); } finally { setActing(''); setConfirming(null); } };
   const formProvider = editing || null; const showForm = adding || Boolean(editing);
-  const cancelForm = () => { if (editing) setViewing(editing); setAdding(false); setEditing(null); setAdvanced(false); setReconfiguring(false); setFormError(''); };
+  const cancelForm = () => { setViewing(null); setAdding(false); setEditing(null); setAdvanced(false); setReconfiguring(false); setFormError(''); };
   const connectionLabels = { official: '官方源', third_party: '第三方 Provider' };
   const beginAdd = () => { setViewing(null); setEditing(null); setConnectionType('official'); setAdvanced(false); setReconfiguring(true); setFormError(''); setAdding(true); };
   const beginEdit = (provider) => { setViewing(null); setAdding(false); setEditing(provider); setConnectionType(provider.connectionType === 'official' ? 'official' : 'third_party'); setAdvanced(false); setReconfiguring(false); setFormError(''); };
   const editConnection = () => { setReconfiguring(true); setAdvanced(false); setFormError(''); };
   return <Modal className="lm-provider-modal" title="Provider 配置" close={close}>
     {showForm ? <form key={`${formProvider?.id || 'new'}:${reconfiguring}`} className="lm-provider-form" onSubmit={save}>
-      <button type="button" className="lm-provider-back" onClick={cancelForm} disabled={Boolean(acting)}><span aria-hidden="true">←</span> 返回 Provider 列表</button>
       <header className="lm-provider-form-header"><div><b>{formProvider ? '管理 Provider' : '添加 Provider'}</b><small>{formProvider && !reconfiguring ? '修改显示名称或重新配置连接' : '完成认证后保存连接'}</small></div>{formProvider && <span>{reconfiguring ? '重新配置' : '基本信息'}</span>}</header>
       {formError && <div className="lm-provider-form-error" role="alert" tabIndex="-1" ref={errorRef}><b>无法保存</b><span>{formError}</span></div>}
       {formProvider && !reconfiguring ? <>
@@ -153,8 +152,8 @@ function ProviderDialog({ user, providers, refresh, close, notify }) {
         <label>显示名称（可选）<input name="name" maxLength="60" defaultValue={formProvider?.displayName || ''} placeholder="我的 Provider" /></label>
         <p>{formProvider ? '为保护敏感信息，重新配置时需要填写完整连接。' : 'URL 参数、静态 Header 和浏览器 Cookie 只用于认证。'} 保存前会将当前账号邮箱发送给 Provider，并换取短期访问 Token。</p>
       </>}
-      <div className="lm-provider-form-actions"><button className="primary" disabled={Boolean(acting)}>{acting ? <><Spinner /> {editing && !reconfiguring ? '保存中…' : '认证中…'}</> : editing && !reconfiguring ? '保存名称' : formProvider ? '认证并更新' : '认证并添加'}</button></div>
       {formProvider && !reconfiguring && <section className="lm-provider-danger-zone"><div><b>删除 Provider</b><small>删除后需要重新配置才能再次使用。</small></div><button type="button" disabled={Boolean(acting)} onClick={() => setConfirming(formProvider)}>删除</button></section>}
+      <div className="lm-provider-form-actions"><button className="primary" disabled={Boolean(acting)}>{acting ? <><Spinner /> {editing && !reconfiguring ? '保存中…' : '认证中…'}</> : editing && !reconfiguring ? '保存名称' : formProvider ? '认证并更新' : '认证并添加'}</button><button type="button" className="lm-provider-back" onClick={cancelForm} disabled={Boolean(acting)}><span aria-hidden="true">←</span> 返回 Provider 列表</button></div>
     </form> : viewing ? <section className="lm-provider-detail">
       <ProviderInfo provider={viewing} showProviderStatus showConnection />
       <div className="lm-provider-detail-actions"><button className={viewing.active ? 'disable' : 'enable'} disabled={Boolean(acting)} onClick={() => viewing.active ? deactivate(viewing) : activate(viewing)}>{acting === viewing.id ? <><Spinner /> {viewing.active ? '禁用中…' : '启用中…'}</> : viewing.active ? '禁用' : '启用'}</button><button type="button" disabled={Boolean(acting)} onClick={() => beginEdit(viewing)}>编辑配置</button><button type="button" className="danger" disabled={Boolean(acting)} onClick={() => setConfirming(viewing)}>删除</button><button type="button" className="lm-provider-back" onClick={() => setViewing(null)} disabled={Boolean(acting)}><span aria-hidden="true">←</span> 返回 Provider 列表</button></div>
