@@ -58,7 +58,7 @@ export default function LuriMusic({ active = true, accessRequired = true, standa
   const requireAccess = () => { if (!user) { openAuth(); notify('请先登录', '登录后即可配置并使用 Provider', 'warning'); return false; } if (!activeProvider) { openAccountDialog('providers'); notify('尚未启用 Provider', '请先添加或选择一个 Provider', 'warning'); return false; } return true; };
   const dismissAnnouncementForever = () => { try { localStorage.setItem(ANNOUNCEMENT_DISMISSED, '1'); } catch { /* 浏览器可能禁用本地存储 */ } setAnnouncement(false); };
   return <main className={`luri-music-clone${standalone ? ' is-standalone' : ''}${active ? '' : ' is-global-player'}`}>
-    <header className={`lm-site-bar${accessRequired ? '' : ' public-access'}`}><strong>LURI MUSIC</strong>{docsEnabled && <a className="lm-docs-button" href="/docs" target="_blank" rel="noreferrer">使用文档</a>}<button className="lm-announcement-button" onClick={() => setAnnouncement(true)}>网站公告</button><div className="lm-account-wrap">{user ? <><button className="lm-account-trigger" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen}><span><b>{user.name}</b></span></button>{menuOpen && <><button className="lm-menu-backdrop" aria-label="关闭账户菜单" onClick={() => setMenuOpen(false)} /><section className="lm-account-menu"><header><div className="lm-account-menu__identity"><b>{user.name}</b></div><span>{user.email}</span></header><dl><dt>当前 Provider</dt><dd>{activeProvider?.displayName || '未配置'}</dd>{activeProvider && <><dt>Provider 类型</dt><dd>{activeProvider.connectionType === 'official' ? '官方源' : '第三方 Provider'}</dd></>}</dl>{activeProvider?.presentation && <ProviderPresentation value={activeProvider.presentation} />}<button onClick={() => openAccountDialog('quality')}>播放设置</button><button onClick={() => openAccountDialog('providers')}>Provider 配置</button><button onClick={() => openAccountDialog('terms')}>使用条款</button><button onClick={() => openAccountDialog('password')}>修改密码</button><button className="danger" onClick={logout}>退出登录</button></section></>}</> : <button className="lm-account-trigger lm-login-trigger" onClick={openAuth}>登录 / 注册</button>}</div></header>
+    <header className={`lm-site-bar${accessRequired ? '' : ' public-access'}`}><strong>LURI MUSIC</strong>{docsEnabled && <a className="lm-docs-button" href="/docs" target="_blank" rel="noreferrer">使用文档</a>}<button className="lm-announcement-button" onClick={() => setAnnouncement(true)}>网站公告</button><div className="lm-account-wrap">{user ? <><button className="lm-account-trigger" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen}><span><b>{user.name}</b></span></button>{menuOpen && <><button className="lm-menu-backdrop" aria-label="关闭账户菜单" onClick={() => setMenuOpen(false)} /><section className="lm-account-menu"><header><div className="lm-account-menu__identity"><b>{user.name}</b></div><span>{user.email}</span></header><ProviderInfo provider={activeProvider} /><button onClick={() => openAccountDialog('quality')}>播放设置</button><button onClick={() => openAccountDialog('providers')}>Provider 配置</button><button onClick={() => openAccountDialog('terms')}>使用条款</button><button onClick={() => openAccountDialog('password')}>修改密码</button><button className="danger" onClick={logout}>退出登录</button></section></>}</> : <button className="lm-account-trigger lm-login-trigger" onClick={openAuth}>登录 / 注册</button>}</div></header>
     <Music key={`${user?.id || 'guest'}:${activeProvider?.id || 'no-provider'}`} forceMusicPage={active} providerClient={providerClient} playbackQuality={playbackQuality} favoriteNamespace={user?.id || ''} favoriteBackup={user?.favorites || []} favoriteBackupUpdatedAt={user?.favoritesUpdatedAt || null} favoriteSyncEnabled={Boolean(user)} pageTitle="LURI MUSIC" headerNotice={null} legalLinks={false} onRequireAccess={requireAccess} />
     {active && announcement && <Announcement close={() => setAnnouncement(false)} dismissForever={dismissAnnouncementForever} />}
     {dialog === 'auth' && <AuthDialog mode={authMode} setMode={setAuthMode} turnstile={turnstile} done={async (nextUser) => { setUser(nextUser); await loadProviders().catch(() => setProviders([])); setDialog(''); notify('登录成功', `欢迎回来，${nextUser.name}`, 'success'); }} forgot={() => setDialog('forgot')} close={() => setDialog('')} notify={notify} />}
@@ -137,7 +137,6 @@ function ProviderDialog({ user, providers, refresh, close, notify }) {
   const beginAdd = () => { setViewing(null); setEditing(null); setConnectionType('official'); setAdvanced(false); setReconfiguring(true); setFormError(''); setAdding(true); };
   const beginEdit = (provider) => { setViewing(null); setAdding(false); setEditing(provider); setConnectionType(provider.connectionType === 'official' ? 'official' : 'third_party'); setAdvanced(false); setReconfiguring(false); setFormError(''); };
   const editConnection = () => { setReconfiguring(true); setAdvanced(false); setFormError(''); };
-  const providerHost = (value) => { try { return new URL(value).host; } catch { return String(value || ''); } };
   return <Modal className="lm-provider-modal" title="Provider 配置" close={close}>
     {showForm ? <form key={`${formProvider?.id || 'new'}:${reconfiguring}`} className="lm-provider-form" onSubmit={save}>
       <button type="button" className="lm-provider-back" onClick={cancelForm} disabled={Boolean(acting)}><span aria-hidden="true">←</span> 返回 Provider 列表</button>
@@ -157,16 +156,13 @@ function ProviderDialog({ user, providers, refresh, close, notify }) {
       <div className="lm-provider-form-actions"><button className="primary" disabled={Boolean(acting)}>{acting ? <><Spinner /> {editing && !reconfiguring ? '保存中…' : '认证中…'}</> : editing && !reconfiguring ? '保存名称' : formProvider ? '认证并更新' : '认证并添加'}</button></div>
       {formProvider && !reconfiguring && <section className="lm-provider-danger-zone"><div><b>删除 Provider</b><small>删除后需要重新配置才能再次使用。</small></div><button type="button" disabled={Boolean(acting)} onClick={() => setConfirming(formProvider)}>删除</button></section>}
     </form> : viewing ? <section className="lm-provider-detail">
-      <button type="button" className="lm-provider-back" onClick={() => setViewing(null)} disabled={Boolean(acting)}><span aria-hidden="true">←</span> 返回 Provider 列表</button>
-      <header className="lm-provider-detail-header"><div><b>{viewing.displayName}</b><small>{providerHost(viewing.providerUrl)}</small></div><span className={viewing.active ? 'active' : 'inactive'}>{viewing.active ? '启用' : '禁用'}</span></header>
-      <dl className="lm-provider-detail-grid"><div><dt>Provider 类型</dt><dd>{connectionLabels[viewing.connectionType] || '第三方 Provider'}</dd></div><div><dt>连接地址</dt><dd title={viewing.providerUrl}>{viewing.providerUrl}</dd></div></dl>
-      {viewing.presentation && <div className="lm-provider-detail-section"><span>Provider 信息</span><ProviderPresentation value={viewing.presentation} /></div>}
-      <div className="lm-provider-detail-actions"><button className={viewing.active ? 'disable' : 'enable'} disabled={Boolean(acting)} onClick={() => viewing.active ? deactivate(viewing) : activate(viewing)}>{acting === viewing.id ? <><Spinner /> {viewing.active ? '禁用中…' : '启用中…'}</> : viewing.active ? '禁用' : '启用'}</button><button type="button" disabled={Boolean(acting)} onClick={() => beginEdit(viewing)}>编辑配置</button><button type="button" className="danger" disabled={Boolean(acting)} onClick={() => setConfirming(viewing)}>删除</button></div>
+      <ProviderInfo provider={viewing} showProviderStatus showConnection />
+      <div className="lm-provider-detail-actions"><button className={viewing.active ? 'disable' : 'enable'} disabled={Boolean(acting)} onClick={() => viewing.active ? deactivate(viewing) : activate(viewing)}>{acting === viewing.id ? <><Spinner /> {viewing.active ? '禁用中…' : '启用中…'}</> : viewing.active ? '禁用' : '启用'}</button><button type="button" disabled={Boolean(acting)} onClick={() => beginEdit(viewing)}>编辑配置</button><button type="button" className="danger" disabled={Boolean(acting)} onClick={() => setConfirming(viewing)}>删除</button><button type="button" className="lm-provider-back" onClick={() => setViewing(null)} disabled={Boolean(acting)}><span aria-hidden="true">←</span> 返回 Provider 列表</button></div>
     </section> : <section className="lm-provider-index">
       <div className="lm-provider-toolbar"><div><b>已保存的 Provider</b><p>同一时间启用一个 Provider。</p></div><button className="primary" type="button" onClick={beginAdd}>添加 Provider</button></div>
       <div className="lm-provider-table-head" aria-hidden="true"><span>Provider</span><span>类型</span><span>状态</span><span>操作</span></div>
       <div className="lm-provider-list">{providers.map((provider) => <article className={provider.active ? 'active' : ''} key={provider.id}>
-        <div className="lm-provider-summary"><b>{provider.displayName}</b><small title={provider.providerUrl}>{providerHost(provider.providerUrl)}</small></div>
+        <div className="lm-provider-summary"><b>{provider.displayName}</b></div>
         <span className="lm-provider-type">{connectionLabels[provider.connectionType] || '第三方 Provider'}</span>
         <span className={`lm-provider-status ${provider.active ? 'active' : 'inactive'}`}>{provider.active ? '启用' : '禁用'}</span>
         <div className="lm-provider-actions"><button className={provider.active ? 'disable' : 'enable'} disabled={Boolean(acting)} onClick={() => provider.active ? deactivate(provider) : activate(provider)}>{acting === provider.id ? <Spinner /> : provider.active ? '禁用' : '启用'}</button><button disabled={Boolean(acting)} onClick={() => setViewing(provider)}>详情</button></div>
@@ -177,12 +173,20 @@ function ProviderDialog({ user, providers, refresh, close, notify }) {
   </Modal>;
 }
 
-function ProviderPresentation({ value }) {
-  return <section className="lm-provider-presentation">
-    <header>{value.title && <b>{value.title}</b>}{value.badge?.text && <em className={`tone-${value.badge.tone || 'neutral'}`}>{value.badge.text}</em>}</header>
-    {value.description && <p>{value.description}</p>}
-    {value.items?.length > 0 && <dl>{value.items.map((item, index) => <div key={`${item.label}:${index}`}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
-    {value.notice && value.notice !== '信息由 Provider 提供' && <small>{value.notice}</small>}
+function ProviderInfo({ provider, showProviderStatus = false, showConnection = false }) {
+  const presentation = provider?.presentation;
+  const presentationTitle = presentation?.title || (presentation?.badge?.text ? '服务状态' : '');
+  return <section className="lm-provider-info">
+    <dl>
+      <div><dt>Provider 名称</dt><dd>{provider?.displayName || '未配置'}</dd></div>
+      {provider && showProviderStatus && <div><dt>Provider 状态</dt><dd><em className={provider.active ? 'tone-positive' : 'tone-negative'}>{provider.active ? '启用' : '禁用'}</em></dd></div>}
+      {provider && <div><dt>Provider 类型</dt><dd>{provider.connectionType === 'official' ? '官方源' : '第三方 Provider'}</dd></div>}
+      {provider && showConnection && <div><dt>连接地址</dt><dd title={provider.providerUrl}>{provider.providerUrl}</dd></div>}
+      {presentationTitle && <div><dt>{presentationTitle}</dt><dd>{presentation.badge?.text ? <em className={`tone-${presentation.badge.tone || 'neutral'}`}>{presentation.badge.text}</em> : presentation.title}</dd></div>}
+      {presentation?.items?.map((item, index) => <div key={`${item.label}:${index}`}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
+    </dl>
+    {presentation?.description && <p>{presentation.description}</p>}
+    {presentation?.notice && presentation.notice !== '信息由 Provider 提供' && <small>{presentation.notice}</small>}
   </section>;
 }
 
