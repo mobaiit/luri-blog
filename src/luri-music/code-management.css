@@ -855,6 +855,10 @@
 .luri-music-clone .lm-provider-types button {
   color: var(--lm-text-secondary);
 }
+.luri-music-clone .lm-provider-types button.active {
+  background: #111;
+  color: #fff;
+}
 .luri-music-clone .lm-provider-types small {
   color: var(--lm-text-muted);
   font-size: 10px;

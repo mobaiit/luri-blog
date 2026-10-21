@@ -181,7 +181,7 @@ function ProviderPresentation({ value }) {
     <header>{value.title && <b>{value.title}</b>}{value.badge?.text && <em className={`tone-${value.badge.tone || 'neutral'}`}>{value.badge.text}</em>}</header>
     {value.description && <p>{value.description}</p>}
     {value.items?.length > 0 && <dl>{value.items.map((item, index) => <div key={`${item.label}:${index}`}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>}
-    {value.notice && <small>{value.notice}</small>}
+    {value.notice && value.notice !== '信息由 Provider 提供' && <small>{value.notice}</small>}
   </section>;
 }
 
