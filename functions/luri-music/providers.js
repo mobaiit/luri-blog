@@ -252,7 +252,7 @@ export async function handleProviderRequest(request, env, action, user) {
     } catch (error) { return json({ error: error.message || 'Provider 配置失败' }, error.status || 400); }
   }
 
-  const configMatch = action.match(/^providers\/([^/]+)(?:\/(activate|token))?$/);
+  const configMatch = action.match(/^providers\/([^/]+)(?:\/(activate|deactivate|token))?$/);
   if (!configMatch) return json({ error: 'Not found' }, 404);
   const config = await env.LURI_MUSIC_DB.prepare('SELECT * FROM luri_music_provider_configs WHERE id=? AND user_id=?').bind(configMatch[1], user.id).first();
   if (!config) return json({ error: 'Provider 配置不存在' }, 404);
@@ -294,6 +294,10 @@ export async function handleProviderRequest(request, env, action, user) {
   if (configMatch[2] === 'activate' && request.method === 'POST') {
     await env.LURI_MUSIC_DB.prepare("INSERT INTO luri_music_preferences(user_id,active_provider_config_id,playback_quality,provider_revision,updated_at) VALUES(?,?,'128k',1,?) ON CONFLICT(user_id) DO UPDATE SET active_provider_config_id=excluded.active_provider_config_id,provider_revision=provider_revision+1,updated_at=excluded.updated_at").bind(user.id, config.id, now()).run();
     return json({ ok: true, activeProviderId: config.id });
+  }
+  if (configMatch[2] === 'deactivate' && request.method === 'POST') {
+    await env.LURI_MUSIC_DB.prepare('UPDATE luri_music_preferences SET active_provider_config_id=NULL,provider_revision=provider_revision+1,updated_at=? WHERE user_id=? AND active_provider_config_id=?').bind(now(), user.id, config.id).run();
+    return json({ ok: true, activeProviderId: null });
   }
   if (configMatch[2] === 'token' && request.method === 'POST') {
     try {
