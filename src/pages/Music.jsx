@@ -193,6 +193,8 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   const [toast, setToast] = useState(null);
   const activeTracks = activeQueue === 'favorites' ? likedTracks : tracks;
   const current = playbackQueue.find((track) => track.songId === currentId) || activeTracks.find((track) => track.songId === currentId);
+  const resolveTrackRef = useRef(current); resolveTrackRef.current = current;
+  const resolveSongId = current?.songId; const resolveUrl = current?.url;
   const lyricsTrackRef = useRef(current); lyricsTrackRef.current = current;
   const singerQuery = singerSearchKey(query);
   const singerSuggestions = singerQuery ? SINGERS.filter((singer) => singerSearchKey(singer).startsWith(singerQuery)) : [];
@@ -245,33 +247,34 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
   useEffect(() => { try { localStorage.setItem(STORE_RECENT_SEARCHES, JSON.stringify(recentSearches)); } catch { /* Storage is unavailable in private browsing. */ } }, [recentSearches]);
   useEffect(() => { try { localStorage.setItem(STORE_PLAYBACK_MODE, playbackMode); } catch { /* Storage is unavailable in private browsing. */ } }, [playbackMode]);
   useEffect(() => {
-    if (!current || current.url) return undefined;
-    setPlaybackTrackId(current.songId); setPlaybackState('resolving');
+    const resolvingTrack = resolveTrackRef.current;
+    if (!resolvingTrack || resolvingTrack.url) return undefined;
+    setPlaybackTrackId(resolvingTrack.songId); setPlaybackState('resolving');
     const controller = new AbortController();
     resolveRequestRef.current = controller;
-    const recovery = playbackRefreshModesRef.current.get(current.songId);
+    const recovery = playbackRefreshModesRef.current.get(resolvingTrack.songId);
     const refresh = recovery?.mode || false;
     const requestedQuality = recovery?.quality || playbackQuality;
-    musicRequest('resolve', { songId: current.songId, title: current.title, artist: current.artist, album: current.album, quality: requestedQuality, binding: current.binding, refresh }, controller.signal).then(providerPayload).then((payload) => {
+    musicRequest('resolve', { songId: resolvingTrack.songId, title: resolvingTrack.title, artist: resolvingTrack.artist, album: resolvingTrack.album, quality: requestedQuality, binding: resolvingTrack.binding, refresh }, controller.signal).then(providerPayload).then((payload) => {
       if (!payload.url || Date.parse(payload.expiresAt || '') <= Date.now() + 5000) { const failure = new Error('播放地址不可用'); failure.code = 'url_expired'; throw failure; }
       if (!controller.signal.aborted) {
         if (!refresh && recovery?.failedUrl && payload.url === recovery.failedUrl) {
-          playbackRefreshModesRef.current.set(current.songId, { mode: recovery.refreshMode || 'url', quality: requestedQuality, attempts: Number(recovery.attempts || 0) + 1 });
+          playbackRefreshModesRef.current.set(resolvingTrack.songId, { mode: recovery.refreshMode || 'url', quality: requestedQuality, attempts: Number(recovery.attempts || 0) + 1 });
           setPlaybackAttempt((attempt) => attempt + 1);
           return;
         }
         const attemptedSources = Array.isArray(payload.attemptedSources) ? payload.attemptedSources : [];
-        const resolved = { ...current, url: payload.url, binding: canonicalBinding(payload.binding) || current.binding, expiresAt: resolvedExpiry(payload), requestedQuality: playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
-        rememberSong(resolved);
-        const update = (track) => track.songId === current.songId ? { ...track, ...resolved } : track;
+        const resolved = { url: payload.url, binding: canonicalBinding(payload.binding) || resolvingTrack.binding, expiresAt: resolvedExpiry(payload), requestedQuality: playbackQuality, quality: payload.quality || '', bitrate: payload.bitrate || null, degraded: Boolean(payload.degraded), qualityVerified: Boolean(payload.qualityVerified), attemptedSources };
+        rememberSong({ ...resolvingTrack, ...resolved });
+        const update = (track) => track.songId === resolvingTrack.songId ? { ...track, ...resolved } : track;
         setTracks((items) => items.map(update));
-        setLikedTracks((items) => items.map((track) => sameFavorite(track, current) ? { ...track, binding: resolved.binding } : track));
+        setLikedTracks((items) => items.map((track) => sameFavorite(track, resolvingTrack) ? { ...track, binding: resolved.binding } : track));
         setPlaybackQueue((items) => items.map(update));
       }
     }).catch((error) => {
       if (controller.signal.aborted) return;
       if (error?.code === 'provider_access_denied' || error?.status === 401 || error?.status === 403) {
-        setPlaying(false); setPlaybackTrackId(current.songId); setPlaybackState('error'); clearMediaDeadline();
+        setPlaying(false); setPlaybackTrackId(resolvingTrack.songId); setPlaybackState('error'); clearMediaDeadline();
         if (!restoreRandomSwitch('Provider 认证失败，已恢复上一首')) { playMode.current = 'manual'; showToast('Provider 认证失败，请重新配置认证信息', 'warning'); }
         return;
       }
@@ -281,7 +284,7 @@ export default function Music({ forceMusicPage = false, providerClient = null, p
       } else handlePlaybackFailure();
     }).finally(() => { if (resolveRequestRef.current === controller) resolveRequestRef.current = null; });
     return () => { controller.abort(); if (resolveRequestRef.current === controller) resolveRequestRef.current = null; };
-  }, [activeQueue, current, playbackAttempt, playbackQuality]);
+  }, [resolveSongId, resolveUrl, playbackAttempt, playbackQuality]);
   useEffect(() => {
     if ('mediaSession' in navigator && current) {
       navigator.mediaSession.metadata = new MediaMetadata({
