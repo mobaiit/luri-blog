@@ -721,7 +721,10 @@
   padding-top: 5px;
 }
 .lm-provider-form-actions .primary {
+  min-height: 38px;
   margin: 0;
+  padding: 9px 12px;
+  font: 600 11px/1.2 var(--font-ui);
 }
 .lm-provider-types {
   display: inline-grid;
@@ -1285,6 +1288,11 @@
   .lm-provider-form-header { align-items: flex-start; }
   .lm-provider-types {
     justify-self: stretch;
+  }
+  .lm-provider-form input,
+  .lm-provider-form select,
+  .lm-provider-form textarea {
+    font-size: 16px;
   }
   .lm-quality-options {
     grid-template-columns: 1fr;
