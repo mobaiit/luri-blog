@@ -147,9 +147,9 @@ function ProviderDialog({ user, providers, refresh, close, notify }) {
         <div className="lm-provider-current"><span>当前连接</span><b>{formProvider.providerUrl}</b><small>认证参数与 Header 已隐藏，保存名称不会修改现有连接。</small></div>
         <button type="button" className="lm-provider-reconfigure" onClick={editConnection}>重新配置连接</button>
       </> : <>
-        <fieldset className="lm-provider-types"><legend>Provider 类型</legend>{[['official', '官方源'], ['third_party', '第三方 Provider']].map(([value, title]) => <button type="button" className={connectionType === value ? 'active' : ''} onClick={() => { setConnectionType(value); if (value === 'official') setAdvanced(false); }} key={value}>{title}</button>)}</fieldset>
+        <fieldset className="lm-provider-types"><legend>Provider 类型</legend>{[['official', '官方源'], ['third_party', '第三方 Provider']].map(([value, title]) => <button type="button" className={connectionType === value ? 'active' : ''} onClick={() => setConnectionType(value)} key={value}>{title}</button>)}</fieldset>
         {advanced ? <label>高级 JSON 配置<textarea name="advanced" rows="8" required autoFocus spellCheck="false" placeholder={'{\n  "url": "https://provider.example?key=xxx",\n  "headers": {\n    "Authorization": "Bearer xxx"\n  },\n  "credentials": "include"\n}'} /></label> : <label>Provider 地址<input name="url" type="url" placeholder="https://provider.example.com?key=xxx" required autoFocus /></label>}
-        {connectionType === 'third_party' && <button type="button" className="lm-provider-advanced-toggle" aria-expanded={advanced} onClick={() => { setAdvanced((value) => !value); setFormError(''); }}>{advanced ? '收起高级配置，改用普通 URL' : '高级配置：Header、Cookie 与 JSON'}</button>}
+        <button type="button" className="lm-provider-advanced-toggle" aria-expanded={advanced} onClick={() => { setAdvanced((value) => !value); setFormError(''); }}>{advanced ? '收起高级配置，改用普通 URL' : '高级配置：Header、Cookie 与 JSON'}</button>
         <label>显示名称（可选）<input name="name" maxLength="60" defaultValue={formProvider?.displayName || ''} placeholder="我的 Provider" /></label>
         <p>{formProvider ? '为保护敏感信息，重新配置时需要填写完整连接。' : 'URL 参数、静态 Header 和浏览器 Cookie 只用于认证。'} 保存前会将当前账号邮箱发送给 Provider，并换取短期访问 Token。</p>
       </>}
